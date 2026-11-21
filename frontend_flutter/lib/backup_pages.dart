@@ -447,6 +447,28 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
     }
   }
 
+  Future<void> _download(String fileName) async {
+    setState(() => _busy = 'download');
+    try {
+      final result = await WailsBridge.call('BackupOpenListDownload', [
+        _payload,
+        fileName,
+      ]);
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text((result as Map?)?['message']?.toString() ?? '下载完成'),
+          ),
+        );
+    } catch (error) {
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) setState(() => _busy = '');
+    }
+  }
+
   @override
   Widget build(BuildContext context) => _loading
       ? const Center(child: CircularProgressIndicator())
@@ -624,11 +646,22 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
                 child: PrismListTile(
                   title: Text((file['name'] ?? '').toString()),
                   subtitle: Text((file['modifiedAt'] ?? '').toString()),
-                  trailing: TextButton(
-                    onPressed: _busy.isEmpty
-                        ? () => _restore((file['name'] ?? '').toString())
-                        : null,
-                    child: const Text('恢复'),
+                  trailing: Wrap(
+                    children: [
+                      IconButton(
+                        tooltip: '下载到本地',
+                        onPressed: _busy.isEmpty
+                            ? () => _download((file['name'] ?? '').toString())
+                            : null,
+                        icon: const Icon(Icons.download_outlined),
+                      ),
+                      TextButton(
+                        onPressed: _busy.isEmpty
+                            ? () => _restore((file['name'] ?? '').toString())
+                            : null,
+                        child: const Text('恢复'),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -801,6 +834,28 @@ class _S3ConfigPageState extends State<S3ConfigPage> {
     }
   }
 
+  Future<void> _downloadS3(String name) async {
+    setState(() => _busy = 'download');
+    try {
+      final result = await WailsBridge.call('BackupS3Download', [
+        _payload,
+        name,
+      ]);
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text((result as Map?)?['message']?.toString() ?? '下载完成'),
+          ),
+        );
+    } catch (error) {
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) setState(() => _busy = '');
+    }
+  }
+
   @override
   Widget build(BuildContext context) => _loading
       ? const Center(child: CircularProgressIndicator())
@@ -902,11 +957,22 @@ class _S3ConfigPageState extends State<S3ConfigPage> {
                 child: PrismListTile(
                   title: Text((file['name'] ?? '').toString()),
                   subtitle: Text((file['modifiedAt'] ?? '').toString()),
-                  trailing: TextButton(
-                    onPressed: _busy.isEmpty
-                        ? () => _restoreS3((file['name'] ?? '').toString())
-                        : null,
-                    child: const Text('恢复'),
+                  trailing: Wrap(
+                    children: [
+                      IconButton(
+                        tooltip: '下载到本地',
+                        onPressed: _busy.isEmpty
+                            ? () => _downloadS3((file['name'] ?? '').toString())
+                            : null,
+                        icon: const Icon(Icons.download_outlined),
+                      ),
+                      TextButton(
+                        onPressed: _busy.isEmpty
+                            ? () => _restoreS3((file['name'] ?? '').toString())
+                            : null,
+                        child: const Text('恢复'),
+                      ),
+                    ],
                   ),
                 ),
               ),
