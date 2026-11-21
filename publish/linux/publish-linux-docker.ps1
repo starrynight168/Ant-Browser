@@ -338,17 +338,14 @@ try {
         Write-Host ""
     }
 
-    $npmCacheVolume = "ant-browser-linux-npm-cache"
-    $nodeModulesVolume = "ant-browser-linux-node-modules-$linuxArch"
+    $flutterPubCacheVolume = "ant-browser-linux-flutter-pub-cache"
     $goModCacheVolume = "ant-browser-linux-go-mod-cache"
     $goBuildCacheVolume = "ant-browser-linux-go-build-cache"
     $runtimeCpuLimit = Get-EnvOrDefault -Name "ANT_BROWSER_LINUX_DOCKER_CPUS" -DefaultValue "2"
     $runtimeMemoryLimit = Get-EnvOrDefault -Name "ANT_BROWSER_LINUX_DOCKER_MEMORY" -DefaultValue "1408m"
     $runtimeMemorySwapLimit = Get-EnvOrDefault -Name "ANT_BROWSER_LINUX_DOCKER_MEMORY_SWAP" -DefaultValue "1792m"
     $runtimeShmSize = Get-EnvOrDefault -Name "ANT_BROWSER_LINUX_DOCKER_SHM_SIZE" -DefaultValue "256m"
-    $nodeMaxOldSpace = Get-EnvOrDefault -Name "ANT_BROWSER_LINUX_NODE_MAX_OLD_SPACE" -DefaultValue "384"
     $goMaxProcs = Get-EnvOrDefault -Name "ANT_BROWSER_LINUX_GOMAXPROCS" -DefaultValue "2"
-    $npmJobs = Get-EnvOrDefault -Name "ANT_BROWSER_LINUX_NPM_JOBS" -DefaultValue "1"
     $versionArgText = ""
     if ($Version -and $Version.Trim() -ne "") {
         $versionArgText = " --version $Version"
@@ -358,9 +355,9 @@ try {
     Write-Host "[Linux] 通过 Docker Desktop 执行发布脚本..."
     Write-Host "  镜像: $builderImage"
     Write-Host "  挂载: $repoDocker > /workspace"
-    Write-Host "  缓存卷: $npmCacheVolume, $nodeModulesVolume, $goModCacheVolume, $goBuildCacheVolume"
+    Write-Host "  缓存卷: $flutterPubCacheVolume, $goModCacheVolume, $goBuildCacheVolume"
     Write-Host "  资源限制: CPUs=$runtimeCpuLimit, Memory=$runtimeMemoryLimit, Swap=$runtimeMemorySwapLimit, /dev/shm=$runtimeShmSize"
-    Write-Host "  进程限制: NODE_OPTIONS=--max-old-space-size=$nodeMaxOldSpace, GOMAXPROCS=$goMaxProcs, npm_config_jobs=$npmJobs"
+    Write-Host "  进程限制: GOMAXPROCS=$goMaxProcs"
     Write-Host "  命令: 先清理 .sh 换行符，再执行 bash publish/linux/publish-linux.sh --arch $linuxArch$versionArgText"
     Write-Host ""
     Invoke-Docker -Args @(
@@ -371,12 +368,9 @@ try {
         "--memory-swap", $runtimeMemorySwapLimit,
         "--shm-size", $runtimeShmSize,
         "-e", "CI=1",
-        "-e", "NODE_OPTIONS=--max-old-space-size=$nodeMaxOldSpace",
         "-e", "GOMAXPROCS=$goMaxProcs",
-        "-e", "npm_config_jobs=$npmJobs",
         "-v", "${repoDocker}:/workspace",
-        "-v", "${npmCacheVolume}:/root/.npm",
-        "-v", "${nodeModulesVolume}:/workspace/frontend/node_modules",
+        "-v", "${flutterPubCacheVolume}:/root/.pub-cache",
         "-v", "${goModCacheVolume}:/go/pkg/mod",
         "-v", "${goBuildCacheVolume}:/root/.cache/go-build",
         "-w", "/workspace",

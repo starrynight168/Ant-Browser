@@ -61,7 +61,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('--png', default='build/appicon.png')
     parser.add_argument('--ico', default='build/windows/icon.ico')
-    parser.add_argument('--favicon', default='frontend/public/favicon.png')
+    parser.add_argument('--favicon', default='frontend_flutter/web/favicon.png')
     parser.add_argument('--preview-dir', default='')
     args = parser.parse_args()
 

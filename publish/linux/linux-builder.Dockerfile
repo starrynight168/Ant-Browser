@@ -20,20 +20,16 @@ RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.l
     tar \
   && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /etc/apt/keyrings \
-  && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
-    | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
-  && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" \
-    > /etc/apt/sources.list.d/nodesource.list \
-  && apt-get update -o Acquire::Retries=8 -o Acquire::https::Timeout=60 \
-  && apt-get install -y --fix-missing --no-install-recommends \
-    -o Acquire::Retries=8 -o Acquire::https::Timeout=60 nodejs \
-  && rm -rf /var/lib/apt/lists/*
+ARG FLUTTER_VERSION=3.50.0
+RUN git clone --depth 1 --branch "$FLUTTER_VERSION" https://github.com/flutter/flutter.git /opt/flutter \
+  && git config --global --add safe.directory /opt/flutter \
+  && /opt/flutter/bin/flutter config --no-analytics --enable-web \
+  && /opt/flutter/bin/flutter precache --web
 
 ENV GOPROXY="https://goproxy.cn,direct" \
     GOSUMDB="sum.golang.google.cn" \
-    PATH="/root/go/bin:${PATH}"
+    PATH="/root/go/bin:/opt/flutter/bin:${PATH}"
 
-RUN go install github.com/wailsapp/wails/v2/cmd/wails@v2.11.0 \
+RUN go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0 \
   && ln -sf /root/go/bin/wails /usr/local/bin/wails
 WORKDIR /workspace

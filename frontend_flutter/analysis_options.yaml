@@ -1,0 +1,5 @@
+analyzer:
+  exclude:
+    - packages/prism_ui/test/**
+    - build/**
+    - web/**

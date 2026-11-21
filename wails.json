@@ -2,8 +2,10 @@
   "$schema": "https://wails.io/schemas/config.v2.json",
   "name": "Ant Browser",
   "outputfilename": "ant-chrome",
-  "frontend:install": "npm install",
-  "frontend:build": "npm run build:clean",
+  "frontend:dir": "frontend_flutter",
+  "frontend:install": "flutter pub get",
+  "frontend:build": "flutter build web --release --base-href / --output build/web",
+  "frontend:dev:build": "flutter build web --debug --base-href / --output build/web",
   "author": {
     "name": "Ant Chrome Team",
     "email": "contact@antblack.de"
@@ -17,5 +19,5 @@
   },
   "nsisType": "multiple",
   "obfuscated": false,
-  "wailsjsdir": "./frontend/src"
+  "wailsjsdir": "./frontend_flutter/web/wailsjs"
 }

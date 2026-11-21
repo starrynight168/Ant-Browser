@@ -178,13 +178,7 @@ if [[ ! -f "$WAILS_CONFIG" ]]; then
 fi
 
 if [[ "$SKIP_BUILD" -ne 1 ]]; then
-  echo "[1/5] Installing frontend dependencies..."
-  (cd "$ROOT_DIR/frontend" && BROWSERSLIST_IGNORE_OLD_DATA=1 npm ci --prefer-offline --no-audit --no-fund)
-
-  echo "[2/5] Building frontend assets..."
-  (cd "$ROOT_DIR/frontend" && BROWSERSLIST_IGNORE_OLD_DATA=1 npm run build:clean)
-
-  echo "[3/5] Building app binary with Wails..."
+  echo "[1/3] Building Flutter UI and app binary with Wails..."
   rm -f "$APP_BIN"
   WAILS_BUILD_TAGS=()
   if pkg-config --exists webkit2gtk-4.0; then
@@ -198,7 +192,11 @@ if [[ "$SKIP_BUILD" -ne 1 ]]; then
   fi
   (
     cd "$ROOT_DIR"
-    wails build -s -platform "linux/$ARCH" "${WAILS_BUILD_TAGS[@]}" -o ant-chrome
+    if [[ "${ANT_BROWSER_FRONTEND_PREBUILT:-0}" == "1" ]]; then
+      wails build -s -skipbindings -platform "linux/$ARCH" "${WAILS_BUILD_TAGS[@]}" -o ant-chrome
+    else
+      wails build -platform "linux/$ARCH" "${WAILS_BUILD_TAGS[@]}" -o ant-chrome
+    fi
   )
 else
   echo "[WARN] skipping build step"

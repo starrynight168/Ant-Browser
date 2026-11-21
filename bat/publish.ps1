@@ -298,23 +298,35 @@ function Build-WindowsBinary {
     )
 
     $previousGoProxy = $env:GOPROXY
+    $previousPath = $env:PATH
     try {
         $env:GOPROXY = "https://goproxy.cn,direct"
-        Push-Location (Join-Path $repoRoot "frontend")
-        try {
-            Write-Host "[Windows] 预检前端依赖..."
-            Invoke-NativeCommand -FilePath "npm" -Arguments @("ci", "--prefer-offline", "--no-audit", "--no-fund")
-            Invoke-NativeCommand -FilePath "npm" -Arguments @("run", "ensure:native")
-            Write-Host "✓ 前端依赖已就绪"
-            Write-Host ""
+        $flutterRoots = @(
+            (Join-Path $repoRoot ".tools\flutter"),
+            (Join-Path $repoRoot "..\.toolchains\flutter\flutter")
+        )
+        $flutterBin = $flutterRoots |
+            ForEach-Object { Join-Path $_ "bin" } |
+            Where-Object { Test-Path -LiteralPath (Join-Path $_ "flutter.bat") } |
+            Select-Object -First 1
+        if ($flutterBin) {
+            $env:PATH = "$flutterBin;$env:PATH"
+        } elseif (-not (Get-Command flutter -ErrorAction SilentlyContinue)) {
+            throw "未找到 Flutter SDK。请放在 .tools\flutter 或系统 PATH 中。"
         }
-        finally {
-            Pop-Location
+        $goBin = Join-Path $repoRoot ".tools\go\bin"
+        if (Test-Path -LiteralPath $goBin -PathType Container) {
+            $env:PATH = "$goBin;$env:PATH"
         }
-        Invoke-NativeCommand -FilePath "wails" -Arguments @("build", "-tags", "native_webview2loader")
+        $wailsPath = Join-Path $repoRoot ".tools\wails.exe"
+        if (-not (Test-Path -LiteralPath $wailsPath -PathType Leaf)) {
+            $wailsPath = (Get-Command wails -ErrorAction Stop).Source
+        }
+        Invoke-NativeCommand -FilePath $wailsPath -Arguments @("build", "-tags", "native_webview2loader")
     }
     finally {
         $env:GOPROXY = $previousGoProxy
+        $env:PATH = $previousPath
     }
 
     if (-not (Test-Path -LiteralPath $binaryPath -PathType Leaf)) {

@@ -24,7 +24,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-//go:embed all:frontend/dist
+//go:embed all:frontend_flutter/build/web
 var assets embed.FS
 
 //go:embed wails.json

@@ -13,73 +13,29 @@
 
 ### `dev.bat`
 
-统一入口，按参数切换开发模式，避免多个 bat 文件误导使用者。
+启动 Flutter 界面和 Wails 桌面壳。
 
 ```bat
 bat\dev.bat
-bat\dev.bat live
-bat\dev.bat limited
 ```
 
-模式说明：
-
-- `bat\dev.bat`：默认稳定模式。先生成 Wails bindings，再构建 `frontend/dist`，最后以静态资源模式启动 Wails
-- `bat\dev.bat live`：显式启动 `frontend/scripts/dev-watcher.mjs`，并通过 `-frontenddevserverurl` 接入 Vite dev server
-- `bat\dev.bat limited`：在 `live` 基础上通过 `scripts/run-limited-frontend-dev.ps1` 给 watcher 及其子进程附加 Windows Job Object 内存限制
+也可以从仓库根目录执行 `start-dev.ps1`。
 
 Linux 或其他 POSIX shell 环境使用 `scripts/dev.sh`：
 
 ```bash
 ./scripts/dev.sh
-./scripts/dev.sh live
-./scripts/dev.sh help
 ```
 
-该入口默认使用 `stable` 模式；Windows 开发请继续使用 `bat\dev.bat`。
-
-默认行为：
-
-- 稳定模式不依赖外部 Vite dev server，因此不会因为 watcher 或 `5218` 端口异常直接白屏
-- `live` 模式默认优先使用 `5218`，若端口被其他程序占用，会自动切换到下一个可用端口
-- watcher 默认 `FRONTEND_NODE_RSS_HARD_LIMIT_MB=0`，即只告警，不默认 RSS 强杀
-- `limited` 模式默认 `FRONTEND_PROCESS_MEMORY_LIMIT_MB=512`
-
-常用内存控制变量：
-
-```text
-FRONTEND_PROCESS_MEMORY_LIMIT_MB
-FRONTEND_NODE_MAX_OLD_SPACE_SIZE_MB
-FRONTEND_NODE_MAX_SEMI_SPACE_SIZE_MB
-FRONTEND_NODE_RSS_WARN_MB
-FRONTEND_NODE_RSS_HARD_LIMIT_MB
-FRONTEND_NODE_RSS_HARD_LIMIT_HITS
-FRONTEND_NODE_RSS_AUTO_RESTART
-FRONTEND_NODE_RSS_RESTART_DELAY_MS
-FRONTEND_NODE_RSS_RESTART_MAX_COUNT
-FRONTEND_NODE_RSS_RESTART_WINDOW_MS
-FRONTEND_NODE_MEMORY_POLL_MS
-FRONTEND_DISABLE_HMR
-```
+该入口需要 Flutter、Go 和 Wails CLI。
 
 开发代理相关变量：
 
 ```text
-DEV_PROXY_URL   -> 为 npm / Node / Go 下载流量注入 HTTP(S) 代理
+DEV_PROXY_URL   -> 为 Flutter / Go 下载流量注入 HTTP(S) 代理
 DEV_NO_PROXY    -> 设置 NO_PROXY / no_proxy
 DEV_GOPROXY     -> 覆盖 GOPROXY；未设置时默认使用 https://goproxy.cn,direct
 ```
-
-日志：
-
-- `live` / `limited` 模式的 watcher 日志会写入仓库根目录：
-- `tmp-npm-dev.log`
-- `tmp-npm-dev.err.log`
-
-FAQ：
-
-- 为什么默认模式没有 HMR：因为默认入口优先保证桌面壳可用性，不依赖外部 Vite
-- 什么情况下用 `bat\dev.bat live`：页面样式、交互、接口联调需要快速热更新时
-- 什么情况下用 `bat\dev.bat limited`：低内存机器、复现 Vite 内存膨胀、或需要显式进程级内存约束时
 
 ### `build.bat`
 

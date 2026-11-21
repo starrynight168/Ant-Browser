@@ -19,7 +19,7 @@ Run on a native macOS host with the same architecture as the target. Required to
 - `python3`
 - `ditto`
 - `wails`
-- `go`, `node`, and `npm`
+- `go` and Flutter 3.50.0+
 
 Build an Apple Silicon package:
 

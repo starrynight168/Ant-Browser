@@ -198,16 +198,10 @@ else
 fi
 
 if [[ "$SKIP_BUILD" -ne 1 ]]; then
-  echo "[1/4] Installing frontend dependencies..."
-  (cd "$ROOT_DIR/frontend" && npm ci --prefer-offline --no-audit --no-fund)
-
-  echo "[2/4] Building frontend assets..."
-  (cd "$ROOT_DIR/frontend" && npm run build:clean)
-
-  echo "[3/4] Building macOS app bundle with Wails..."
+  echo "[1/2] Building Flutter UI and macOS app with Wails..."
   (
     cd "$ROOT_DIR"
-    wails build -s -platform "darwin/$ARCH" -o ant-chrome
+    wails build -platform "darwin/$ARCH" -o ant-chrome
   )
 else
   echo "[WARN] skipping build step"
