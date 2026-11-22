@@ -12,7 +12,6 @@ import (
 
 	"ant-chrome/backend/internal/logger"
 	"github.com/google/uuid"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // DownloadAndExtractCore 执行异步下载解压并在过程中发送事件
@@ -36,7 +35,7 @@ func (m *Manager) DownloadAndExtractCore(ctx context.Context, coreName string, t
 func (m *Manager) RedownloadCore(ctx context.Context, coreId string, targetUrl string, proxyConfig string) {
 	core, ok := m.GetCore(coreId)
 	if !ok {
-		m.emitRuntimeEvent(ctx, "download:progress", DownloadProgress{Phase: "error", Progress: 0, Message: "内核不存在"})
+		m.emitRuntimeEvent("download:progress", DownloadProgress{Phase: "error", Progress: 0, Message: "内核不存在"})
 		return
 	}
 	m.downloadAndExtractCore(ctx, CoreInput{
@@ -52,7 +51,7 @@ func (m *Manager) downloadAndExtractCore(ctx context.Context, coreInput CoreInpu
 	t := time.Now()
 
 	sendEvent := func(phase string, progress int, msg string) {
-		m.emitRuntimeEvent(ctx, "download:progress", DownloadProgress{
+		m.emitRuntimeEvent("download:progress", DownloadProgress{
 			Phase:    phase,
 			Progress: progress,
 			Message:  msg,
@@ -222,13 +221,9 @@ func (m *Manager) downloadAndExtractCore(ctx context.Context, coreInput CoreInpu
 	}
 }
 
-func (m *Manager) emitRuntimeEvent(ctx context.Context, eventName string, optionalData ...interface{}) {
+func (m *Manager) emitRuntimeEvent(eventName string, optionalData ...interface{}) {
 	if m.EventEmitter != nil {
 		m.EventEmitter(eventName, optionalData...)
-		return
-	}
-	if ctx != nil {
-		runtime.EventsEmit(ctx, eventName, optionalData...)
 	}
 }
 

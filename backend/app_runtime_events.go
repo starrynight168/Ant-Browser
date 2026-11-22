@@ -6,9 +6,21 @@ import (
 	"fmt"
 	"sync"
 	"time"
-
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
+
+type RuntimeHost interface {
+	EmitRuntimeEvent(string, ...interface{})
+	QuitApplication()
+}
+
+func SetRuntimeHost(a *App, host RuntimeHost) {
+	if a == nil {
+		return
+	}
+	a.runtimeMu.Lock()
+	a.runtimeHost = host
+	a.runtimeMu.Unlock()
+}
 
 func (a *App) setRuntimeContext(ctx context.Context) {
 	if ctx == nil {
@@ -137,17 +149,16 @@ func (a *App) emitRuntimeEventWithContext(ctx context.Context, eventName string,
 		return
 	}
 	a.runtimeMu.RLock()
-	defer a.runtimeMu.RUnlock()
 	if a.runtimeStopped {
+		a.runtimeMu.RUnlock()
 		return
 	}
-	if ctx == nil {
-		ctx = a.ctx
-	}
-	if ctx == nil {
+	host := a.runtimeHost
+	a.runtimeMu.RUnlock()
+	if host == nil {
 		return
 	}
-	runtime.EventsEmit(ctx, eventName, optionalData...)
+	host.EmitRuntimeEvent(eventName, optionalData...)
 }
 
 func (a *App) runtimeQuit() {
@@ -155,9 +166,9 @@ func (a *App) runtimeQuit() {
 		return
 	}
 	a.runtimeMu.RLock()
-	ctx := a.ctx
+	host := a.runtimeHost
 	a.runtimeMu.RUnlock()
-	if ctx != nil {
-		runtime.Quit(ctx)
+	if host != nil {
+		host.QuitApplication()
 	}
 }

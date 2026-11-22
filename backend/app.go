@@ -24,6 +24,7 @@ const (
 // App 应用结构体
 type App struct {
 	ctx                         context.Context
+	runtimeHost                 RuntimeHost
 	config                      *config.Config
 	db                          *database.DB
 	interceptor                 *logger.MethodInterceptor

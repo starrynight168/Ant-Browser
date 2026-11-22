@@ -27,7 +27,7 @@ func (a *App) GetInterceptor() *logger.MethodInterceptor {
 	return a.interceptor
 }
 
-// ForceQuit 设置强制退出标志并调用 runtime.Quit
+// ForceQuit 设置强制退出标志并通知桌面宿主退出。
 func (a *App) ForceQuit() {
 	a.setQuitMode(quitModeFull)
 	a.stopRuntimeEvents()
@@ -42,8 +42,8 @@ func (a *App) QuitAppOnly() {
 	a.runtimeQuit()
 }
 
-func Start(a *App, ctx context.Context) {
-	a.startup(ctx)
+func Start(a *App, ctx context.Context) error {
+	return a.startup(ctx)
 }
 
 func Stop(a *App, ctx context.Context) {

@@ -44,6 +44,18 @@ type App struct {
 	*backend.App
 }
 
+type wailsRuntimeHost struct {
+	ctx context.Context
+}
+
+func (h wailsRuntimeHost) EmitRuntimeEvent(eventName string, optionalData ...interface{}) {
+	runtime.EventsEmit(h.ctx, eventName, optionalData...)
+}
+
+func (h wailsRuntimeHost) QuitApplication() {
+	runtime.Quit(h.ctx)
+}
+
 type wailsBuildConfig struct {
 	Info struct {
 		ProductVersion string `json:"productVersion"`
@@ -81,7 +93,10 @@ func NewApp(appRoot, version string) *App {
 }
 
 func (a *App) startup(ctx context.Context) {
-	backend.Start(a.App, ctx)
+	backend.SetRuntimeHost(a.App, wailsRuntimeHost{ctx: ctx})
+	if err := backend.Start(a.App, ctx); err != nil {
+		runtime.LogFatal(ctx, err.Error())
+	}
 }
 
 func (a *App) shutdown(ctx context.Context) {
@@ -370,8 +385,8 @@ func main() {
 			WebviewGpuPolicy: linux.WebviewGpuPolicyNever,
 		},
 		Windows: &windows.Options{
-			WebviewIsTransparent:                false,
-			WindowIsTranslucent:                 false,
+			WebviewIsTransparent: false,
+			WindowIsTranslucent:  false,
 			// Flutter Web's CanvasKit renderer requires WebGL for correct rendering.
 			WebviewGpuIsDisabled:                false,
 			WebviewDisableRendererCodeIntegrity: true,

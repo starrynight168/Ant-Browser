@@ -16,16 +16,13 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // startup 应用启动时调用
-func (a *App) startup(ctx context.Context) {
+func (a *App) startup(ctx context.Context) error {
 	a.setRuntimeContext(ctx)
 	if err := apppath.EnsureWritableLayout(a.appRoot); err != nil {
-		runtime.LogFatal(ctx, fmt.Sprintf("初始化 Linux 用户数据目录失败: %v", err))
-		return
+		return fmt.Errorf("初始化用户数据目录失败: %w", err)
 	}
 
 	cfg := a.startupLoadConfig()
@@ -52,8 +49,7 @@ func (a *App) startup(ctx context.Context) {
 	db, recovery, err := a.startupInitDatabase(cfg)
 	if err != nil {
 		log.Error("初始化数据库失败", logger.F("error", err))
-		runtime.LogFatal(ctx, fmt.Sprintf("初始化数据库失败: %v", err))
-		return
+		return fmt.Errorf("初始化数据库失败: %w", err)
 	}
 	a.db = db
 	a.reportDatabaseRecovery(log, recovery)
@@ -73,8 +69,7 @@ func (a *App) startup(ctx context.Context) {
 	if err := a.startupInitManagers(cfg, db); err != nil {
 		log.Error("浏览器数据初始化失败", logger.F("error", err))
 		_ = db.Close()
-		runtime.LogFatal(ctx, fmt.Sprintf("浏览器数据初始化失败: %v", err))
-		return
+		return fmt.Errorf("浏览器数据初始化失败: %w", err)
 	}
 	a.startupInitLaunchCode(log)
 	a.startupInitLaunchServer(log)
@@ -87,6 +82,7 @@ func (a *App) startup(ctx context.Context) {
 	a.emitRuntimeEvent("app:ready")
 
 	log.Info("应用启动成功")
+	return nil
 }
 
 func (a *App) startupLoadConfig() *config.Config {
@@ -165,10 +161,10 @@ func (a *App) reportDatabaseRecovery(log *logger.Logger, recovery database.Recov
 		logger.F("backup", recovery.BrokenBackupPath),
 		logger.F("parked", recovery.BrokenParkedPath))
 	a.emitRuntimeEvent("app:db-recovered", map[string]any{
-		"reason":       recovery.Reason,
-		"backup_path":  recovery.BrokenBackupPath,
-		"parked_path":  recovery.BrokenParkedPath,
-		"recovered":    true,
+		"reason":      recovery.Reason,
+		"backup_path": recovery.BrokenBackupPath,
+		"parked_path": recovery.BrokenParkedPath,
+		"recovered":   true,
 	})
 }
 
