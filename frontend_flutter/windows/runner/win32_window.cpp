@@ -153,6 +153,33 @@ bool Win32Window::Show() {
   return ShowWindow(window_handle_, SW_SHOWNORMAL);
 }
 
+void Win32Window::SetMinimumSize(const Size& size) {
+  minimum_width_ = size.width;
+  minimum_height_ = size.height;
+}
+
+void Win32Window::CenterToMonitor() {
+  if (window_handle_ == nullptr) return;
+  MONITORINFO monitor_info{sizeof(MONITORINFO)};
+  const HMONITOR monitor =
+      MonitorFromWindow(window_handle_, MONITOR_DEFAULTTONEAREST);
+  if (!GetMonitorInfo(monitor, &monitor_info)) return;
+  RECT bounds{};
+  if (!GetWindowRect(window_handle_, &bounds)) return;
+  const int width = bounds.right - bounds.left;
+  const int height = bounds.bottom - bounds.top;
+  const int left = monitor_info.rcWork.left +
+                   (monitor_info.rcWork.right - monitor_info.rcWork.left -
+                    width) /
+                       2;
+  const int top = monitor_info.rcWork.top +
+                  (monitor_info.rcWork.bottom - monitor_info.rcWork.top -
+                   height) /
+                      2;
+  SetWindowPos(window_handle_, nullptr, left, top, 0, 0,
+               SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+}
+
 // static
 LRESULT CALLBACK Win32Window::WndProc(HWND const window,
                                       UINT const message,
@@ -179,6 +206,20 @@ Win32Window::MessageHandler(HWND hwnd,
                             WPARAM const wparam,
                             LPARAM const lparam) noexcept {
   switch (message) {
+    case WM_GETMINMAXINFO: {
+      if (minimum_width_ > 0 || minimum_height_ > 0) {
+        auto* limits = reinterpret_cast<MINMAXINFO*>(lparam);
+        const HMONITOR monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+        const UINT dpi = FlutterDesktopGetDpiForMonitor(monitor);
+        if (minimum_width_ > 0) {
+          limits->ptMinTrackSize.x = MulDiv(minimum_width_, dpi, 96);
+        }
+        if (minimum_height_ > 0) {
+          limits->ptMinTrackSize.y = MulDiv(minimum_height_, dpi, 96);
+        }
+      }
+      return 0;
+    }
     case WM_DESTROY:
       window_handle_ = nullptr;
       Destroy();

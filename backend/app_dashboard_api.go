@@ -29,8 +29,12 @@ func (a *App) GetDashboardStats() map[string]interface{} {
 
 func (a *App) GetAppConfig() map[string]interface{} {
 	return map[string]interface{}{
-		"name":    a.appName(),
-		"version": a.appVersion(),
+		"name":            a.appName(),
+		"version":         a.appVersion(),
+		"windowWidth":     a.config.App.Window.Width,
+		"windowHeight":    a.config.App.Window.Height,
+		"windowMinWidth":  a.config.App.Window.MinWidth,
+		"windowMinHeight": a.config.App.Window.MinHeight,
 	}
 }
 

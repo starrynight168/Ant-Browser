@@ -30,6 +30,11 @@ if (-not $go) {
 }
 if (-not $go) { throw '找不到 Go SDK。' }
 
+$pubspecPath = Join-Path $repoRoot 'frontend_flutter\pubspec.yaml'
+$versionLine = Select-String -LiteralPath $pubspecPath -Pattern '^version:\s*(\d+\.\d+\.\d+)' | Select-Object -First 1
+if (-not $versionLine) { throw '无法从 Flutter pubspec.yaml 读取应用版本。' }
+$appVersion = $versionLine.Matches[0].Groups[1].Value
+
 Push-Location (Join-Path $repoRoot 'frontend_flutter')
 try {
     & $flutter pub get
@@ -54,6 +59,8 @@ New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
 Copy-Item -Path (Join-Path $releaseDirectory '*') -Destination $outputDirectory -Recurse -Force
 
 Push-Location $repoRoot
+$previousPath = $env:PATH
+$previousGoPath = $env:GOPATH
 try {
     $goToolRoot = Join-Path $env:TEMP 'ant-browser-go-1.22.12-codex'
     $goToolBin = Join-Path $goToolRoot 'go\bin'
@@ -61,11 +68,15 @@ try {
         $env:GOPATH = Join-Path $goToolRoot 'gopath'
         $env:PATH = $goToolBin + ';' + $env:PATH
     }
-    & $go build -o (Join-Path $outputDirectory 'ant-chrome.exe') ./cmd/nativehost
+    $linkerFlags = "-X main.appVersion=$appVersion"
+    if ($Mode -eq 'release') { $linkerFlags = "-H=windowsgui $linkerFlags" }
+    & $go build -ldflags $linkerFlags -o (Join-Path $outputDirectory 'ant-chrome.exe') ./cmd/nativehost
     if ($LASTEXITCODE -ne 0) { throw 'Go 桌面宿主构建失败。' }
 }
 finally {
     Pop-Location
+    $env:PATH = $previousPath
+    $env:GOPATH = $previousGoPath
 }
 
 $resourceDirectory = Join-Path $repoRoot 'bin'

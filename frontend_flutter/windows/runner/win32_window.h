@@ -39,6 +39,9 @@ class Win32Window {
   // Show the current window. Returns true if the window was successfully shown.
   bool Show();
 
+  void SetMinimumSize(const Size& size);
+  void CenterToMonitor();
+
   // Release OS resources associated with window.
   void Destroy();
 
@@ -91,6 +94,8 @@ class Win32Window {
   static void UpdateTheme(HWND const window);
 
   bool quit_on_close_ = false;
+  unsigned int minimum_width_ = 0;
+  unsigned int minimum_height_ = 0;
 
   // window handle for top level window.
   HWND window_handle_ = nullptr;

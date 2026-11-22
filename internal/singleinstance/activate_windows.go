@@ -12,6 +12,7 @@ import (
 const (
 	swShow    = 5
 	swRestore = 9
+	swHide    = 0
 )
 
 var (
@@ -104,6 +105,19 @@ func ActivateExistingWindow(pid int) {
 			procSetForegroundWindow.Call(hwnd)
 		}
 	}
+}
+
+func HideExistingWindow(pid int) {
+	if pid <= 0 {
+		return
+	}
+	if hwnd := findTopLevelWindowByPID(uint32(pid)); hwnd != 0 {
+		procShowWindow.Call(hwnd, swHide)
+	}
+}
+
+func HasExistingWindow(pid int) bool {
+	return pid > 0 && findTopLevelWindowByPID(uint32(pid)) != 0
 }
 
 func attachForegroundThreadInput(hwnd uintptr, fn func()) {
