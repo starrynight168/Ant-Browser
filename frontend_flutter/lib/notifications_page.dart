@@ -1,4 +1,6 @@
-import 'package:material_ui/material_ui.dart';
+import 'prism_widgets.dart';
+
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import 'notification_store.dart';
 
@@ -26,18 +28,18 @@ class _NotificationsPageState extends State<NotificationsPage> {
   }
 
   Future<void> _clear() async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showPrismDialog<bool>(
       context: context,
       useRootNavigator: false,
-      builder: (context) => AlertDialog(
+      builder: (context) => PrismDialog(
         title: const Text('清空通知？'),
         content: const Text('清空后无法恢复。'),
         actions: [
-          TextButton(
+          prism.TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('取消'),
           ),
-          FilledButton(
+          prism.FilledButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('清空'),
           ),
@@ -89,14 +91,14 @@ class _NotificationsPageState extends State<NotificationsPage> {
                     child: Text(unread > 0 ? '通知中心 · $unread 条未读' : '通知中心'),
                   ),
                   if (unread > 0)
-                    TextButton.icon(
+                    prism.TextButton.icon(
                       onPressed: widget.store.markAllRead,
                       icon: const Icon(Icons.done_all, size: 18),
                       label: const Text('全部标为已读'),
                     ),
                   if (all.isNotEmpty) ...[
                     const SizedBox(width: 6),
-                    OutlinedButton.icon(
+                    prism.OutlinedButton.icon(
                       onPressed: _clear,
                       icon: const Icon(Icons.delete_outline, size: 18),
                       label: const Text('清空通知'),
@@ -109,7 +111,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 spacing: 8,
                 children: [
                   for (final (value, label) in filters)
-                    FilterChip(
+                    PrismChip(
                       label: Text('$label (${counts[value]})'),
                       selected: _filter == value,
                       onSelected: (_) => setState(() => _filter = value),
@@ -129,7 +131,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                           final id = '${item['id'] ?? ''}';
                           final type = '${item['type'] ?? 'info'}';
                           final isRead = item['read'] == true;
-                          final colors = Theme.of(context).colorScheme;
+                          final colors = prism.Theme.of(context).colorScheme;
                           final color = switch (type) {
                             'error' => colors.error,
                             'warning' => colors.tertiary,
@@ -156,12 +158,12 @@ class _NotificationsPageState extends State<NotificationsPage> {
                             duration: const Duration(milliseconds: 180),
                             curve: Curves.easeOut,
                             decoration: BoxDecoration(
-                              color: Theme.of(context)
+                              color: prism.Theme.of(context)
                                   .colorScheme
                                   .surfaceContainerLowest,
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
-                                color: Theme.of(context)
+                                color: prism.Theme.of(context)
                                     .colorScheme
                                     .outlineVariant,
                               ),
@@ -212,7 +214,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                           ),
                                         ),
                                         const SizedBox(height: 8),
-                                        SelectableText(
+                                        prism.SelectableText(
                                           '${item['message'] ?? ''}',
                                           style: TextStyle(
                                             color: colors.onSurface,
@@ -222,7 +224,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                         if (action != null &&
                                             action['path'] is String) ...[
                                           const SizedBox(height: 8),
-                                          TextButton.icon(
+                                          prism.TextButton.icon(
                                             onPressed: () {
                                               widget.store.markRead(id);
                                               widget.onNavigate(
@@ -242,7 +244,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                     ),
                                   ),
                                   if (!isRead)
-                                    IconButton(
+                                    prism.IconButton(
                                       tooltip: '标记为已读',
                                       onPressed: () =>
                                           widget.store.markRead(id),

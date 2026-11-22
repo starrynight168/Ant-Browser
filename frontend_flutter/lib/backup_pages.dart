@@ -1,6 +1,6 @@
-import 'package:material_ui/material_ui.dart';
+import 'prism_widgets.dart';
 
-import 'prism_components.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import 'wails_bridge.dart';
 
@@ -47,8 +47,7 @@ class _BackupPageState extends State<BackupPage> {
   }
 
   void _message(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    showPrismNotice(context, (message).toString());
   }
 
   Future<void> _run(String key, Future<dynamic> Function() action) async {
@@ -78,18 +77,18 @@ class _BackupPageState extends State<BackupPage> {
   }
 
   Future<void> _restore(Map<String, dynamic> backup) async {
-    final accepted = await showDialog<bool>(
+    final accepted = await showPrismDialog<bool>(
       context: context,
       useRootNavigator: false,
-      builder: (context) => AlertDialog(
+      builder: (context) => PrismDialog(
         title: const Text('恢复备份？'),
         content: Text('将从「${backup['name'] ?? ''}」恢复数据。建议先关闭浏览器实例。'),
         actions: [
-          TextButton(
+          prism.TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('取消'),
           ),
-          FilledButton(
+          prism.FilledButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('继续恢复'),
           ),
@@ -104,18 +103,18 @@ class _BackupPageState extends State<BackupPage> {
   }
 
   Future<void> _importBackup() async {
-    final yes = await showDialog<bool>(
+    final yes = await showPrismDialog<bool>(
       context: context,
       useRootNavigator: false,
-      builder: (context) => AlertDialog(
+      builder: (context) => PrismDialog(
         title: const Text('导入备份？'),
         content: const Text('导入会更改当前应用数据，请先确认选择了正确的备份文件。'),
         actions: [
-          TextButton(
+          prism.TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('取消'),
           ),
-          FilledButton(
+          prism.FilledButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('继续'),
           ),
@@ -140,19 +139,19 @@ class _BackupPageState extends State<BackupPage> {
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
               ),
             ),
-            OutlinedButton.icon(
+            prism.OutlinedButton.icon(
               onPressed: widget.onOpenOpenList,
               icon: const Icon(Icons.cloud_queue_outlined),
               label: const Text('OpenList'),
             ),
             const SizedBox(width: 8),
-            OutlinedButton.icon(
+            prism.OutlinedButton.icon(
               onPressed: widget.onOpenS3,
               icon: const Icon(Icons.cloud_outlined),
               label: const Text('S3 设置'),
             ),
             const SizedBox(width: 8),
-            IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
+            prism.IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
           ],
         ),
         const SizedBox(height: 14),
@@ -170,11 +169,11 @@ class _BackupPageState extends State<BackupPage> {
                 Row(
                   children: [
                     Expanded(
-                      child: SelectableText(
+                      child: prism.SelectableText(
                         _directory.isEmpty ? '尚未选择目录' : _directory,
                       ),
                     ),
-                    OutlinedButton(
+                    prism.OutlinedButton(
                       onPressed: _busy.isEmpty ? _chooseDirectory : null,
                       child: const Text('选择目录'),
                     ),
@@ -184,7 +183,7 @@ class _BackupPageState extends State<BackupPage> {
                 Wrap(
                   spacing: 8,
                   children: [
-                    FilledButton.icon(
+                    prism.FilledButton.icon(
                       onPressed: _busy.isEmpty && _directory.isNotEmpty
                           ? () => _run(
                               'backup',
@@ -196,7 +195,7 @@ class _BackupPageState extends State<BackupPage> {
                       icon: const Icon(Icons.archive_outlined),
                       label: Text(_busy == 'backup' ? '备份中…' : '立即备份'),
                     ),
-                    OutlinedButton.icon(
+                    prism.OutlinedButton.icon(
                       onPressed: _busy.isEmpty ? _importBackup : null,
                       icon: const Icon(Icons.settings_backup_restore),
                       label: const Text('导入备份'),
@@ -212,7 +211,7 @@ class _BackupPageState extends State<BackupPage> {
         const SizedBox(height: 8),
         Expanded(
           child: _loading
-              ? const Center(child: CircularProgressIndicator())
+              ? const Center(child: PrismProgressIndicator())
               : _backups.isEmpty
               ? const Center(child: Text('没有找到本地备份'))
               : ListView.separated(
@@ -230,7 +229,7 @@ class _BackupPageState extends State<BackupPage> {
                         ),
                         trailing: Wrap(
                           children: [
-                            IconButton(
+                            prism.IconButton(
                               tooltip: '打开文件位置',
                               onPressed: () => _run(
                                 'open',
@@ -240,7 +239,7 @@ class _BackupPageState extends State<BackupPage> {
                               ),
                               icon: const Icon(Icons.folder_open_outlined),
                             ),
-                            IconButton(
+                            prism.IconButton(
                               tooltip: '恢复',
                               onPressed: _busy.isEmpty
                                   ? () => _restore(backup)
@@ -321,9 +320,7 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
       _scheduleTime = (_schedule['dailyTime'] ?? '03:00').toString();
       if (_url.text.isNotEmpty) await _loadFiles();
     } catch (error) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+      if (mounted) showPrismNotice(context, (error.toString()).toString());
     }
     if (mounted) setState(() => _loading = false);
   }
@@ -352,34 +349,25 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
     try {
       if (action == 'test') {
         await WailsBridge.call('BackupOpenListTest', [_payload]);
-        if (mounted)
-          ScaffoldMessenger.of(context)
-              .showSnackBar(const SnackBar(content: Text('连接成功')));
+        if (mounted) showPrismNotice(context, ('连接成功').toString());
       } else if (action == 'save') {
         await WailsBridge.call('BackupOpenListSaveSettings', [_payload]);
-        if (mounted)
-          ScaffoldMessenger.of(context)
-              .showSnackBar(const SnackBar(content: Text('设置已保存')));
+        if (mounted) showPrismNotice(context, ('设置已保存').toString());
       } else if (action == 'upload') {
         final result = await WailsBridge.call('BackupOpenListUpload', [
           _payload,
         ]);
         await _loadFiles();
         if (mounted)
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                (result as Map?)?['message']?.toString() ?? '备份上传完成',
-              ),
-            ),
+          showPrismNotice(
+            context,
+            ((result as Map?)?['message']?.toString() ?? '备份上传完成').toString(),
           );
       } else {
         await _loadFiles();
       }
     } catch (error) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+      if (mounted) showPrismNotice(context, (error.toString()).toString());
     } finally {
       if (mounted) setState(() => _busy = '');
     }
@@ -393,13 +381,11 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
       ]);
       _schedule = Map<String, dynamic>.from(result as Map);
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('定时备份设置已保存')));
+        showPrismNotice(context, ('定时备份设置已保存').toString());
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+        showPrismNotice(context, (error.toString()).toString());
       }
     } finally {
       if (mounted) setState(() => _busy = '');
@@ -407,18 +393,18 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
   }
 
   Future<void> _restore(String fileName) async {
-    final yes = await showDialog<bool>(
+    final yes = await showPrismDialog<bool>(
       context: context,
       useRootNavigator: false,
-      builder: (context) => AlertDialog(
+      builder: (context) => PrismDialog(
         title: const Text('从 OpenList 恢复？'),
         content: Text('将使用 $fileName 覆盖当前应用数据。'),
         actions: [
-          TextButton(
+          prism.TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('取消'),
           ),
-          FilledButton(
+          prism.FilledButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('恢复'),
           ),
@@ -433,15 +419,12 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
         fileName,
       ]);
       if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text((result as Map?)?['message']?.toString() ?? '恢复完成'),
-          ),
+        showPrismNotice(
+          context,
+          ((result as Map?)?['message']?.toString() ?? '恢复完成').toString(),
         );
     } catch (error) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+      if (mounted) showPrismNotice(context, (error.toString()).toString());
     } finally {
       if (mounted) setState(() => _busy = '');
     }
@@ -455,15 +438,12 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
         fileName,
       ]);
       if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text((result as Map?)?['message']?.toString() ?? '下载完成'),
-          ),
+        showPrismNotice(
+          context,
+          ((result as Map?)?['message']?.toString() ?? '下载完成').toString(),
         );
     } catch (error) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+      if (mounted) showPrismNotice(context, (error.toString()).toString());
     } finally {
       if (mounted) setState(() => _busy = '');
     }
@@ -471,13 +451,13 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
 
   @override
   Widget build(BuildContext context) => _loading
-      ? const Center(child: CircularProgressIndicator())
+      ? const Center(child: PrismProgressIndicator())
       : ListView(
           padding: const EdgeInsets.all(24),
           children: [
             Row(
               children: [
-                IconButton(
+                prism.IconButton(
                   onPressed: widget.onBack,
                   icon: const Icon(Icons.arrow_back),
                 ),
@@ -487,57 +467,59 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                   ),
                 ),
-                OutlinedButton(
+                prism.OutlinedButton(
                   onPressed: _busy.isEmpty ? () => _action('test') : null,
                   child: const Text('测试连接'),
                 ),
                 const SizedBox(width: 8),
-                FilledButton(
+                prism.FilledButton(
                   onPressed: _busy.isEmpty ? () => _action('save') : null,
                   child: const Text('保存'),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            TextField(
+            PrismTextField(
               controller: _url,
-              decoration: const InputDecoration(labelText: 'OpenList 地址'),
+              decoration: const PrismInputDecoration(labelText: 'OpenList 地址'),
             ),
-            TextField(
+            PrismTextField(
               controller: _path,
-              decoration: const InputDecoration(labelText: '远程目录'),
+              decoration: const PrismInputDecoration(labelText: '远程目录'),
             ),
-            DropdownButtonFormField<String>(
+            PrismDropdownField<String>(
               initialValue: _mode,
-              decoration: const InputDecoration(labelText: '认证方式'),
+              decoration: const PrismInputDecoration(labelText: '认证方式'),
               items: const [
-                DropdownMenuItem(value: 'token', child: Text('Token')),
-                DropdownMenuItem(value: 'basic', child: Text('用户名和密码')),
+                PrismDropdownItem(value: 'token', child: Text('Token')),
+                PrismDropdownItem(value: 'basic', child: Text('用户名和密码')),
               ],
               onChanged: (value) => setState(() => _mode = value ?? 'token'),
             ),
             if (_mode == 'basic') ...[
-              TextField(
+              PrismTextField(
                 controller: _username,
-                decoration: const InputDecoration(labelText: '用户名'),
+                decoration: const PrismInputDecoration(labelText: '用户名'),
               ),
-              TextField(
+              PrismTextField(
                 controller: _password,
                 obscureText: true,
-                decoration: const InputDecoration(labelText: '密码（留空保留原密码）'),
+                decoration: const PrismInputDecoration(
+                  labelText: '密码（留空保留原密码）',
+                ),
               ),
             ] else
-              TextField(
+              PrismTextField(
                 controller: _token,
                 obscureText: true,
-                decoration: const InputDecoration(
+                decoration: const PrismInputDecoration(
                   labelText: 'Token（留空保留原 Token）',
                 ),
               ),
-            TextField(
+            PrismTextField(
               controller: _rate,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
+              decoration: const PrismInputDecoration(
                 labelText: '上传限速 MB/s（0 表示不限速）',
               ),
             ),
@@ -548,7 +530,7 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    SwitchListTile(
+                    PrismSwitchTile(
                       contentPadding: EdgeInsets.zero,
                       title: const Text('每天自动备份到 OpenList'),
                       subtitle: const Text('实例仍在运行时会跳过当次任务。'),
@@ -560,26 +542,62 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
                     Row(
                       children: [
                         const Expanded(child: Text('每日执行时间')),
-                        OutlinedButton.icon(
+                        prism.OutlinedButton.icon(
                           onPressed: _busy.isEmpty
                               ? () async {
-                                  final parts = _scheduleTime.split(':');
-                                  final picked = await showTimePicker(
-                                    context: context,
-                                    initialTime: TimeOfDay(
-                                      hour: int.tryParse(parts.first) ?? 3,
-                                      minute:
-                                          int.tryParse(
-                                            parts.length > 1 ? parts[1] : '',
-                                          ) ??
-                                          0,
-                                    ),
+                                  final controller = TextEditingController(
+                                    text: _scheduleTime,
                                   );
-                                  if (picked != null) {
-                                    setState(
-                                      () => _scheduleTime =
-                                          '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}',
+                                  try {
+                                    final picked = await showPrismDialog<String>(
+                                      context: context,
+                                      builder: (dialogContext) => PrismDialog(
+                                        title: '每日执行时间',
+                                        hasFields: true,
+                                        content: PrismTextField(
+                                          controller: controller,
+                                          keyboardType: TextInputType.datetime,
+                                          decoration:
+                                              const PrismInputDecoration(
+                                                hintText: '24 小时制，例如 03:00',
+                                              ),
+                                        ),
+                                        actions: [
+                                          prism.TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(dialogContext),
+                                            child: const Text('取消'),
+                                          ),
+                                          prism.FilledButton(
+                                            onPressed: () {
+                                              final value = controller.text
+                                                  .trim();
+                                              if (RegExp(
+                                                r'^([01]?\d|2[0-3]):[0-5]\d$',
+                                              ).hasMatch(value)) {
+                                                Navigator.pop(
+                                                  dialogContext,
+                                                  value.length == 4
+                                                      ? '0$value'
+                                                      : value,
+                                                );
+                                              } else {
+                                                showPrismNotice(
+                                                  dialogContext,
+                                                  '请输入有效的 24 小时时间，例如 03:00',
+                                                );
+                                              }
+                                            },
+                                            child: const Text('确定'),
+                                          ),
+                                        ],
+                                      ),
                                     );
+                                    if (picked != null) {
+                                      setState(() => _scheduleTime = picked);
+                                    }
+                                  } finally {
+                                    controller.dispose();
                                   }
                                 }
                               : null,
@@ -587,7 +605,7 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
                           label: Text(_scheduleTime),
                         ),
                         const SizedBox(width: 8),
-                        FilledButton(
+                        prism.FilledButton(
                           onPressed: _busy.isEmpty ? _saveSchedule : null,
                           child: Text(_busy == 'schedule' ? '保存中…' : '保存定时设置'),
                         ),
@@ -597,7 +615,9 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
                     Text(
                       '最近状态：${_schedule['status'] ?? 'never'}${(_schedule['lastError'] ?? '').toString().isEmpty ? '' : ' · ${_schedule['lastError']}'}',
                       style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: prism.Theme.of(context)
+                            .colorScheme
+                            .onSurfaceVariant,
                       ),
                     ),
                     for (final time
@@ -607,14 +627,16 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
                       Text(
                         '最近备份：$time',
                         style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: prism.Theme.of(context)
+                              .colorScheme
+                              .onSurfaceVariant,
                         ),
                       ),
                   ],
                 ),
               ),
             ),
-            const Divider(height: 28),
+            const prism.Divider(height: 28),
             Row(
               children: [
                 const Expanded(
@@ -623,11 +645,11 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
                     style: TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
-                IconButton(
+                prism.IconButton(
                   onPressed: _busy.isEmpty ? () => _action('list') : null,
                   icon: const Icon(Icons.refresh),
                 ),
-                FilledButton.icon(
+                prism.FilledButton.icon(
                   onPressed: _busy.isEmpty ? () => _action('upload') : null,
                   icon: const Icon(Icons.cloud_upload_outlined),
                   label: Text(_busy == 'upload' ? '上传中…' : '创建并上传备份'),
@@ -638,7 +660,7 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
               Text(
                 '没有找到远程备份',
                 style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: prism.Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             for (final file in _files)
@@ -648,14 +670,14 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
                   subtitle: Text((file['modifiedAt'] ?? '').toString()),
                   trailing: Wrap(
                     children: [
-                      IconButton(
+                      prism.IconButton(
                         tooltip: '下载到本地',
                         onPressed: _busy.isEmpty
                             ? () => _download((file['name'] ?? '').toString())
                             : null,
                         icon: const Icon(Icons.download_outlined),
                       ),
-                      TextButton(
+                      prism.TextButton(
                         onPressed: _busy.isEmpty
                             ? () => _restore((file['name'] ?? '').toString())
                             : null,
@@ -712,9 +734,7 @@ class _S3ConfigPageState extends State<S3ConfigPage> {
       _pathStyle = value['forcePathStyle'] == true;
       if (_bucket.text.isNotEmpty) await _loadFiles();
     } catch (error) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+      if (mounted) showPrismNotice(context, (error.toString()).toString());
     }
     if (mounted) setState(() => _loading = false);
   }
@@ -735,20 +755,14 @@ class _S3ConfigPageState extends State<S3ConfigPage> {
     try {
       if (method == 'BackupS3Test') {
         await WailsBridge.call(method, [_payload]);
-        if (mounted)
-          ScaffoldMessenger.of(context)
-              .showSnackBar(const SnackBar(content: Text('连接成功')));
+        if (mounted) showPrismNotice(context, ('连接成功').toString());
       } else {
         await WailsBridge.call('BackupS3SaveSettings', [_payload]);
         await _loadFiles();
-        if (mounted)
-          ScaffoldMessenger.of(context)
-              .showSnackBar(const SnackBar(content: Text('设置已保存')));
+        if (mounted) showPrismNotice(context, ('设置已保存').toString());
       }
     } catch (error) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+      if (mounted) showPrismNotice(context, (error.toString()).toString());
     } finally {
       if (mounted) setState(() => _busy = '');
     }
@@ -767,9 +781,7 @@ class _S3ConfigPageState extends State<S3ConfigPage> {
     try {
       await _loadFiles();
     } catch (error) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+      if (mounted) showPrismNotice(context, (error.toString()).toString());
     }
   }
 
@@ -779,33 +791,30 @@ class _S3ConfigPageState extends State<S3ConfigPage> {
       final result = await WailsBridge.call('BackupS3Upload', [_payload]);
       await _loadFiles();
       if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text((result as Map?)?['message']?.toString() ?? '上传完成'),
-          ),
+        showPrismNotice(
+          context,
+          ((result as Map?)?['message']?.toString() ?? '上传完成').toString(),
         );
     } catch (error) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+      if (mounted) showPrismNotice(context, (error.toString()).toString());
     } finally {
       if (mounted) setState(() => _busy = '');
     }
   }
 
   Future<void> _restoreS3(String name) async {
-    final yes = await showDialog<bool>(
+    final yes = await showPrismDialog<bool>(
       context: context,
       useRootNavigator: false,
-      builder: (context) => AlertDialog(
+      builder: (context) => PrismDialog(
         title: const Text('从 S3 恢复？'),
         content: Text('将使用 $name 覆盖当前应用数据。'),
         actions: [
-          TextButton(
+          prism.TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('取消'),
           ),
-          FilledButton(
+          prism.FilledButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('恢复'),
           ),
@@ -820,15 +829,12 @@ class _S3ConfigPageState extends State<S3ConfigPage> {
         name,
       ]);
       if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text((result as Map?)?['message']?.toString() ?? '恢复完成'),
-          ),
+        showPrismNotice(
+          context,
+          ((result as Map?)?['message']?.toString() ?? '恢复完成').toString(),
         );
     } catch (error) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+      if (mounted) showPrismNotice(context, (error.toString()).toString());
     } finally {
       if (mounted) setState(() => _busy = '');
     }
@@ -842,15 +848,12 @@ class _S3ConfigPageState extends State<S3ConfigPage> {
         name,
       ]);
       if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text((result as Map?)?['message']?.toString() ?? '下载完成'),
-          ),
+        showPrismNotice(
+          context,
+          ((result as Map?)?['message']?.toString() ?? '下载完成').toString(),
         );
     } catch (error) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+      if (mounted) showPrismNotice(context, (error.toString()).toString());
     } finally {
       if (mounted) setState(() => _busy = '');
     }
@@ -858,13 +861,13 @@ class _S3ConfigPageState extends State<S3ConfigPage> {
 
   @override
   Widget build(BuildContext context) => _loading
-      ? const Center(child: CircularProgressIndicator())
+      ? const Center(child: PrismProgressIndicator())
       : ListView(
           padding: const EdgeInsets.all(24),
           children: [
             Row(
               children: [
-                IconButton(
+                prism.IconButton(
                   onPressed: widget.onBack,
                   icon: const Icon(Icons.arrow_back),
                 ),
@@ -874,57 +877,63 @@ class _S3ConfigPageState extends State<S3ConfigPage> {
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                   ),
                 ),
-                OutlinedButton(
+                prism.OutlinedButton(
                   onPressed: _busy.isEmpty
                       ? () => _action('BackupS3Test')
                       : null,
                   child: Text(_busy == 'BackupS3Test' ? '测试中…' : '测试连接'),
                 ),
                 const SizedBox(width: 8),
-                FilledButton(
+                prism.FilledButton(
                   onPressed: _busy.isEmpty ? () => _action('save') : null,
                   child: const Text('保存'),
                 ),
               ],
             ),
             const SizedBox(height: 18),
-            TextField(
+            PrismTextField(
               controller: _endpoint,
-              decoration: const InputDecoration(labelText: 'Endpoint'),
+              decoration: const PrismInputDecoration(labelText: 'Endpoint'),
             ),
-            TextField(
+            PrismTextField(
               controller: _region,
-              decoration: const InputDecoration(labelText: 'Region'),
+              decoration: const PrismInputDecoration(labelText: 'Region'),
             ),
-            TextField(
+            PrismTextField(
               controller: _bucket,
-              decoration: const InputDecoration(labelText: 'Bucket'),
+              decoration: const PrismInputDecoration(labelText: 'Bucket'),
             ),
-            TextField(
+            PrismTextField(
               controller: _prefix,
-              decoration: const InputDecoration(labelText: '备份目录前缀'),
+              decoration: const PrismInputDecoration(labelText: '备份目录前缀'),
             ),
-            TextField(
+            PrismTextField(
               controller: _accessKey,
-              decoration: const InputDecoration(labelText: 'Access Key ID'),
+              decoration: const PrismInputDecoration(
+                labelText: 'Access Key ID',
+              ),
             ),
-            TextField(
+            PrismTextField(
               controller: _secret,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'Secret Access Key'),
+              decoration: const PrismInputDecoration(
+                labelText: 'Secret Access Key',
+              ),
             ),
-            TextField(
+            PrismTextField(
               controller: _token,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'Session Token（可选）'),
+              decoration: const PrismInputDecoration(
+                labelText: 'Session Token（可选）',
+              ),
             ),
-            SwitchListTile(
+            PrismSwitchTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('强制使用路径风格地址'),
               value: _pathStyle,
               onChanged: (value) => setState(() => _pathStyle = value),
             ),
-            const Divider(height: 28),
+            const prism.Divider(height: 28),
             Row(
               children: [
                 const Expanded(
@@ -933,11 +942,11 @@ class _S3ConfigPageState extends State<S3ConfigPage> {
                     style: TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
-                IconButton(
+                prism.IconButton(
                   onPressed: _busy.isEmpty ? _refreshS3 : null,
                   icon: const Icon(Icons.refresh),
                 ),
-                FilledButton.icon(
+                prism.FilledButton.icon(
                   onPressed: _busy.isEmpty ? _upload : null,
                   icon: const Icon(Icons.cloud_upload_outlined),
                   label: Text(_busy == 'upload' ? '上传中…' : '创建并上传备份'),
@@ -949,7 +958,7 @@ class _S3ConfigPageState extends State<S3ConfigPage> {
               Text(
                 '没有找到 S3 备份文件',
                 style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: prism.Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             for (final file in _files)
@@ -959,14 +968,14 @@ class _S3ConfigPageState extends State<S3ConfigPage> {
                   subtitle: Text((file['modifiedAt'] ?? '').toString()),
                   trailing: Wrap(
                     children: [
-                      IconButton(
+                      prism.IconButton(
                         tooltip: '下载到本地',
                         onPressed: _busy.isEmpty
                             ? () => _downloadS3((file['name'] ?? '').toString())
                             : null,
                         icon: const Icon(Icons.download_outlined),
                       ),
-                      TextButton(
+                      prism.TextButton(
                         onPressed: _busy.isEmpty
                             ? () => _restoreS3((file['name'] ?? '').toString())
                             : null,

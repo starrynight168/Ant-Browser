@@ -1,6 +1,6 @@
-import 'package:material_ui/material_ui.dart';
+import 'prism_widgets.dart';
 
-import 'prism_components.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import 'wails_bridge.dart';
 
@@ -86,16 +86,21 @@ class _AboutPageState extends State<AboutPage> {
   }
 
   Widget _authorCard() {
-    final colors = Theme.of(context).colorScheme;
+    final colors = prism.Theme.of(context).colorScheme;
     return _AboutCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              CircleAvatar(
-                radius: 34,
-                backgroundColor: colors.primary,
+              Container(
+                width: 68,
+                height: 68,
+                decoration: BoxDecoration(
+                  color: colors.primary,
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
                 child: Text(
                   '志',
                   style: TextStyle(
@@ -158,7 +163,7 @@ class _AboutPageState extends State<AboutPage> {
             ].map((skill) => _SkillChip(label: skill)).toList(),
           ),
           const SizedBox(height: 18),
-          OutlinedButton.icon(
+          prism.OutlinedButton.icon(
             onPressed: () =>
                 WailsBridge.openExternal('https://github.com/black-ant'),
             icon: const Icon(Icons.code, size: 18),
@@ -170,7 +175,7 @@ class _AboutPageState extends State<AboutPage> {
   }
 
   Widget _projectCard() {
-    final colors = Theme.of(context).colorScheme;
+    final colors = prism.Theme.of(context).colorScheme;
     final result = _updateResult;
     final updateText = result == null
         ? ''
@@ -210,7 +215,7 @@ class _AboutPageState extends State<AboutPage> {
             ].map((item) => _SkillChip(label: item)).toList(),
           ),
           const SizedBox(height: 22),
-          const Divider(),
+          const prism.Divider(),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -226,12 +231,12 @@ class _AboutPageState extends State<AboutPage> {
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
-              FilledButton.tonal(
+              PrismTonalButton(
                 onPressed: _checking ? null : _checkUpdate,
                 child: _checking
                     ? const SizedBox.square(
                         dimension: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: PrismProgressIndicator(),
                       )
                     : const Text('检查更新'),
               ),
@@ -244,7 +249,7 @@ class _AboutPageState extends State<AboutPage> {
               style: TextStyle(color: colors.onSurfaceVariant, fontSize: 13),
             ),
             if (result?['releaseUrl']?.toString().isNotEmpty == true)
-              TextButton.icon(
+              prism.TextButton.icon(
                 onPressed: () =>
                     WailsBridge.openExternal(result!['releaseUrl'].toString()),
                 icon: const Icon(Icons.open_in_new, size: 16),
@@ -268,7 +273,9 @@ class _AboutCard extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+        side: BorderSide(
+          color: prism.Theme.of(context).colorScheme.outlineVariant,
+        ),
       ),
       child: Padding(padding: const EdgeInsets.all(22), child: child),
     );
@@ -283,7 +290,7 @@ class _MetaLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final colors = prism.Theme.of(context).colorScheme;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -305,14 +312,11 @@ class _SkillChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Chip(
-      label: Text(label),
-      visualDensity: VisualDensity.compact,
-      backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-      labelStyle: TextStyle(
-        color: Theme.of(context).colorScheme.onSecondaryContainer,
-      ),
-      side: BorderSide.none,
+    final colors = prism.Theme.of(context).colorScheme;
+    return prism.TonalChip(
+      label: label,
+      color: colors.secondaryContainer,
+      foregroundColor: colors.onSecondaryContainer,
     );
   }
 }

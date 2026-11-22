@@ -9,7 +9,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  material_ui: ^1.1.0
   prism_ui:
     path: packages/prism_ui
   yaml: ^3.1.3

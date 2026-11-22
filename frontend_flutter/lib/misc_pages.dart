@@ -1,6 +1,6 @@
-import 'package:material_ui/material_ui.dart';
+import 'prism_widgets.dart';
 
-import 'prism_components.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 class DocsPage extends StatefulWidget {
   const DocsPage({super.key});
@@ -41,7 +41,7 @@ class _DocsPageState extends State<DocsPage> {
   @override
   Widget build(BuildContext context) {
     final section = _sections[_selected];
-    final colors = Theme.of(context).colorScheme;
+    final colors = prism.Theme.of(context).colorScheme;
     return Row(
       children: [
         SizedBox(
@@ -53,8 +53,9 @@ class _DocsPageState extends State<DocsPage> {
                 padding: const EdgeInsets.all(12),
                 child: Text(
                   '文档目录',
-                  style: Theme.of(context).textTheme.titleSmall
-                      ?.copyWith(color: colors.onSurfaceVariant),
+                  style: prism.AppTextStyle.subheadline
+                      .of(context)
+                      .copyWith(color: colors.onSurfaceVariant),
                 ),
               ),
               for (var i = 0; i < _sections.length; i++)
@@ -72,7 +73,7 @@ class _DocsPageState extends State<DocsPage> {
             ],
           ),
         ),
-        const VerticalDivider(width: 1),
+        Container(width: 1, color: colors.outlineVariant),
         Expanded(
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 220),
@@ -98,7 +99,7 @@ class _DocsPageState extends State<DocsPage> {
                     const SizedBox(width: 10),
                     Text(
                       section.$1,
-                      style: Theme.of(context).textTheme.headlineSmall,
+                      style: prism.AppTextStyle.pageTitle.of(context),
                     ),
                   ],
                 ),
@@ -106,7 +107,7 @@ class _DocsPageState extends State<DocsPage> {
                 PrismCard(
                   child: Padding(
                     padding: const EdgeInsets.all(22),
-                    child: SelectableText(
+                    child: prism.SelectableText(
                       section.$3,
                       style: const TextStyle(fontSize: 15, height: 1.9),
                     ),
@@ -117,7 +118,7 @@ class _DocsPageState extends State<DocsPage> {
                   PrismCard(
                     child: Padding(
                       padding: const EdgeInsets.all(18),
-                      child: SelectableText(
+                      child: prism.SelectableText(
                         'curl http://127.0.0.1:19900/api/health\n\ncurl -X POST http://127.0.0.1:19900/api/launch \\\n  -H "Content-Type: application/json" \\\n  -d \'{"code":"BUYER_001","skipDefaultStartUrls":true}\'',
                         style: const TextStyle(
                           fontFamily: 'monospace',
@@ -141,11 +142,11 @@ class ChartsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final colors = prism.Theme.of(context).colorScheme;
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
-        Text('图表案例展示', style: Theme.of(context).textTheme.headlineSmall),
+        Text('图表案例展示', style: prism.AppTextStyle.pageTitle.of(context)),
         const SizedBox(height: 18),
         Wrap(
           spacing: 16,
@@ -198,7 +199,7 @@ class _ChartCard extends StatelessWidget {
 class _LineChartPainter extends CustomPainter {
   const _LineChartPainter({required this.colors});
 
-  final ColorScheme colors;
+  final prism.ColorScheme colors;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -241,7 +242,7 @@ class _LineChartPainter extends CustomPainter {
 class _BarChartPainter extends CustomPainter {
   const _BarChartPainter({required this.colors});
 
-  final ColorScheme colors;
+  final prism.ColorScheme colors;
 
   @override
   void paint(Canvas canvas, Size size) {

@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-import 'package:material_ui/material_ui.dart';
+import 'prism_widgets.dart';
 
-import 'prism_components.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import 'wails_bridge.dart';
 
@@ -70,9 +70,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
       await action();
       await _refresh();
     } catch (error) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+      if (mounted) showPrismNotice(context, (error.toString()).toString());
     } finally {
       if (mounted) setState(() => _busy = '');
     }
@@ -82,8 +80,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
     final query = _query.text.trim();
     if (query.isEmpty) return;
     if (_useProxy && _selectedProxyConfig.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('请先选择下载代理')));
+      showPrismNotice(context, ('请先选择下载代理').toString());
       return;
     }
     setState(() => _busy = 'lookup');
@@ -98,9 +95,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
       if (mounted)
         setState(() => _lookup = Map<String, dynamic>.from(result as Map));
     } catch (error) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+      if (mounted) showPrismNotice(context, (error.toString()).toString());
     } finally {
       if (mounted) setState(() => _busy = '');
     }
@@ -110,8 +105,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
     final id = (_lookup?['extensionId'] ?? _query.text).toString().trim();
     if (id.isEmpty) return;
     if (_useProxy && _selectedProxyConfig.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('请先选择下载代理')));
+      showPrismNotice(context, ('请先选择下载代理').toString());
       return;
     }
     await _run('install', () async {
@@ -139,8 +133,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
   Future<void> _openManualInstall() async {
     final target = (_lookup?['extensionId'] ?? _query.text).toString().trim();
     if (target.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('请先输入插件 ID 或商店链接')));
+      showPrismNotice(context, ('请先输入插件 ID 或商店链接').toString());
       return;
     }
     try {
@@ -154,11 +147,11 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
           .whereType<Map>()
           .map((row) => Map<String, dynamic>.from(row))
           .toList();
-      await showDialog<void>(
+      await showPrismDialog<void>(
         context: context,
         useRootNavigator: false,
         builder: (context) => StatefulBuilder(
-          builder: (context, setDialog) => AlertDialog(
+          builder: (context, setDialog) => PrismDialog(
             title: const Text('手动安装插件'),
             content: SizedBox(
               width: 560,
@@ -168,11 +161,11 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                 children: [
                   const Text('无法在线安装时，可在浏览器中打开下载地址，再把下载的文件放入此目录。'),
                   const SizedBox(height: 10),
-                  SelectableText('下载地址：${guide['downloadUrl'] ?? ''}'),
-                  SelectableText('下载目录：${guide['downloadDir'] ?? ''}'),
+                  prism.SelectableText('下载地址：${guide['downloadUrl'] ?? ''}'),
+                  prism.SelectableText('下载目录：${guide['downloadDir'] ?? ''}'),
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
+                    child: prism.TextButton.icon(
                       onPressed: () async {
                         await WailsBridge.call(
                           'BrowserExtensionOpenManualDownloadDir',
@@ -182,7 +175,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                       label: const Text('打开下载目录'),
                     ),
                   ),
-                  const Divider(),
+                  const prism.Divider(),
                   const Text('可导入的 CRX / ZIP 文件'),
                   Expanded(
                     child: files.isEmpty
@@ -190,14 +183,14 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                         : ListView(
                             children: [
                               for (final file in files)
-                                ListTile(
+                                PrismListTile(
                                   title: Text(
                                     (file['fileName'] ?? '').toString(),
                                   ),
                                   subtitle: Text(
                                     (file['updatedAt'] ?? '').toString(),
                                   ),
-                                  trailing: TextButton(
+                                  trailing: prism.TextButton(
                                     onPressed: () async {
                                       try {
                                         await WailsBridge.call(
@@ -209,12 +202,9 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                           Navigator.pop(context);
                                       } catch (error) {
                                         if (context.mounted) {
-                                          ScaffoldMessenger.of(
+                                          showPrismNotice(
                                             context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Text(error.toString()),
-                                            ),
+                                            (error.toString()).toString(),
                                           );
                                         }
                                       }
@@ -229,7 +219,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
               ),
             ),
             actions: [
-              TextButton(
+              prism.TextButton(
                 onPressed: () async {
                   try {
                     final value = await WailsBridge.call(
@@ -242,15 +232,13 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                     setDialog(() {});
                   } catch (error) {
                     if (context.mounted) {
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(SnackBar(content: Text(error.toString())));
+                      showPrismNotice(context, (error.toString()).toString());
                     }
                   }
                 },
                 child: const Text('刷新文件'),
               ),
-              TextButton(
+              prism.TextButton(
                 onPressed: () => Navigator.pop(context),
                 child: const Text('关闭'),
               ),
@@ -260,8 +248,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
       );
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+        showPrismNotice(context, (error.toString()).toString());
       }
     }
   }
@@ -293,11 +280,11 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
           selected.add(profileId);
       }
       if (!mounted) return;
-      final saved = await showDialog<bool>(
+      final saved = await showPrismDialog<bool>(
         context: context,
         useRootNavigator: false,
         builder: (context) => StatefulBuilder(
-          builder: (context, setDialog) => AlertDialog(
+          builder: (context, setDialog) => PrismDialog(
             title: Text('选择安装实例 · ${extension['name'] ?? extensionId}'),
             content: SizedBox(
               width: 500,
@@ -307,7 +294,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                   : ListView(
                       children: [
                         for (final profile in profiles)
-                          CheckboxListTile(
+                          PrismCheckboxTile(
                             value: selected.contains(profile['profileId']),
                             title: Text(
                               (profile['profileName'] ??
@@ -334,11 +321,11 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                     ),
             ),
             actions: [
-              TextButton(
+              prism.TextButton(
                 onPressed: () => Navigator.pop(context, false),
                 child: const Text('取消'),
               ),
-              FilledButton(
+              prism.FilledButton(
                 onPressed: () => Navigator.pop(context, true),
                 child: const Text('保存'),
               ),
@@ -367,13 +354,9 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
           true,
         ]);
       }
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('实例插件设置已保存')));
+      if (mounted) showPrismNotice(context, ('实例插件设置已保存').toString());
     } catch (error) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+      if (mounted) showPrismNotice(context, (error.toString()).toString());
     } finally {
       if (mounted) setState(() => _busy = '');
     }
@@ -392,11 +375,11 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
               ),
             ),
-            IconButton(
+            prism.IconButton(
               onPressed: _loading ? null : _refresh,
               icon: const Icon(Icons.refresh),
             ),
-            PopupMenuButton<String>(
+            PrismPopupMenuButton<String>(
               tooltip: '导入插件',
               icon: const Icon(Icons.add),
               onSelected: (mode) {
@@ -419,10 +402,10 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                 }
               },
               itemBuilder: (_) => const [
-                PopupMenuItem(value: 'file', child: Text('从本地插件包导入')),
-                PopupMenuItem(value: 'directory', child: Text('从本地文件夹导入')),
-                PopupMenuItem(value: 'manual', child: Text('手动下载与导入')),
-                PopupMenuItem(value: 'download-dir', child: Text('打开手动下载目录')),
+                PrismMenuItem(value: 'file', child: Text('从本地插件包导入')),
+                PrismMenuItem(value: 'directory', child: Text('从本地文件夹导入')),
+                PrismMenuItem(value: 'manual', child: Text('手动下载与导入')),
+                PrismMenuItem(value: 'download-dir', child: Text('打开手动下载目录')),
               ],
             ),
           ],
@@ -442,38 +425,38 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                 Row(
                   children: [
                     Expanded(
-                      child: TextField(
+                      child: PrismTextField(
                         controller: _query,
-                        decoration: const InputDecoration(
+                        decoration: const PrismInputDecoration(
                           hintText: '粘贴插件 ID 或商店链接',
                         ),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    OutlinedButton(
+                    prism.OutlinedButton(
                       onPressed: _busy.isEmpty ? _lookupExtension : null,
                       child: const Text('查询'),
                     ),
                   ],
                 ),
-                SwitchListTile(
+                PrismSwitchTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('通过代理下载'),
                   value: _useProxy,
                   onChanged: (value) => setState(() => _useProxy = value),
                 ),
                 if (_useProxy)
-                  DropdownButtonFormField<String>(
+                  PrismDropdownField<String>(
                     initialValue:
                         _proxies.any(
                           (proxy) => proxy['proxyId'] == _selectedProxyId,
                         )
                         ? _selectedProxyId
                         : null,
-                    decoration: const InputDecoration(labelText: '下载代理'),
+                    decoration: const PrismInputDecoration(labelText: '下载代理'),
                     items: [
                       for (final proxy in _proxies)
-                        DropdownMenuItem(
+                        PrismDropdownItem(
                           value: proxy['proxyId']?.toString(),
                           child: Text(
                             (proxy['proxyName'] ?? proxy['proxyId'] ?? '')
@@ -493,12 +476,14 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                   Text(
                     (result['message'] ?? '').toString(),
                     style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: prism.Theme.of(context)
+                          .colorScheme
+                          .onSurfaceVariant,
                     ),
                   ),
                   Align(
                     alignment: Alignment.centerRight,
-                    child: FilledButton(
+                    child: prism.FilledButton(
                       onPressed: _busy.isEmpty && result['installable'] != false
                           ? _install
                           : null,
@@ -516,7 +501,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
             child: PrismListTile(
               leading: const Icon(Icons.error_outline),
               title: Text(_error!),
-              trailing: TextButton(
+              trailing: prism.TextButton(
                 onPressed: _refresh,
                 child: const Text('重试'),
               ),
@@ -526,7 +511,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
           const Center(
             child: Padding(
               padding: EdgeInsets.all(28),
-              child: CircularProgressIndicator(),
+              child: PrismProgressIndicator(),
             ),
           ),
         if (!_loading && _items.isEmpty && _error == null)
@@ -547,7 +532,9 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
       child: PrismListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: icon.startsWith('data:image') && icon.contains(',')
-            ? CircleAvatar(
+            ? SizedBox(
+                width: 40,
+                height: 40,
                 child: ClipOval(
                   child: Image.memory(
                     base64Decode(icon.substring(icon.indexOf(',') + 1)),
@@ -559,7 +546,18 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                   ),
                 ),
               )
-            : const CircleAvatar(child: Icon(Icons.extension_outlined)),
+            : Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: prism.Theme.of(context)
+                      .colorScheme
+                      .surfaceContainerHigh,
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: const Icon(Icons.extension_outlined),
+              ),
         title: Text((item['name'] ?? id).toString()),
         subtitle: Text(
           'v${item['version'] ?? '-'} · $id\n${item['description'] ?? ''}',
@@ -571,7 +569,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
           spacing: 4,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            IconButton(
+            prism.IconButton(
               tooltip: '重新安装 / 更新',
               onPressed: busy
                   ? null
@@ -589,7 +587,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                     }),
               icon: const Icon(Icons.system_update_alt),
             ),
-            IconButton(
+            prism.IconButton(
               tooltip: item['defaultInstall'] == true ? '取消默认安装' : '设为默认安装',
               onPressed: busy
                   ? null
@@ -605,12 +603,12 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                     : Icons.push_pin_outlined,
               ),
             ),
-            IconButton(
+            prism.IconButton(
               tooltip: '指定安装实例',
               onPressed: busy ? null : () => _configureProfiles(item),
               icon: const Icon(Icons.tune),
             ),
-            Switch(
+            prism.Switch(
               value: item['enabled'] == true,
               onChanged: busy
                   ? null
@@ -621,23 +619,23 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                       ]);
                     }),
             ),
-            IconButton(
+            prism.IconButton(
               tooltip: '删除',
               onPressed: busy
                   ? null
                   : () async {
-                      final confirm = await showDialog<bool>(
+                      final confirm = await showPrismDialog<bool>(
                         context: context,
                         useRootNavigator: false,
-                        builder: (context) => AlertDialog(
+                        builder: (context) => PrismDialog(
                           title: const Text('删除插件？'),
                           content: Text((item['name'] ?? id).toString()),
                           actions: [
-                            TextButton(
+                            prism.TextButton(
                               onPressed: () => Navigator.pop(context, false),
                               child: const Text('取消'),
                             ),
-                            FilledButton(
+                            prism.FilledButton(
                               onPressed: () => Navigator.pop(context, true),
                               child: const Text('删除'),
                             ),

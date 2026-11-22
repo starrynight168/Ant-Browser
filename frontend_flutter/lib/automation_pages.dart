@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-import 'package:material_ui/material_ui.dart';
+import 'prism_widgets.dart';
 
-import 'prism_components.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import 'wails_bridge.dart';
 
@@ -47,9 +47,7 @@ class _AutomationPageState extends State<AutomationPage> {
           .map((row) => Map<String, dynamic>.from(row))
           .toList();
     } catch (error) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+      if (mounted) showPrismNotice(context, (error.toString()).toString());
     }
     if (mounted) setState(() => _loading = false);
   }
@@ -72,9 +70,7 @@ class _AutomationPageState extends State<AutomationPage> {
       }
       await _refresh();
     } catch (error) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+      if (mounted) showPrismNotice(context, (error.toString()).toString());
     } finally {
       if (mounted) setState(() => _busy = '');
     }
@@ -84,38 +80,38 @@ class _AutomationPageState extends State<AutomationPage> {
     final url = TextEditingController();
     final ref = TextEditingController(text: 'main');
     final scriptPath = TextEditingController();
-    final values = await showDialog<List<String>>(
+    final values = await showPrismDialog<List<String>>(
       context: context,
       useRootNavigator: false,
-      builder: (context) => AlertDialog(
+      builder: (context) => PrismDialog(
         title: Text(mode == 'git' ? '从 Git 仓库导入' : '从网址导入'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
+            PrismTextField(
               controller: url,
-              decoration: InputDecoration(
+              decoration: PrismInputDecoration(
                 labelText: mode == 'git' ? 'Git 仓库地址' : '脚本网址',
               ),
             ),
             if (mode == 'git') ...[
-              TextField(
+              PrismTextField(
                 controller: ref,
-                decoration: const InputDecoration(labelText: '分支或标签'),
+                decoration: const PrismInputDecoration(labelText: '分支或标签'),
               ),
-              TextField(
+              PrismTextField(
                 controller: scriptPath,
-                decoration: const InputDecoration(labelText: '脚本目录（可留空）'),
+                decoration: const PrismInputDecoration(labelText: '脚本目录（可留空）'),
               ),
             ],
           ],
         ),
         actions: [
-          TextButton(
+          prism.TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('取消'),
           ),
-          FilledButton(
+          prism.FilledButton(
             onPressed: () => Navigator.pop(context, [
               url.text.trim(),
               ref.text.trim(),
@@ -145,8 +141,7 @@ class _AutomationPageState extends State<AutomationPage> {
       await _refresh();
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+        showPrismNotice(context, (error.toString()).toString());
       }
     } finally {
       if (mounted) setState(() => _busy = '');
@@ -154,18 +149,18 @@ class _AutomationPageState extends State<AutomationPage> {
   }
 
   Future<void> _deleteScript(String id, String name) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showPrismDialog<bool>(
       context: context,
       useRootNavigator: false,
-      builder: (context) => AlertDialog(
+      builder: (context) => PrismDialog(
         title: const Text('删除脚本？'),
         content: Text('将删除“$name”及其本地文件。'),
         actions: [
-          TextButton(
+          prism.TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('取消'),
           ),
-          FilledButton(
+          prism.FilledButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('删除'),
           ),
@@ -179,8 +174,7 @@ class _AutomationPageState extends State<AutomationPage> {
       await _refresh();
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+        showPrismNotice(context, (error.toString()).toString());
       }
     } finally {
       if (mounted) setState(() => _busy = '');
@@ -197,13 +191,11 @@ class _AutomationPageState extends State<AutomationPage> {
       final result = await WailsBridge.call(method, [id]);
       final message = result is Map ? result['message'] : null;
       if (mounted && message != null) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(message.toString())));
+        showPrismNotice(context, (message.toString()).toString());
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+        showPrismNotice(context, (error.toString()).toString());
       }
     }
   }
@@ -218,17 +210,15 @@ class _AutomationPageState extends State<AutomationPage> {
       ]);
       final value = result is Map ? result['message'] : null;
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text((value ?? '已导出 ${ids.length} 个脚本').toString()),
-          ),
+        showPrismNotice(
+          context,
+          ((value ?? '已导出 ${ids.length} 个脚本').toString()).toString(),
         );
         setState(() => _selectedScriptIds.clear());
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+        showPrismNotice(context, (error.toString()).toString());
       }
     } finally {
       if (mounted) setState(() => _busy = '');
@@ -236,10 +226,10 @@ class _AutomationPageState extends State<AutomationPage> {
   }
 
   Future<void> _showRunDetails(Map<String, dynamic> run) async {
-    await showDialog<void>(
+    await showPrismDialog<void>(
       context: context,
       useRootNavigator: false,
-      builder: (context) => AlertDialog(
+      builder: (context) => PrismDialog(
         title: Text(
           (run['scriptName'] ?? run['scriptId'] ?? '运行记录').toString(),
         ),
@@ -254,16 +244,16 @@ class _AutomationPageState extends State<AutomationPage> {
               if ((run['summary'] ?? '').toString().isNotEmpty)
                 Text('摘要：${run['summary']}'),
               if ((run['error'] ?? '').toString().isNotEmpty)
-                SelectableText('错误：\n${run['error']}'),
+                prism.SelectableText('错误：\n${run['error']}'),
               if ((run['resultText'] ?? '').toString().isNotEmpty)
-                SelectableText('运行结果：\n${run['resultText']}'),
+                prism.SelectableText('运行结果：\n${run['resultText']}'),
               if ((run['logText'] ?? '').toString().isNotEmpty)
-                SelectableText('运行日志：\n${run['logText']}'),
+                prism.SelectableText('运行日志：\n${run['logText']}'),
             ],
           ),
         ),
         actions: [
-          TextButton(
+          prism.TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('关闭'),
           ),
@@ -286,31 +276,34 @@ class _AutomationPageState extends State<AutomationPage> {
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
               ),
             ),
-            FilledButton.icon(
+            prism.FilledButton.icon(
               onPressed: _busy.isEmpty ? widget.onCreate : null,
               icon: const Icon(Icons.add),
               label: const Text('新建脚本'),
             ),
             if (_selectedScriptIds.isNotEmpty) ...[
               const SizedBox(width: 8),
-              OutlinedButton.icon(
+              prism.OutlinedButton.icon(
                 onPressed: _busy.isEmpty ? _exportSelectedScripts : null,
                 icon: const Icon(Icons.download_outlined),
                 label: Text('导出 ${_selectedScriptIds.length} 个'),
               ),
             ],
-            IconButton(onPressed: _refresh, icon: const Icon(Icons.refresh)),
-            PopupMenuButton<String>(
+            prism.IconButton(
+              onPressed: _refresh,
+              icon: const Icon(Icons.refresh),
+            ),
+            PrismPopupMenuButton<String>(
               tooltip: '导入脚本',
               enabled: _busy.isEmpty,
               icon: const Icon(Icons.upload_file),
               onSelected: _import,
               itemBuilder: (_) => const [
-                PopupMenuItem(value: 'file', child: Text('从文件导入')),
-                PopupMenuItem(value: 'directory', child: Text('从文件夹导入')),
-                PopupMenuItem(value: 'library', child: Text('导入内置脚本库')),
-                PopupMenuItem(value: 'remote', child: Text('从网址导入')),
-                PopupMenuItem(value: 'git', child: Text('从 Git 仓库导入')),
+                PrismMenuItem(value: 'file', child: Text('从文件导入')),
+                PrismMenuItem(value: 'directory', child: Text('从文件夹导入')),
+                PrismMenuItem(value: 'library', child: Text('导入内置脚本库')),
+                PrismMenuItem(value: 'remote', child: Text('从网址导入')),
+                PrismMenuItem(value: 'git', child: Text('从 Git 仓库导入')),
               ],
             ),
           ],
@@ -318,7 +311,7 @@ class _AutomationPageState extends State<AutomationPage> {
         const SizedBox(height: 14),
         Expanded(
           child: _loading
-              ? const Center(child: CircularProgressIndicator())
+              ? const Center(child: PrismProgressIndicator())
               : ListView(
                   children: [
                     const Text(
@@ -343,7 +336,7 @@ class _AutomationPageState extends State<AutomationPage> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           isThreeLine: true,
-                          leading: Checkbox(
+                          leading: prism.Checkbox(
                             value: _selectedScriptIds.contains(
                               (script['id'] ?? '').toString(),
                             ),
@@ -356,7 +349,7 @@ class _AutomationPageState extends State<AutomationPage> {
                               }
                             }),
                           ),
-                          trailing: PopupMenuButton<String>(
+                          trailing: PrismPopupMenuButton<String>(
                             onSelected: (action) {
                               if (action == 'open') {
                                 widget.onOpen((script['id'] ?? '').toString());
@@ -373,20 +366,20 @@ class _AutomationPageState extends State<AutomationPage> {
                               }
                             },
                             itemBuilder: (_) => const [
-                              PopupMenuItem(value: 'open', child: Text('编辑')),
-                              PopupMenuItem(
+                              PrismMenuItem(value: 'open', child: Text('编辑')),
+                              PrismMenuItem(
                                 value: 'export-json',
                                 child: Text('导出 JSON 模板'),
                               ),
-                              PopupMenuItem(
+                              PrismMenuItem(
                                 value: 'export-directory',
                                 child: Text('导出目录'),
                               ),
-                              PopupMenuItem(
+                              PrismMenuItem(
                                 value: 'export-zip',
                                 child: Text('导出 ZIP'),
                               ),
-                              PopupMenuItem(value: 'delete', child: Text('删除')),
+                              PrismMenuItem(value: 'delete', child: Text('删除')),
                             ],
                           ),
                         ),
@@ -410,8 +403,8 @@ class _AutomationPageState extends State<AutomationPage> {
                                 ? Icons.check_circle_outline
                                 : Icons.error_outline,
                             color: run['status'] == 'success'
-                                ? Theme.of(context).colorScheme.tertiary
-                                : Theme.of(context).colorScheme.error,
+                                ? prism.Theme.of(context).colorScheme.tertiary
+                                : prism.Theme.of(context).colorScheme.error,
                           ),
                           title: Text(
                             (run['scriptName'] ?? run['scriptId'] ?? '')
@@ -591,19 +584,16 @@ class _AutomationScriptDetailPageState
     final record = _record;
     if (record == null) return;
     if (_name.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('请先填写脚本名称')));
+      showPrismNotice(context, ('请先填写脚本名称').toString());
       return;
     }
     if (_script.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            (_record?['type'] ?? '').toString() == 'launch-api'
+      showPrismNotice(
+        context,
+        ((_record?['type'] ?? '').toString() == 'launch-api'
                 ? '固定接口模板不能为空'
-                : '脚本内容不能为空',
-          ),
-        ),
+                : '脚本内容不能为空')
+            .toString(),
       );
       return;
     }
@@ -629,8 +619,7 @@ class _AutomationScriptDetailPageState
         throw const FormatException('响应示例必须是 JSON 对象');
       }
     } catch (error) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('对外 API 配置无效：$error')));
+      showPrismNotice(context, ('对外 API 配置无效：$error').toString());
       return;
     }
     setState(() => _busy = 'save');
@@ -666,17 +655,13 @@ class _AutomationScriptDetailPageState
       if (savedPublicApi is Map) {
         _apiPath.text = (savedPublicApi['path'] ?? '').toString();
       }
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('已保存')));
+      if (mounted) showPrismNotice(context, ('已保存').toString());
       final savedId = (_record!['id'] ?? '').toString();
       if (widget.scriptId == 'new' && savedId.isNotEmpty) {
         widget.onCreated(savedId);
       }
     } catch (error) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+      if (mounted) showPrismNotice(context, (error.toString()).toString());
     } finally {
       if (mounted) setState(() => _busy = '');
     }
@@ -704,9 +689,7 @@ class _AutomationScriptDetailPageState
     if (selected == null &&
         scriptId != dualInstanceScriptId &&
         !hasStoredTarget) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('请先选择运行目标实例，或填写目标选择器 JSON')));
+      showPrismNotice(context, ('请先选择运行目标实例，或填写目标选择器 JSON').toString());
       return;
     }
     setState(() {
@@ -754,13 +737,11 @@ class _AutomationScriptDetailPageState
 
   Future<void> _testPublicAPI() async {
     if (widget.scriptId == 'new' || (_record?['id'] ?? '').toString().isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('请先保存脚本，再测试对外接口')));
+      showPrismNotice(context, ('请先保存脚本，再测试对外接口').toString());
       return;
     }
     if (!_apiEnabled) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('请先启用对外 API')));
+      showPrismNotice(context, ('请先启用对外 API').toString());
       return;
     }
     try {
@@ -773,8 +754,7 @@ class _AutomationScriptDetailPageState
         throw const FormatException('请求 Body 必须是 JSON 对象');
       }
     } catch (error) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('对外 API 配置无效：$error')));
+      showPrismNotice(context, ('对外 API 配置无效：$error').toString());
       return;
     }
     await _save();
@@ -850,13 +830,13 @@ class _AutomationScriptDetailPageState
 
   @override
   Widget build(BuildContext context) => _loading
-      ? const Center(child: CircularProgressIndicator())
+      ? const Center(child: PrismProgressIndicator())
       : ListView(
           padding: const EdgeInsets.all(24),
           children: [
             Row(
               children: [
-                IconButton(
+                prism.IconButton(
                   onPressed: widget.onBack,
                   icon: const Icon(Icons.arrow_back),
                 ),
@@ -866,7 +846,7 @@ class _AutomationScriptDetailPageState
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                   ),
                 ),
-                PopupMenuButton<String>(
+                PrismPopupMenuButton<String>(
                   enabled: _busy.isEmpty && widget.scriptId != 'new',
                   onSelected: (action) async {
                     if (action.startsWith('export-')) {
@@ -883,32 +863,32 @@ class _AutomationScriptDetailPageState
                         if (mounted &&
                             result is Map &&
                             result['message'] != null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(result['message'].toString()),
-                            ),
+                          showPrismNotice(
+                            context,
+                            (result['message'].toString()).toString(),
                           );
                         }
                       } catch (error) {
                         if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(error.toString())),
+                          showPrismNotice(
+                            context,
+                            (error.toString()).toString(),
                           );
                         }
                       }
                     } else if (action == 'delete') {
-                      final yes = await showDialog<bool>(
+                      final yes = await showPrismDialog<bool>(
                         context: context,
                         useRootNavigator: false,
-                        builder: (context) => AlertDialog(
+                        builder: (context) => PrismDialog(
                           title: const Text('删除脚本？'),
                           content: Text('将删除“${_name.text}”及其本地文件。'),
                           actions: [
-                            TextButton(
+                            prism.TextButton(
                               onPressed: () => Navigator.pop(context, false),
                               child: const Text('取消'),
                             ),
-                            FilledButton(
+                            prism.FilledButton(
                               onPressed: () => Navigator.pop(context, true),
                               child: const Text('删除'),
                             ),
@@ -960,28 +940,29 @@ class _AutomationScriptDetailPageState
                         if (mounted) setState(() {});
                       } catch (error) {
                         if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(error.toString())),
+                          showPrismNotice(
+                            context,
+                            (error.toString()).toString(),
                           );
                         }
                       }
                     }
                   },
                   itemBuilder: (_) => const [
-                    PopupMenuItem(
+                    PrismMenuItem(
                       value: 'export-json',
                       child: Text('导出 JSON 模板'),
                     ),
-                    PopupMenuItem(
+                    PrismMenuItem(
                       value: 'export-directory',
                       child: Text('导出目录'),
                     ),
-                    PopupMenuItem(value: 'export-zip', child: Text('导出 ZIP')),
-                    PopupMenuItem(value: 'refresh', child: Text('按来源重新导入')),
-                    PopupMenuItem(value: 'delete', child: Text('删除脚本')),
+                    PrismMenuItem(value: 'export-zip', child: Text('导出 ZIP')),
+                    PrismMenuItem(value: 'refresh', child: Text('按来源重新导入')),
+                    PrismMenuItem(value: 'delete', child: Text('删除脚本')),
                   ],
                 ),
-                OutlinedButton.icon(
+                prism.OutlinedButton.icon(
                   onPressed:
                       _busy.isEmpty &&
                           (_record?['id'] ?? widget.scriptId) != '' &&
@@ -992,7 +973,7 @@ class _AutomationScriptDetailPageState
                   label: Text(_busy == 'run' ? '运行中' : '试运行'),
                 ),
                 const SizedBox(width: 8),
-                FilledButton.icon(
+                prism.FilledButton.icon(
                   onPressed: _busy.isEmpty ? _save : null,
                   icon: const Icon(Icons.save_outlined),
                   label: Text(_busy == 'save' ? '保存中' : '保存'),
@@ -1000,20 +981,20 @@ class _AutomationScriptDetailPageState
               ],
             ),
             const SizedBox(height: 14),
-            TextField(
+            PrismTextField(
               controller: _name,
-              decoration: const InputDecoration(labelText: '脚本名称'),
+              decoration: const PrismInputDecoration(labelText: '脚本名称'),
             ),
             if (widget.scriptId == 'new')
-              DropdownButtonFormField<String>(
+              PrismDropdownField<String>(
                 initialValue: (_record?['type'] ?? 'playwright-cdp').toString(),
-                decoration: const InputDecoration(labelText: '脚本类型'),
+                decoration: const PrismInputDecoration(labelText: '脚本类型'),
                 items: const [
-                  DropdownMenuItem(
+                  PrismDropdownItem(
                     value: 'playwright-cdp',
                     child: Text('Playwright 自动化'),
                   ),
-                  DropdownMenuItem(
+                  PrismDropdownItem(
                     value: 'launch-api',
                     child: Text('Launch API'),
                   ),
@@ -1022,21 +1003,21 @@ class _AutomationScriptDetailPageState
                   if (value != null) _changeNewScriptType(value);
                 },
               ),
-            TextField(
+            PrismTextField(
               controller: _description,
-              decoration: const InputDecoration(labelText: '说明'),
+              decoration: const PrismInputDecoration(labelText: '说明'),
             ),
-            DropdownButtonFormField<String>(
+            PrismDropdownField<String>(
               initialValue:
                   _profiles.any(
                     (profile) => profile['profileId'] == _targetProfileId,
                   )
                   ? _targetProfileId
                   : null,
-              decoration: const InputDecoration(labelText: '试运行目标实例'),
+              decoration: const PrismInputDecoration(labelText: '试运行目标实例'),
               items: [
                 for (final profile in _profiles)
-                  DropdownMenuItem(
+                  PrismDropdownItem(
                     value: profile['profileId']?.toString(),
                     child: Text(
                       '${profile['profileName'] ?? '未命名实例'}${profile['running'] == true ? ' · 运行中' : ''}',
@@ -1046,36 +1027,24 @@ class _AutomationScriptDetailPageState
               ],
               onChanged: (value) => setState(() => _targetProfileId = value),
             ),
-            TextField(
+            PrismTextField(
               controller: _selector,
               minLines: 2,
               maxLines: 6,
-              decoration: const InputDecoration(
-                labelText: '目标选择器 JSON',
-                alignLabelWithHint: true,
-                border: OutlineInputBorder(),
-              ),
+              decoration: const PrismInputDecoration(labelText: '目标选择器 JSON'),
             ),
-            TextField(
+            PrismTextField(
               controller: _params,
               minLines: 2,
               maxLines: 8,
-              decoration: const InputDecoration(
-                labelText: '运行参数 JSON',
-                alignLabelWithHint: true,
-                border: OutlineInputBorder(),
-              ),
+              decoration: const PrismInputDecoration(labelText: '运行参数 JSON'),
             ),
             const SizedBox(height: 12),
-            TextField(
+            PrismTextField(
               controller: _script,
               minLines: 12,
               maxLines: 30,
-              decoration: const InputDecoration(
-                labelText: '脚本内容',
-                alignLabelWithHint: true,
-                border: OutlineInputBorder(),
-              ),
+              decoration: const PrismInputDecoration(labelText: '脚本内容'),
             ),
             const SizedBox(height: 14),
             PrismCard(
@@ -1084,7 +1053,7 @@ class _AutomationScriptDetailPageState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    SwitchListTile(
+                    PrismSwitchTile(
                       contentPadding: EdgeInsets.zero,
                       title: const Text('启用对外 API'),
                       subtitle: const Text('通过 Launch Server 的 HTTP 接口触发此脚本'),
@@ -1103,19 +1072,23 @@ class _AutomationScriptDetailPageState
                           : null,
                     ),
                     if (_apiEnabled) ...[
-                      TextField(
+                      PrismTextField(
                         controller: _apiPath,
-                        decoration: const InputDecoration(labelText: '接口路径'),
+                        decoration: const PrismInputDecoration(
+                          labelText: '接口路径',
+                        ),
                       ),
-                      DropdownButtonFormField<String>(
+                      PrismDropdownField<String>(
                         initialValue: _apiRequestMode,
-                        decoration: const InputDecoration(labelText: '请求模式'),
+                        decoration: const PrismInputDecoration(
+                          labelText: '请求模式',
+                        ),
                         items: const [
-                          DropdownMenuItem(
+                          PrismDropdownItem(
                             value: 'standard',
                             child: Text('标准请求'),
                           ),
-                          DropdownMenuItem(
+                          PrismDropdownItem(
                             value: 'params-only',
                             child: Text('只透传 params'),
                           ),
@@ -1124,15 +1097,17 @@ class _AutomationScriptDetailPageState
                           () => _apiRequestMode = value ?? 'standard',
                         ),
                       ),
-                      DropdownButtonFormField<String>(
+                      PrismDropdownField<String>(
                         initialValue: _apiResponseMode,
-                        decoration: const InputDecoration(labelText: '响应模式'),
+                        decoration: const PrismInputDecoration(
+                          labelText: '响应模式',
+                        ),
                         items: const [
-                          DropdownMenuItem(
+                          PrismDropdownItem(
                             value: 'envelope',
                             child: Text('标准响应'),
                           ),
-                          DropdownMenuItem(
+                          PrismDropdownItem(
                             value: 'result-only',
                             child: Text('只返回 result'),
                           ),
@@ -1141,38 +1116,40 @@ class _AutomationScriptDetailPageState
                           () => _apiResponseMode = value ?? 'envelope',
                         ),
                       ),
-                      TextField(
+                      PrismTextField(
                         controller: _apiTimeout,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(labelText: '超时（毫秒）'),
+                        decoration: const PrismInputDecoration(
+                          labelText: '超时（毫秒）',
+                        ),
                       ),
-                      TextField(
+                      PrismTextField(
                         controller: _apiRequest,
                         minLines: 3,
                         maxLines: 8,
-                        decoration: const InputDecoration(
+                        decoration: const PrismInputDecoration(
                           labelText: '请求 Body JSON',
                         ),
                       ),
-                      TextField(
+                      PrismTextField(
                         controller: _apiResponse,
                         minLines: 2,
                         maxLines: 6,
-                        decoration: const InputDecoration(
+                        decoration: const PrismInputDecoration(
                           labelText: '响应示例 JSON（可选）',
                         ),
                       ),
-                      TextField(
+                      PrismTextField(
                         controller: _apiVariables,
                         minLines: 2,
                         maxLines: 6,
-                        decoration: const InputDecoration(
+                        decoration: const PrismInputDecoration(
                           labelText: '变量配置 JSON 数组',
                         ),
                       ),
                       Align(
                         alignment: Alignment.centerRight,
-                        child: OutlinedButton.icon(
+                        child: prism.OutlinedButton.icon(
                           onPressed: _busy.isEmpty ? _testPublicAPI : null,
                           icon: const Icon(Icons.play_arrow),
                           label: Text(
@@ -1190,7 +1167,7 @@ class _AutomationScriptDetailPageState
               PrismCard(
                 child: Padding(
                   padding: const EdgeInsets.all(14),
-                  child: SelectableText(_runOutput),
+                  child: prism.SelectableText(_runOutput),
                 ),
               ),
             ],

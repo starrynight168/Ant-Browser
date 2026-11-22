@@ -1,9 +1,9 @@
 import 'dart:convert';
 
-import 'package:material_ui/material_ui.dart';
-import 'package:yaml/yaml.dart';
+import 'prism_widgets.dart';
 
-import 'prism_components.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
+import 'package:yaml/yaml.dart';
 
 import 'wails_bridge.dart';
 
@@ -118,41 +118,41 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
     final group = TextEditingController(
       text: (proxy?['groupName'] ?? '').toString(),
     );
-    final result = await showDialog<bool>(
+    final result = await showPrismDialog<bool>(
       context: context,
       useRootNavigator: false,
-      builder: (context) => AlertDialog(
+      builder: (context) => PrismDialog(
         title: Text(proxy == null ? '添加代理' : '编辑代理'),
         content: SizedBox(
           width: 480,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
+              PrismTextField(
                 controller: name,
                 autofocus: true,
-                decoration: const InputDecoration(labelText: '代理名称'),
+                decoration: const PrismInputDecoration(labelText: '代理名称'),
               ),
-              TextField(
+              PrismTextField(
                 controller: config,
-                decoration: const InputDecoration(
+                decoration: const PrismInputDecoration(
                   labelText: '代理地址',
                   hintText: 'http://127.0.0.1:8080',
                 ),
               ),
-              TextField(
+              PrismTextField(
                 controller: group,
-                decoration: const InputDecoration(labelText: '分组（可选）'),
+                decoration: const PrismInputDecoration(labelText: '分组（可选）'),
               ),
             ],
           ),
         ),
         actions: [
-          TextButton(
+          prism.TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('取消'),
           ),
-          FilledButton(
+          prism.FilledButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('保存'),
           ),
@@ -188,18 +188,18 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
 
   Future<void> _delete(Map<String, dynamic> proxy) async {
     final id = (proxy['proxyId'] ?? '').toString();
-    final ok = await showDialog<bool>(
+    final ok = await showPrismDialog<bool>(
       context: context,
       useRootNavigator: false,
-      builder: (context) => AlertDialog(
+      builder: (context) => PrismDialog(
         title: const Text('删除代理？'),
         content: Text((proxy['proxyName'] ?? id).toString()),
         actions: [
-          TextButton(
+          prism.TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('取消'),
           ),
-          FilledButton(
+          prism.FilledButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('删除'),
           ),
@@ -219,13 +219,9 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
       final message = row['ok'] == true
           ? '连接成功，延迟 ${row['latencyMs'] ?? 0} ms'
           : '连接失败：${row['error'] ?? '未知错误'}';
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(message)));
+      if (mounted) showPrismNotice(context, (message).toString());
     } catch (error) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+      if (mounted) showPrismNotice(context, (error.toString()).toString());
     } finally {
       if (mounted) setState(() => _busy = '');
     }
@@ -241,13 +237,11 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
           ? 'IP 检查完成：${row['ip'] ?? '未返回 IP'} · ${row['country'] ?? row['region'] ?? ''}'
           : 'IP 检查失败：${row['error'] ?? '未知错误'}';
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(message)));
+        showPrismNotice(context, (message).toString());
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+        showPrismNotice(context, (error.toString()).toString());
       }
     } finally {
       if (mounted) setState(() => _busy = '');
@@ -281,10 +275,10 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
         text: const JsonEncoder.withIndent('  ')
             .convert(settings['targets'] ?? []),
       );
-      final result = await showDialog<Map<String, dynamic>>(
+      final result = await showPrismDialog<Map<String, dynamic>>(
         context: context,
         useRootNavigator: false,
-        builder: (context) => AlertDialog(
+        builder: (context) => PrismDialog(
           title: const Text('代理检测设置'),
           content: SizedBox(
             width: 620,
@@ -292,54 +286,64 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
             child: SingleChildScrollView(
               child: Column(
                 children: [
-                  TextField(
+                  PrismTextField(
                     controller: bridgeTimeout,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: '代理启动等待（毫秒）'),
+                    decoration: const PrismInputDecoration(
+                      labelText: '代理启动等待（毫秒）',
+                    ),
                   ),
-                  TextField(
+                  PrismTextField(
                     controller: interval,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
+                    decoration: const PrismInputDecoration(
                       labelText: '成功节点重测间隔（分钟）',
                     ),
                   ),
-                  TextField(
+                  PrismTextField(
                     controller: retry,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: '失败重试间隔（分钟）'),
+                    decoration: const PrismInputDecoration(
+                      labelText: '失败重试间隔（分钟）',
+                    ),
                   ),
-                  TextField(
+                  PrismTextField(
                     controller: concurrency,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
+                    decoration: const PrismInputDecoration(
                       labelText: '测速并发上限（1 到 10）',
                     ),
                   ),
-                  TextField(
+                  PrismTextField(
                     controller: speedTarget,
-                    decoration: const InputDecoration(labelText: '测速目标 ID'),
+                    decoration: const PrismInputDecoration(
+                      labelText: '测速目标 ID',
+                    ),
                   ),
-                  TextField(
+                  PrismTextField(
                     controller: healthTarget,
-                    decoration: const InputDecoration(labelText: 'IP 健康目标 ID'),
+                    decoration: const PrismInputDecoration(
+                      labelText: 'IP 健康目标 ID',
+                    ),
                   ),
-                  TextField(
+                  PrismTextField(
                     controller: targets,
                     minLines: 8,
                     maxLines: 16,
-                    decoration: const InputDecoration(labelText: '检测目标列表 JSON'),
+                    decoration: const PrismInputDecoration(
+                      labelText: '检测目标列表 JSON',
+                    ),
                   ),
                 ],
               ),
             ),
           ),
           actions: [
-            TextButton(
+            prism.TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('取消'),
             ),
-            FilledButton(
+            prism.FilledButton(
               onPressed: () {
                 try {
                   final parsedTargets = jsonDecode(targets.text);
@@ -358,9 +362,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                     'targets': parsedTargets,
                   });
                 } catch (error) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('检测目标 JSON 无效：$error')),
-                  );
+                  showPrismNotice(context, ('检测目标 JSON 无效：$error').toString());
                 }
               },
               child: const Text('保存'),
@@ -378,13 +380,11 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
       if (result == null) return;
       await WailsBridge.call('SaveProxyCheckSettings', [result]);
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('代理检测设置已保存')));
+        showPrismNotice(context, ('代理检测设置已保存').toString());
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+        showPrismNotice(context, (error.toString()).toString());
       }
     }
   }
@@ -396,37 +396,41 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
     final interval = TextEditingController(text: '30');
     var autoRefresh = false;
     var fetchProxyId = '';
-    final accepted = await showDialog<bool>(
+    final accepted = await showPrismDialog<bool>(
       context: context,
       useRootNavigator: false,
       builder: (context) => StatefulBuilder(
-        builder: (context, setDialog) => AlertDialog(
+        builder: (context, setDialog) => PrismDialog(
           title: const Text('导入代理订阅'),
           content: SizedBox(
             width: 480,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                PrismTextField(
                   controller: url,
                   autofocus: true,
-                  decoration: const InputDecoration(labelText: '订阅地址'),
+                  decoration: const PrismInputDecoration(labelText: '订阅地址'),
                 ),
-                TextField(
+                PrismTextField(
                   controller: prefix,
-                  decoration: const InputDecoration(labelText: '节点名前缀（可选）'),
+                  decoration: const PrismInputDecoration(
+                    labelText: '节点名前缀（可选）',
+                  ),
                 ),
-                TextField(
+                PrismTextField(
                   controller: group,
-                  decoration: const InputDecoration(labelText: '代理分组（可选）'),
+                  decoration: const PrismInputDecoration(labelText: '代理分组（可选）'),
                 ),
-                DropdownButtonFormField<String>(
+                PrismDropdownField<String>(
                   initialValue: fetchProxyId,
-                  decoration: const InputDecoration(labelText: '拉取订阅使用的代理'),
+                  decoration: const PrismInputDecoration(
+                    labelText: '拉取订阅使用的代理',
+                  ),
                   items: [
-                    const DropdownMenuItem(value: '', child: Text('直连')),
+                    const PrismDropdownItem(value: '', child: Text('直连')),
                     for (final proxy in _proxies)
-                      DropdownMenuItem(
+                      PrismDropdownItem(
                         value: proxy['proxyId']?.toString(),
                         child: Text(
                           (proxy['proxyName'] ?? '未命名代理').toString(),
@@ -436,27 +440,29 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                   ],
                   onChanged: (value) => fetchProxyId = value ?? '',
                 ),
-                SwitchListTile(
+                PrismSwitchTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('自动刷新'),
                   value: autoRefresh,
                   onChanged: (value) => setDialog(() => autoRefresh = value),
                 ),
                 if (autoRefresh)
-                  TextField(
+                  PrismTextField(
                     controller: interval,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: '刷新间隔（分钟）'),
+                    decoration: const PrismInputDecoration(
+                      labelText: '刷新间隔（分钟）',
+                    ),
                   ),
               ],
             ),
           ),
           actions: [
-            TextButton(
+            prism.TextButton(
               onPressed: () => Navigator.pop(context, false),
               child: const Text('取消'),
             ),
-            FilledButton(
+            prism.FilledButton(
               onPressed: () => Navigator.pop(context, true),
               child: const Text('开始导入'),
             ),
@@ -592,13 +598,12 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
         setState(() => _proxies = next);
         await _refresh();
         if (mounted)
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('导入完成：保存 ${imported.length} 个代理')),
+          showPrismNotice(
+            context,
+            ('导入完成：保存 ${imported.length} 个代理').toString(),
           );
       } catch (error) {
-        if (mounted)
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text(error.toString())));
+        if (mounted) showPrismNotice(context, (error.toString()).toString());
       } finally {
         if (mounted) setState(() => _busy = '');
       }
@@ -621,13 +626,13 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
 
   Future<Set<int>?> _chooseSubscriptionNodes(
     List<Map<String, dynamic>> nodes,
-  ) => showDialog<Set<int>>(
+  ) => showPrismDialog<Set<int>>(
     context: context,
     useRootNavigator: false,
     builder: (context) {
       final selected = nodes.map((node) => node['index'] as int).toSet();
       return StatefulBuilder(
-        builder: (context, setDialog) => AlertDialog(
+        builder: (context, setDialog) => PrismDialog(
           title: Text('选择要导入的节点（${nodes.length}）'),
           content: SizedBox(
             width: 560,
@@ -637,7 +642,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
               itemBuilder: (context, index) {
                 final node = nodes[index];
                 final nodeIndex = node['index'] as int;
-                return CheckboxListTile(
+                return PrismCheckboxTile(
                   value: selected.contains(nodeIndex),
                   title: Text(node['name'].toString()),
                   subtitle: Text(
@@ -655,11 +660,11 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
             ),
           ),
           actions: [
-            TextButton(
+            prism.TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('取消'),
             ),
-            FilledButton(
+            prism.FilledButton(
               onPressed: selected.isEmpty
                   ? null
                   : () => Navigator.pop(context, selected),
@@ -689,43 +694,43 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
           Row(
             children: [
               Expanded(
-                child: TextField(
+                child: PrismTextField(
                   onChanged: (value) => setState(() => _query = value),
-                  decoration: const InputDecoration(
+                  decoration: const PrismInputDecoration(
                     prefixIcon: Icon(Icons.search),
                     hintText: '搜索代理或分组',
                   ),
                 ),
               ),
-              IconButton(
+              prism.IconButton(
                 tooltip: '刷新',
                 onPressed: _refresh,
                 icon: const Icon(Icons.refresh),
               ),
-              IconButton(
+              prism.IconButton(
                 tooltip: '代理检测设置',
                 onPressed: _editCheckSettings,
                 icon: const Icon(Icons.tune),
               ),
-              OutlinedButton.icon(
+              prism.OutlinedButton.icon(
                 onPressed: widget.onOpenGroups,
                 icon: const Icon(Icons.hub_outlined),
                 label: const Text('虚拟分组'),
               ),
               const SizedBox(width: 8),
-              OutlinedButton.icon(
+              prism.OutlinedButton.icon(
                 onPressed: widget.onOpenAlign,
                 icon: const Icon(Icons.sync_alt),
                 label: const Text('订阅记录'),
               ),
               const SizedBox(width: 8),
-              OutlinedButton.icon(
+              prism.OutlinedButton.icon(
                 onPressed: _busy.isEmpty ? _importSubscription : null,
                 icon: const Icon(Icons.download_outlined),
                 label: Text(_busy == 'subscription' ? '导入中…' : '导入订阅'),
               ),
               const SizedBox(width: 8),
-              FilledButton.icon(
+              prism.FilledButton.icon(
                 onPressed: () => _edit(),
                 icon: const Icon(Icons.add),
                 label: const Text('添加代理'),
@@ -735,14 +740,14 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
           const SizedBox(height: 16),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: PrismProgressIndicator())
                 : _error != null
                 ? Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(_error!),
-                        TextButton(
+                        prism.TextButton(
                           onPressed: _refresh,
                           child: const Text('重试'),
                         ),
@@ -767,14 +772,14 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                           ),
                           trailing: Wrap(
                             children: [
-                              IconButton(
+                              prism.IconButton(
                                 tooltip: '检查代理 IP',
                                 onPressed: _busy == id
                                     ? null
                                     : () => _testIpHealth(item),
                                 icon: const Icon(Icons.public),
                               ),
-                              IconButton(
+                              prism.IconButton(
                                 tooltip: '测试连接',
                                 onPressed: _busy == id
                                     ? null
@@ -783,18 +788,16 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                                     ? const SizedBox(
                                         width: 18,
                                         height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
+                                        child: PrismProgressIndicator(),
                                       )
                                     : const Icon(Icons.speed),
                               ),
-                              IconButton(
+                              prism.IconButton(
                                 tooltip: '编辑',
                                 onPressed: () => _edit(item),
                                 icon: const Icon(Icons.edit_outlined),
                               ),
-                              IconButton(
+                              prism.IconButton(
                                 tooltip: '删除',
                                 onPressed: () => _delete(item),
                                 icon: const Icon(Icons.delete_outline),
@@ -857,9 +860,7 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
         _sourceId = sources.first['sourceId'].toString();
       if (_sourceId.isNotEmpty) await _loadRecords();
     } catch (error) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+      if (mounted) showPrismNotice(context, (error.toString()).toString());
     }
     if (mounted) setState(() => _loading = false);
   }
@@ -956,18 +957,14 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
           ? ''
           : '手动匹配 ${value['manualMatched'] ?? 0}，';
       if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '刷新完成：$alignmentSummary新增 ${value['added'] ?? 0}，标记异常 ${value['markedMissing'] ?? 0}',
-            ),
-          ),
+        showPrismNotice(
+          context,
+          ('刷新完成：$alignmentSummary新增 ${value['added'] ?? 0}，标记异常 ${value['markedMissing'] ?? 0}')
+              .toString(),
         );
       await _load();
     } catch (error) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+      if (mounted) showPrismNotice(context, (error.toString()).toString());
     } finally {
       if (mounted) setState(() => _busy = '');
     }
@@ -984,7 +981,7 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
       final nodes = await _fetchAlignmentNodes(source);
       if (!mounted) return;
       if (nodes.isEmpty) throw StateError('订阅中没有可匹配的节点');
-      final pairs = await showDialog<List<Map<String, dynamic>>>(
+      final pairs = await showPrismDialog<List<Map<String, dynamic>>>(
         context: context,
         useRootNavigator: false,
         builder: (context) => _ProxyManualAlignmentDialog(
@@ -995,9 +992,7 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
       if (!mounted || pairs == null || pairs.isEmpty) return;
       await _refreshSource(source, manualPairs: pairs);
     } catch (error) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+      if (mounted) showPrismNotice(context, (error.toString()).toString());
     } finally {
       if (mounted && _busy == 'preview:$sourceId') setState(() => _busy = '');
     }
@@ -1018,7 +1013,7 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
     final source = _sources
         .where((item) => item['sourceId'] == _sourceId)
         .firstOrNull;
-    final theme = Theme.of(context);
+    final theme = prism.Theme.of(context);
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -1026,14 +1021,17 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
         children: [
           Row(
             children: [
-              IconButton(
+              prism.IconButton(
                 onPressed: widget.onBack,
                 icon: const Icon(Icons.arrow_back),
               ),
               Expanded(
-                child: Text('代理订阅记录', style: theme.textTheme.titleLarge),
+                child: Text(
+                  '代理订阅记录',
+                  style: prism.AppTextStyle.title2.of(context),
+                ),
               ),
-              IconButton(
+              prism.IconButton(
                 tooltip: '刷新记录',
                 onPressed: _load,
                 icon: const Icon(Icons.refresh),
@@ -1045,12 +1043,12 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
             Row(
               children: [
                 Expanded(
-                  child: DropdownButtonFormField<String>(
+                  child: PrismDropdownField<String>(
                     initialValue: _sourceId,
-                    decoration: const InputDecoration(labelText: '订阅来源'),
+                    decoration: const PrismInputDecoration(labelText: '订阅来源'),
                     items: [
                       for (final item in _sources)
-                        DropdownMenuItem(
+                        PrismDropdownItem(
                           value: item['sourceId'].toString(),
                           child: Text(
                             (item['sourceNamePrefix'] ??
@@ -1071,8 +1069,9 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
                         await _loadRecords();
                       } catch (error) {
                         if (mounted)
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(error.toString())),
+                          showPrismNotice(
+                            context,
+                            (error.toString()).toString(),
                           );
                       } finally {
                         if (mounted) setState(() => _loading = false);
@@ -1081,7 +1080,7 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                OutlinedButton.icon(
+                prism.OutlinedButton.icon(
                   onPressed: source == null || _busy.isNotEmpty
                       ? null
                       : () => _openManualAlign(source),
@@ -1089,7 +1088,7 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
                   label: const Text('手动匹配'),
                 ),
                 const SizedBox(width: 8),
-                FilledButton.icon(
+                prism.FilledButton.icon(
                   onPressed: source == null || _busy.isNotEmpty
                       ? null
                       : () => _refreshSource(source),
@@ -1101,7 +1100,7 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
           const SizedBox(height: 14),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: PrismProgressIndicator())
                 : _sources.isEmpty
                 ? const Center(child: Text('还没有订阅来源'))
                 : _records.isEmpty
@@ -1130,9 +1129,13 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
                                         .whereType<Map>())
                                   Text(
                                     '${pair['oldName'] ?? ''} → ${pair['newName'] ?? ''} · ${pair['match'] ?? ''}',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme.onSurfaceVariant,
-                                    ),
+                                    style: prism.AppTextStyle.footnote
+                                        .of(context)
+                                        .copyWith(
+                                          color: theme
+                                              .colorScheme
+                                              .onSurfaceVariant,
+                                        ),
                                   ),
                               ],
                             ),
@@ -1177,8 +1180,8 @@ class _ProxyManualAlignmentDialogState
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return AlertDialog(
+    final theme = prism.Theme.of(context);
+    return PrismDialog(
       title: const Text('手动匹配订阅节点'),
       content: SizedBox(
         width: 680,
@@ -1188,9 +1191,9 @@ class _ProxyManualAlignmentDialogState
           children: [
             Text(
               '为需要保留实例绑定的旧代理选择新的订阅节点。未选择的代理仍按自动规则刷新。',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+              style: prism.AppTextStyle.subheadline
+                  .of(context)
+                  .copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 12),
             Expanded(
@@ -1217,19 +1220,19 @@ class _ProxyManualAlignmentDialogState
                         children: [
                           Text(
                             (proxy['proxyName'] ?? '未命名代理').toString(),
-                            style: theme.textTheme.titleSmall,
+                            style: prism.AppTextStyle.subheadline.of(context),
                           ),
                           const SizedBox(height: 8),
-                          DropdownButtonFormField<int>(
+                          PrismDropdownField<int>(
                             initialValue: selected,
                             isExpanded: true,
-                            decoration: const InputDecoration(
+                            decoration: const PrismInputDecoration(
                               labelText: '对应的新节点',
                               isDense: true,
                             ),
                             items: [
                               for (final node in options)
-                                DropdownMenuItem(
+                                PrismDropdownItem(
                                   value: node['index'] as int,
                                   child: Text(
                                     _nodeLabel(node),
@@ -1256,11 +1259,11 @@ class _ProxyManualAlignmentDialogState
         ),
       ),
       actions: [
-        TextButton(
+        prism.TextButton(
           onPressed: () => Navigator.pop(context),
           child: const Text('取消'),
         ),
-        FilledButton(
+        prism.FilledButton(
           onPressed: _selectedNodes.isEmpty
               ? null
               : () => Navigator.pop(context, [
@@ -1326,9 +1329,7 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
           .map((e) => Map<String, dynamic>.from(e))
           .toList();
     } catch (error) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+      if (mounted) showPrismNotice(context, (error.toString()).toString());
     }
     if (mounted) setState(() => _loading = false);
   }
@@ -1341,27 +1342,27 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
     final selected = Set<String>.from(
       (group?['memberProxyIds'] as List? ?? []).map((e) => e.toString()),
     );
-    final result = await showDialog<bool>(
+    final result = await showPrismDialog<bool>(
       context: context,
       useRootNavigator: false,
       builder: (context) => StatefulBuilder(
-        builder: (context, setDialog) => AlertDialog(
+        builder: (context, setDialog) => PrismDialog(
           title: Text(group == null ? '新建虚拟分组' : '编辑虚拟分组'),
           content: SizedBox(
             width: 520,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                PrismTextField(
                   controller: name,
-                  decoration: const InputDecoration(labelText: '分组名称'),
+                  decoration: const PrismInputDecoration(labelText: '分组名称'),
                 ),
-                DropdownButtonFormField<String>(
+                PrismDropdownField<String>(
                   initialValue: strategy,
-                  decoration: const InputDecoration(labelText: '分配方式'),
+                  decoration: const PrismInputDecoration(labelText: '分配方式'),
                   items: const [
-                    DropdownMenuItem(value: 'round_robin', child: Text('轮询')),
-                    DropdownMenuItem(value: 'sticky', child: Text('固定节点')),
+                    PrismDropdownItem(value: 'round_robin', child: Text('轮询')),
+                    PrismDropdownItem(value: 'sticky', child: Text('固定节点')),
                   ],
                   onChanged: (value) =>
                       setDialog(() => strategy = value ?? 'round_robin'),
@@ -1376,8 +1377,7 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
                   child: ListView(
                     children: [
                       for (final proxy in _proxies)
-                        CheckboxListTile(
-                          dense: true,
+                        PrismCheckboxTile(
                           value: selected.contains(proxy['proxyId']),
                           title: Text(
                             (proxy['proxyName'] ?? proxy['proxyId'] ?? '')
@@ -1396,11 +1396,11 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
             ),
           ),
           actions: [
-            TextButton(
+            prism.TextButton(
               onPressed: () => Navigator.pop(context, false),
               child: const Text('取消'),
             ),
-            FilledButton(
+            prism.FilledButton(
               onPressed: () => Navigator.pop(context, true),
               child: const Text('保存'),
             ),
@@ -1433,27 +1433,25 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
       await WailsBridge.call('BrowserProxyVirtualGroupProbe', [id]);
       await _refresh();
     } catch (error) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+      if (mounted) showPrismNotice(context, (error.toString()).toString());
     } finally {
       if (mounted) setState(() => _busy = '');
     }
   }
 
   Future<void> _delete(Map<String, dynamic> group) async {
-    final yes = await showDialog<bool>(
+    final yes = await showPrismDialog<bool>(
       context: context,
       useRootNavigator: false,
-      builder: (context) => AlertDialog(
+      builder: (context) => PrismDialog(
         title: const Text('删除虚拟分组？'),
         content: Text((group['groupName'] ?? '').toString()),
         actions: [
-          TextButton(
+          prism.TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('取消'),
           ),
-          FilledButton(
+          prism.FilledButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('删除'),
           ),
@@ -1481,8 +1479,11 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
               ),
             ),
-            IconButton(onPressed: _refresh, icon: const Icon(Icons.refresh)),
-            FilledButton.icon(
+            prism.IconButton(
+              onPressed: _refresh,
+              icon: const Icon(Icons.refresh),
+            ),
+            prism.FilledButton.icon(
               onPressed: () => _edit(),
               icon: const Icon(Icons.add),
               label: const Text('新建分组'),
@@ -1492,7 +1493,7 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
         const SizedBox(height: 12),
         Expanded(
           child: _loading
-              ? const Center(child: CircularProgressIndicator())
+              ? const Center(child: PrismProgressIndicator())
               : _groups.isEmpty
               ? const Center(child: Text('还没有虚拟分组'))
               : ListView(
@@ -1520,7 +1521,7 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
                               ),
                               trailing: Wrap(
                                 children: [
-                                  IconButton(
+                                  prism.IconButton(
                                     tooltip: '探测',
                                     onPressed: _busy == id
                                         ? null
@@ -1529,20 +1530,18 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
                                         ? const SizedBox(
                                             width: 18,
                                             height: 18,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                            ),
+                                            child: PrismProgressIndicator(),
                                           )
                                         : const Icon(
                                             Icons.health_and_safety_outlined,
                                           ),
                                   ),
-                                  IconButton(
+                                  prism.IconButton(
                                     tooltip: '编辑',
                                     onPressed: () => _edit(group),
                                     icon: const Icon(Icons.edit_outlined),
                                   ),
-                                  IconButton(
+                                  prism.IconButton(
                                     tooltip: '删除',
                                     onPressed: () => _delete(group),
                                     icon: const Icon(Icons.delete_outline),

@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/foundation.dart';
 
 import 'wails_bridge.dart';
 
@@ -17,7 +17,8 @@ class NotificationStore extends ChangeNotifier {
     _listen('proxy:bridge:died', _onBridgeDied);
   }
 
-  int get unreadCount => notifications.where((item) => item['read'] != true).length;
+  int get unreadCount =>
+      notifications.where((item) => item['read'] != true).length;
 
   void _restore() {
     try {
@@ -36,9 +37,11 @@ class NotificationStore extends ChangeNotifier {
   }
 
   void _listen(String event, void Function(Map<String, dynamic>) onEvent) {
-    _removeListeners.add(WailsBridge.onEvent(event, (payload) {
-      if (payload is Map) onEvent(Map<String, dynamic>.from(payload));
-    }));
+    _removeListeners.add(
+      WailsBridge.onEvent(event, (payload) {
+        if (payload is Map) onEvent(Map<String, dynamic>.from(payload));
+      }),
+    );
   }
 
   void _onCrash(Map<String, dynamic> data) {
@@ -49,7 +52,13 @@ class NotificationStore extends ChangeNotifier {
       message: '「${data['profileName'] ?? id}」意外崩溃：${data['error'] ?? ''}',
       source: 'runtime',
       dedupeKey: 'browser:instance:crashed:$id',
-      action: id.isEmpty ? null : {'type': 'navigate', 'label': '查看实例', 'path': '/browser/detail/$id'},
+      action: id.isEmpty
+          ? null
+          : {
+              'type': 'navigate',
+              'label': '查看实例',
+              'path': '/browser/detail/$id',
+            },
     );
   }
 
@@ -61,13 +70,27 @@ class NotificationStore extends ChangeNotifier {
       message: '「${data['profileName'] ?? id}」代理桥接失败：${data['error'] ?? ''}',
       source: 'runtime',
       dedupeKey: 'proxy:bridge:failed:$id',
-      action: id.isEmpty ? null : {'type': 'navigate', 'label': '查看实例', 'path': '/browser/detail/$id'},
+      action: id.isEmpty
+          ? null
+          : {
+              'type': 'navigate',
+              'label': '查看实例',
+              'path': '/browser/detail/$id',
+            },
     );
   }
 
   void _onBridgeDied(Map<String, dynamic> data) {
-    final proxyIds = (data['proxyIds'] as List?)?.where((item) => '$item'.isNotEmpty).join('、') ?? '';
-    final profileIds = (data['profileIds'] as List?)?.where((item) => '$item'.isNotEmpty).join('、') ?? '';
+    final proxyIds =
+        (data['proxyIds'] as List?)
+            ?.where((item) => '$item'.isNotEmpty)
+            .join('、') ??
+        '';
+    final profileIds =
+        (data['profileIds'] as List?)
+            ?.where((item) => '$item'.isNotEmpty)
+            .join('、') ??
+        '';
     final target = proxyIds.isNotEmpty ? proxyIds : '${data['key'] ?? ''}';
     final profileHint = profileIds.isNotEmpty ? '，影响实例 $profileIds' : '';
     _add(
@@ -76,7 +99,11 @@ class NotificationStore extends ChangeNotifier {
       message: '代理节点 $target 连接中断$profileHint，相关实例可能无法访问网络',
       source: 'runtime',
       dedupeKey: 'proxy:bridge:died:${data['key'] ?? ''}',
-      action: {'type': 'navigate', 'label': '查看代理池', 'path': '/browser/proxy-pool'},
+      action: {
+        'type': 'navigate',
+        'label': '查看代理池',
+        'path': '/browser/proxy-pool',
+      },
     );
   }
 
@@ -90,12 +117,16 @@ class NotificationStore extends ChangeNotifier {
   }) {
     if (!_historyEnabled() || message.trim().isEmpty) return;
     final now = DateTime.now();
-    if (dedupeKey != null && notifications.any((item) {
-      if (item['dedupeKey'] != dedupeKey) return false;
-      final created = DateTime.tryParse('${item['createdAt'] ?? ''}');
-      return created != null && now.difference(created).inMilliseconds < 10000;
-    })) return;
-    final time = '${now.year}/${_pad(now.month)}/${_pad(now.day)} ${_pad(now.hour)}:${_pad(now.minute)}:${_pad(now.second)}';
+    if (dedupeKey != null &&
+        notifications.any((item) {
+          if (item['dedupeKey'] != dedupeKey) return false;
+          final created = DateTime.tryParse('${item['createdAt'] ?? ''}');
+          return created != null &&
+              now.difference(created).inMilliseconds < 10000;
+        }))
+      return;
+    final time =
+        '${now.year}/${_pad(now.month)}/${_pad(now.day)} ${_pad(now.hour)}:${_pad(now.minute)}:${_pad(now.second)}';
     notifications.insert(0, {
       'id': now.microsecondsSinceEpoch.toRadixString(36),
       'type': type,
@@ -151,10 +182,13 @@ class NotificationStore extends ChangeNotifier {
 
   void _save() {
     try {
-      WailsBridge.writeStorage(_storageKey, jsonEncode({
-        'state': {'notifications': notifications},
-        'version': 1,
-      }));
+      WailsBridge.writeStorage(
+        _storageKey,
+        jsonEncode({
+          'state': {'notifications': notifications},
+          'version': 1,
+        }),
+      );
     } catch (_) {}
   }
 

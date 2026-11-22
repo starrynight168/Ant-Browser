@@ -1,6 +1,6 @@
-import 'package:material_ui/material_ui.dart';
+import 'prism_widgets.dart';
 
-import 'prism_components.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import 'wails_bridge.dart';
 
@@ -99,18 +99,18 @@ class _BookmarksPageState extends State<BookmarksPage> {
   }
 
   Future<bool> _confirm(String title, String message) async =>
-      await showDialog<bool>(
+      await showPrismDialog<bool>(
         context: context,
         useRootNavigator: false,
-        builder: (context) => AlertDialog(
+        builder: (context) => PrismDialog(
           title: Text(title),
           content: Text(message),
           actions: [
-            TextButton(
+            prism.TextButton(
               onPressed: () => Navigator.pop(context, false),
               child: const Text('取消'),
             ),
-            FilledButton(
+            prism.FilledButton(
               onPressed: () => Navigator.pop(context, true),
               child: const Text('继续'),
             ),
@@ -129,7 +129,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
 
   void _message(String value) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(value)));
+    showPrismNotice(context, (value).toString());
   }
 
   @override
@@ -143,19 +143,19 @@ class _BookmarksPageState extends State<BookmarksPage> {
           Row(
             children: [
               const Expanded(child: Text('管理默认书签，并同步到浏览器实例。')),
-              OutlinedButton.icon(
+              prism.OutlinedButton.icon(
                 onPressed: _syncing ? null : _sync,
                 icon: const Icon(Icons.sync, size: 18),
                 label: Text(_syncing ? '同步中' : '手动同步'),
               ),
               const SizedBox(width: 8),
-              OutlinedButton.icon(
+              prism.OutlinedButton.icon(
                 onPressed: _reset,
                 icon: const Icon(Icons.restore, size: 18),
                 label: const Text('恢复默认'),
               ),
               const SizedBox(width: 8),
-              FilledButton(
+              prism.FilledButton(
                 onPressed: _saving || _loading ? null : _save,
                 child: Text(_saving ? '保存中' : '保存'),
               ),
@@ -164,7 +164,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
           const SizedBox(height: 16),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: PrismProgressIndicator())
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -174,7 +174,8 @@ class _BookmarksPageState extends State<BookmarksPage> {
                       ),
                       const SizedBox(height: 8),
                       Expanded(
-                        child: ReorderableListView.builder(
+                        child: prism.PrismReorderableListView(
+                          proxyDecorator: (child, index, animation) => child,
                           itemCount: _items.length,
                           onReorderItem: (oldIndex, newIndex) {
                             if (oldIndex < 0 || oldIndex >= _items.length)
@@ -206,7 +207,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
                                 side: BorderSide(
-                                  color: Theme.of(context)
+                                  color: prism.Theme.of(context)
                                       .colorScheme
                                       .outlineVariant,
                                 ),
@@ -218,7 +219,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
                                 ),
                                 child: Row(
                                   children: [
-                                    ReorderableDragStartListener(
+                                    prism.ReorderDragStartListener(
                                       index: index,
                                       child: Padding(
                                         padding: EdgeInsets.symmetric(
@@ -226,7 +227,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
                                         ),
                                         child: Icon(
                                           Icons.drag_indicator,
-                                          color: Theme.of(context)
+                                          color: prism.Theme.of(context)
                                               .colorScheme
                                               .onSurfaceVariant,
                                         ),
@@ -234,13 +235,13 @@ class _BookmarksPageState extends State<BookmarksPage> {
                                     ),
                                     Expanded(
                                       flex: 2,
-                                      child: TextFormField(
+                                      child: PrismTextFormField(
                                         key: ValueKey(
                                           'bookmark-name-$index-${item['name']}',
                                         ),
                                         initialValue: '${item['name'] ?? ''}',
                                         readOnly: protected,
-                                        decoration: const InputDecoration(
+                                        decoration: const PrismInputDecoration(
                                           labelText: '名称',
                                           isDense: true,
                                         ),
@@ -251,13 +252,13 @@ class _BookmarksPageState extends State<BookmarksPage> {
                                     const SizedBox(width: 10),
                                     Expanded(
                                       flex: 4,
-                                      child: TextFormField(
+                                      child: PrismTextFormField(
                                         key: ValueKey(
                                           'bookmark-url-$index-${item['url']}',
                                         ),
                                         initialValue: '${item['url'] ?? ''}',
                                         readOnly: protected,
-                                        decoration: const InputDecoration(
+                                        decoration: const PrismInputDecoration(
                                           labelText: '网址',
                                           isDense: true,
                                         ),
@@ -269,7 +270,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
                                     Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Checkbox(
+                                        prism.Checkbox(
                                           value: item['openOnStart'] == true,
                                           onChanged: (value) => _updateItem(
                                             index,
@@ -283,7 +284,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
                                         ),
                                       ],
                                     ),
-                                    IconButton(
+                                    prism.IconButton(
                                       tooltip: '删除',
                                       onPressed: protected
                                           ? null
@@ -302,7 +303,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
                       const SizedBox(height: 8),
                       Align(
                         alignment: Alignment.centerLeft,
-                        child: OutlinedButton.icon(
+                        child: prism.OutlinedButton.icon(
                           onPressed: _add,
                           icon: const Icon(Icons.add, size: 18),
                           label: const Text('添加书签'),

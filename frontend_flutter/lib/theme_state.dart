@@ -1,11 +1,12 @@
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/foundation.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
-final appThemeMode = ValueNotifier<ThemeMode>(ThemeMode.light);
+final appThemeMode = ValueNotifier<prism.ThemeMode>(prism.ThemeMode.light);
 
 void setAppThemeMode(String value) {
   appThemeMode.value = switch (value) {
-    'dark' => ThemeMode.dark,
-    'system' => ThemeMode.system,
-    _ => ThemeMode.light,
+    'dark' => prism.ThemeMode.dark,
+    'system' => prism.ThemeMode.system,
+    _ => prism.ThemeMode.light,
   };
 }

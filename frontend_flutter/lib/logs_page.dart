@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:material_ui/material_ui.dart';
+import 'prism_widgets.dart';
 
-import 'prism_components.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import 'wails_bridge.dart';
 
@@ -55,8 +55,7 @@ class _LogsPageState extends State<LogsPage> {
       }
     } catch (_) {
       if (mounted && showLoading) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('读取日志失败')));
+        showPrismNotice(context, ('读取日志失败').toString());
       }
     } finally {
       if (mounted && showLoading) setState(() => _loading = false);
@@ -64,18 +63,18 @@ class _LogsPageState extends State<LogsPage> {
   }
 
   Future<void> _clear() async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showPrismDialog<bool>(
       context: context,
       useRootNavigator: false,
-      builder: (context) => AlertDialog(
+      builder: (context) => PrismDialog(
         title: const Text('清空日志？'),
         content: const Text('这会清空当前应用的运行日志。'),
         actions: [
-          TextButton(
+          prism.TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('取消'),
           ),
-          FilledButton(
+          prism.FilledButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('清空'),
           ),
@@ -89,8 +88,7 @@ class _LogsPageState extends State<LogsPage> {
       await _load(showLoading: false);
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('清空失败：$error')));
+        showPrismNotice(context, ('清空失败：$error').toString());
       }
     } finally {
       if (mounted) setState(() => _clearing = false);
@@ -135,13 +133,13 @@ class _LogsPageState extends State<LogsPage> {
           Row(
             children: [
               Expanded(child: Text('${filtered.length} / ${_logs.length} 条日志')),
-              OutlinedButton.icon(
+              prism.OutlinedButton.icon(
                 onPressed: _loading ? null : _load,
                 icon: const Icon(Icons.refresh, size: 18),
                 label: const Text('刷新'),
               ),
               const SizedBox(width: 8),
-              OutlinedButton.icon(
+              prism.OutlinedButton.icon(
                 onPressed: _clearing || _logs.isEmpty ? null : _clear,
                 icon: const Icon(Icons.delete_outline, size: 18),
                 label: const Text('清空'),
@@ -154,7 +152,7 @@ class _LogsPageState extends State<LogsPage> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
               side: BorderSide(
-                color: Theme.of(context).colorScheme.outlineVariant,
+                color: prism.Theme.of(context).colorScheme.outlineVariant,
               ),
             ),
             child: Padding(
@@ -166,15 +164,15 @@ class _LogsPageState extends State<LogsPage> {
                 children: [
                   SizedBox(
                     width: 160,
-                    child: DropdownButtonFormField<String>(
+                    child: PrismDropdownField<String>(
                       initialValue: _level,
-                      decoration: const InputDecoration(
+                      decoration: const PrismInputDecoration(
                         labelText: '级别',
                         isDense: true,
                       ),
                       items: const ['ALL', 'DEBUG', 'INFO', 'WARN', 'ERROR']
                           .map(
-                            (value) => DropdownMenuItem(
+                            (value) => PrismDropdownItem(
                               value: value,
                               child: Text(value),
                             ),
@@ -185,17 +183,17 @@ class _LogsPageState extends State<LogsPage> {
                     ),
                   ),
                   for (final filter in const ['全部', '错误', '慢调用', '前端', '后端'])
-                    FilterChip(
+                    PrismChip(
                       label: Text(filter),
                       selected: _quickFilter == filter,
                       onSelected: (_) => setState(() => _quickFilter = filter),
                     ),
                   SizedBox(
                     width: 280,
-                    child: TextField(
+                    child: PrismTextField(
                       controller: _searchController,
                       onChanged: (value) => setState(() => _keyword = value),
-                      decoration: const InputDecoration(
+                      decoration: const PrismInputDecoration(
                         hintText: '搜索消息、组件或方法',
                         prefixIcon: Icon(Icons.search),
                         isDense: true,
@@ -209,7 +207,7 @@ class _LogsPageState extends State<LogsPage> {
           const SizedBox(height: 12),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: PrismProgressIndicator())
                 : filtered.isEmpty
                 ? const Center(child: Text('没有符合条件的日志'))
                 : ListView.separated(
@@ -219,7 +217,7 @@ class _LogsPageState extends State<LogsPage> {
                     itemBuilder: (context, index) {
                       final entry = filtered[filtered.length - index - 1];
                       final level = '${entry['level'] ?? 'INFO'}'.toUpperCase();
-                      final colors = Theme.of(context).colorScheme;
+                      final colors = prism.Theme.of(context).colorScheme;
                       final color = switch (level) {
                         'ERROR' => colors.error,
                         'WARN' => colors.tertiary,
@@ -273,7 +271,7 @@ class _LogsPageState extends State<LogsPage> {
                                 ],
                               ),
                               const SizedBox(height: 5),
-                              SelectableText(
+                              prism.SelectableText(
                                 '${entry['message'] ?? ''}',
                                 style: const TextStyle(
                                   fontSize: 13,
@@ -282,7 +280,7 @@ class _LogsPageState extends State<LogsPage> {
                               ),
                               if (fields.isNotEmpty) ...[
                                 const SizedBox(height: 5),
-                                SelectableText(
+                                prism.SelectableText(
                                   fields.entries
                                       .map(
                                         (item) => '${item.key}=${item.value}',

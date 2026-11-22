@@ -1,6 +1,6 @@
-import 'package:material_ui/material_ui.dart';
+import 'prism_widgets.dart';
 
-import 'prism_components.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import 'wails_bridge.dart';
 
@@ -145,11 +145,11 @@ class _CoresPageState extends State<CoresPage> {
     var restoreSession = _settings['restoreLastSession'] == true;
     var connectorType = (_settings['defaultConnectorType'] ?? 'xray')
         .toString();
-    final result = await showDialog<Map<String, dynamic>>(
+    final result = await showPrismDialog<Map<String, dynamic>>(
       context: context,
       useRootNavigator: false,
       builder: (context) => StatefulBuilder(
-        builder: (context, setDialog) => AlertDialog(
+        builder: (context, setDialog) => PrismDialog(
           title: const Text('浏览器全局设置'),
           content: SizedBox(
             width: 560,
@@ -157,43 +157,47 @@ class _CoresPageState extends State<CoresPage> {
             child: SingleChildScrollView(
               child: Column(
                 children: [
-                  TextField(
+                  PrismTextField(
                     controller: root,
-                    decoration: const InputDecoration(labelText: '用户数据根目录'),
+                    decoration: const PrismInputDecoration(
+                      labelText: '用户数据根目录',
+                    ),
                   ),
-                  TextField(
+                  PrismTextField(
                     controller: fingerprint,
                     minLines: 2,
                     maxLines: 4,
-                    decoration: const InputDecoration(
+                    decoration: const PrismInputDecoration(
                       labelText: '默认指纹参数（每行一个）',
                     ),
                   ),
-                  TextField(
+                  PrismTextField(
                     controller: launchArgs,
                     minLines: 2,
                     maxLines: 4,
-                    decoration: const InputDecoration(
+                    decoration: const PrismInputDecoration(
                       labelText: '默认启动参数（每行一个）',
                     ),
                   ),
-                  TextField(
+                  PrismTextField(
                     controller: startUrls,
                     minLines: 2,
                     maxLines: 4,
-                    decoration: const InputDecoration(
+                    decoration: const PrismInputDecoration(
                       labelText: '默认启动页面（每行一个 URL）',
                     ),
                   ),
-                  DropdownButtonFormField<String>(
+                  PrismDropdownField<String>(
                     initialValue: connectorType == 'mihomo' ? 'mihomo' : 'xray',
-                    decoration: const InputDecoration(labelText: '默认代理连接内核'),
+                    decoration: const PrismInputDecoration(
+                      labelText: '默认代理连接内核',
+                    ),
                     items: const [
-                      DropdownMenuItem(
+                      PrismDropdownItem(
                         value: 'xray',
                         child: Text('Xray / Sing-box'),
                       ),
-                      DropdownMenuItem(
+                      PrismDropdownItem(
                         value: 'mihomo',
                         child: Text('Mihomo / Clash'),
                       ),
@@ -201,34 +205,38 @@ class _CoresPageState extends State<CoresPage> {
                     onChanged: (value) =>
                         setDialog(() => connectorType = value ?? 'xray'),
                   ),
-                  SwitchListTile(
+                  PrismSwitchTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('轻启动模式'),
                     subtitle: const Text('先启动空白页，准备好后再打开默认页面'),
                     value: lightStart,
                     onChanged: (value) => setDialog(() => lightStart = value),
                   ),
-                  SwitchListTile(
+                  PrismSwitchTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('恢复上次打开的标签页'),
                     value: restoreSession,
                     onChanged: (value) =>
                         setDialog(() => restoreSession = value),
                   ),
-                  TextField(
+                  PrismTextField(
                     controller: readyTimeout,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: '启动就绪超时（毫秒）'),
+                    decoration: const PrismInputDecoration(
+                      labelText: '启动就绪超时（毫秒）',
+                    ),
                   ),
-                  TextField(
+                  PrismTextField(
                     controller: stableWindow,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: '启动稳定窗口（毫秒）'),
+                    decoration: const PrismInputDecoration(
+                      labelText: '启动稳定窗口（毫秒）',
+                    ),
                   ),
-                  TextField(
+                  PrismTextField(
                     controller: concurrent,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
+                    decoration: const PrismInputDecoration(
                       labelText: '同时运行实例上限（0 表示不限制）',
                     ),
                   ),
@@ -237,11 +245,11 @@ class _CoresPageState extends State<CoresPage> {
             ),
           ),
           actions: [
-            TextButton(
+            prism.TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('取消'),
             ),
-            FilledButton(
+            prism.FilledButton(
               onPressed: () => Navigator.pop(context, {
                 'userDataRoot': root.text.trim(),
                 'defaultFingerprintArgs': fingerprint.text
@@ -305,29 +313,29 @@ class _CoresPageState extends State<CoresPage> {
   Future<void> _edit([Map<String, dynamic>? core]) async {
     final name = TextEditingController(text: '${core?['coreName'] ?? ''}');
     final path = TextEditingController(text: '${core?['corePath'] ?? ''}');
-    final result = await showDialog<Map<String, String>>(
+    final result = await showPrismDialog<Map<String, String>>(
       context: context,
       useRootNavigator: false,
-      builder: (context) => AlertDialog(
+      builder: (context) => PrismDialog(
         title: Text(core == null ? '添加浏览器内核' : '编辑浏览器内核'),
         content: SizedBox(
           width: 480,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
+              PrismTextField(
                 controller: name,
-                decoration: const InputDecoration(labelText: '内核名称'),
+                decoration: const PrismInputDecoration(labelText: '内核名称'),
               ),
               const SizedBox(height: 10),
-              TextField(
+              PrismTextField(
                 controller: path,
-                decoration: const InputDecoration(labelText: '可执行文件路径'),
+                decoration: const PrismInputDecoration(labelText: '可执行文件路径'),
               ),
               const SizedBox(height: 8),
               Align(
                 alignment: Alignment.centerLeft,
-                child: TextButton.icon(
+                child: prism.TextButton.icon(
                   onPressed: () async {
                     try {
                       final validation = await WailsBridge.call(
@@ -335,18 +343,15 @@ class _CoresPageState extends State<CoresPage> {
                         [path.text.trim()],
                       );
                       if (context.mounted && validation is Map) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              '${validation['message'] ?? (validation['valid'] == true ? '路径有效' : '路径无效')}',
-                            ),
-                          ),
+                        showPrismNotice(
+                          context,
+                          ('${validation['message'] ?? (validation['valid'] == true ? '路径有效' : '路径无效')}')
+                              .toString(),
                         );
                       }
                     } catch (error) {
                       if (context.mounted)
-                        ScaffoldMessenger.of(context)
-                            .showSnackBar(SnackBar(content: Text('$error')));
+                        showPrismNotice(context, ('$error').toString());
                     }
                   },
                   icon: const Icon(Icons.check_circle_outline, size: 17),
@@ -357,11 +362,11 @@ class _CoresPageState extends State<CoresPage> {
           ),
         ),
         actions: [
-          TextButton(
+          prism.TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('取消'),
           ),
-          FilledButton(
+          prism.FilledButton(
             onPressed: () => Navigator.pop(context, {
               'name': name.text.trim(),
               'path': path.text.trim(),
@@ -411,18 +416,18 @@ class _CoresPageState extends State<CoresPage> {
   }
 
   Future<void> _delete(Map<String, dynamic> core) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showPrismDialog<bool>(
       context: context,
       useRootNavigator: false,
-      builder: (context) => AlertDialog(
+      builder: (context) => PrismDialog(
         title: const Text('删除内核？'),
         content: Text('确定删除“${core['coreName'] ?? ''}”吗？'),
         actions: [
-          TextButton(
+          prism.TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('取消'),
           ),
-          FilledButton(
+          prism.FilledButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('删除'),
           ),
@@ -445,33 +450,33 @@ class _CoresPageState extends State<CoresPage> {
   Future<void> _redownload(Map<String, dynamic> core) async {
     final url = TextEditingController();
     final proxy = TextEditingController();
-    final values = await showDialog<List<String>>(
+    final values = await showPrismDialog<List<String>>(
       context: context,
       useRootNavigator: false,
-      builder: (context) => AlertDialog(
+      builder: (context) => PrismDialog(
         title: Text('重新下载 ${core['coreName'] ?? '内核'}'),
         content: SizedBox(
           width: 500,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
+              PrismTextField(
                 controller: url,
-                decoration: const InputDecoration(labelText: '下载地址'),
+                decoration: const PrismInputDecoration(labelText: '下载地址'),
               ),
-              TextField(
+              PrismTextField(
                 controller: proxy,
-                decoration: const InputDecoration(labelText: '代理配置（可选）'),
+                decoration: const PrismInputDecoration(labelText: '代理配置（可选）'),
               ),
             ],
           ),
         ),
         actions: [
-          TextButton(
+          prism.TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('取消'),
           ),
-          FilledButton(
+          prism.FilledButton(
             onPressed: () =>
                 Navigator.pop(context, [url.text.trim(), proxy.text.trim()]),
             child: const Text('开始重新下载'),
@@ -511,37 +516,37 @@ class _CoresPageState extends State<CoresPage> {
     final name = TextEditingController();
     final url = TextEditingController();
     final proxy = TextEditingController();
-    final values = await showDialog<List<String>>(
+    final values = await showPrismDialog<List<String>>(
       context: context,
       useRootNavigator: false,
-      builder: (context) => AlertDialog(
+      builder: (context) => PrismDialog(
         title: const Text('下载浏览器内核'),
         content: SizedBox(
           width: 500,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
+              PrismTextField(
                 controller: name,
-                decoration: const InputDecoration(labelText: '内核名称'),
+                decoration: const PrismInputDecoration(labelText: '内核名称'),
               ),
-              TextField(
+              PrismTextField(
                 controller: url,
-                decoration: const InputDecoration(labelText: '下载地址'),
+                decoration: const PrismInputDecoration(labelText: '下载地址'),
               ),
-              TextField(
+              PrismTextField(
                 controller: proxy,
-                decoration: const InputDecoration(labelText: '代理配置（可选）'),
+                decoration: const PrismInputDecoration(labelText: '代理配置（可选）'),
               ),
             ],
           ),
         ),
         actions: [
-          TextButton(
+          prism.TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('取消'),
           ),
-          FilledButton(
+          prism.FilledButton(
             onPressed: () => Navigator.pop(context, [
               name.text.trim(),
               url.text.trim(),
@@ -579,9 +584,7 @@ class _CoresPageState extends State<CoresPage> {
   }
 
   void _message(String value) {
-    if (mounted)
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(value)));
+    if (mounted) showPrismNotice(context, (value).toString());
   }
 
   @override
@@ -594,31 +597,31 @@ class _CoresPageState extends State<CoresPage> {
           Row(
             children: [
               Expanded(child: Text('${_cores.length} 个内核')),
-              OutlinedButton.icon(
+              prism.OutlinedButton.icon(
                 onPressed: _busy ? null : _editSettings,
                 icon: const Icon(Icons.tune, size: 18),
                 label: const Text('全局设置'),
               ),
               const SizedBox(width: 8),
-              OutlinedButton.icon(
+              prism.OutlinedButton.icon(
                 onPressed: _busy ? null : _scan,
                 icon: const Icon(Icons.manage_search, size: 18),
                 label: const Text('扫描'),
               ),
               const SizedBox(width: 8),
-              OutlinedButton.icon(
+              prism.OutlinedButton.icon(
                 onPressed: _busy ? null : _import,
                 icon: const Icon(Icons.file_open_outlined, size: 18),
                 label: const Text('导入本地'),
               ),
               const SizedBox(width: 8),
-              OutlinedButton.icon(
+              prism.OutlinedButton.icon(
                 onPressed: _busy ? null : () => _edit(),
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text('添加路径'),
               ),
               const SizedBox(width: 8),
-              FilledButton.icon(
+              prism.FilledButton.icon(
                 onPressed: _busy ? null : _download,
                 icon: const Icon(Icons.download, size: 18),
                 label: const Text('下载内核'),
@@ -637,7 +640,7 @@ class _CoresPageState extends State<CoresPage> {
                 ),
                 SizedBox(
                   width: 160,
-                  child: LinearProgressIndicator(
+                  child: prism.LinearProgressIndicator(
                     value: _progressValue(_downloadProgress!['progress']),
                   ),
                 ),
@@ -647,7 +650,7 @@ class _CoresPageState extends State<CoresPage> {
           const SizedBox(height: 14),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: PrismProgressIndicator())
                 : _cores.isEmpty
                 ? const Center(child: Text('暂未配置浏览器内核'))
                 : ListView.separated(
@@ -656,7 +659,7 @@ class _CoresPageState extends State<CoresPage> {
                         const SizedBox(height: 9),
                     itemBuilder: (context, index) {
                       final core = _cores[index];
-                      final colors = Theme.of(context).colorScheme;
+                      final colors = prism.Theme.of(context).colorScheme;
                       final validation = core['validation'] is Map
                           ? Map<String, dynamic>.from(core['validation'] as Map)
                           : const <String, dynamic>{};
@@ -740,7 +743,7 @@ class _CoresPageState extends State<CoresPage> {
                               ),
                               const SizedBox(width: 10),
                               if (core['isDefault'] != true)
-                                TextButton(
+                                prism.TextButton(
                                   onPressed: _busy
                                       ? null
                                       : () => _setDefault(
@@ -748,7 +751,7 @@ class _CoresPageState extends State<CoresPage> {
                                         ),
                                   child: const Text('设为默认'),
                                 ),
-                              IconButton(
+                              prism.IconButton(
                                 tooltip: '打开所在位置',
                                 onPressed: () async {
                                   try {
@@ -764,7 +767,7 @@ class _CoresPageState extends State<CoresPage> {
                                   size: 19,
                                 ),
                               ),
-                              IconButton(
+                              prism.IconButton(
                                 tooltip: '重新下载',
                                 onPressed: _busy
                                     ? null
@@ -774,12 +777,12 @@ class _CoresPageState extends State<CoresPage> {
                                   size: 19,
                                 ),
                               ),
-                              IconButton(
+                              prism.IconButton(
                                 tooltip: '编辑',
                                 onPressed: _busy ? null : () => _edit(core),
                                 icon: const Icon(Icons.edit_outlined, size: 19),
                               ),
-                              IconButton(
+                              prism.IconButton(
                                 tooltip: '删除',
                                 onPressed: _busy ? null : () => _delete(core),
                                 icon: const Icon(
@@ -814,7 +817,7 @@ class _CoreTag extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final colors = prism.Theme.of(context).colorScheme;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: colors.secondaryContainer,

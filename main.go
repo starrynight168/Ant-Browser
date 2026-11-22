@@ -372,7 +372,8 @@ func main() {
 		Windows: &windows.Options{
 			WebviewIsTransparent:                false,
 			WindowIsTranslucent:                 false,
-			WebviewGpuIsDisabled:                true,
+			// Flutter Web's CanvasKit renderer requires WebGL for correct rendering.
+			WebviewGpuIsDisabled:                false,
 			WebviewDisableRendererCodeIntegrity: true,
 		},
 		LogLevelProduction: wailslogger.ERROR,

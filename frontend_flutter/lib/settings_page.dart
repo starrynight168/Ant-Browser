@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-import 'package:material_ui/material_ui.dart';
+import 'prism_widgets.dart';
 
-import 'prism_components.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import 'theme_state.dart';
 import 'wails_bridge.dart';
@@ -129,18 +129,18 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _reset() async {
-    final confirm = await showDialog<bool>(
+    final confirm = await showPrismDialog<bool>(
       context: context,
       useRootNavigator: false,
-      builder: (context) => AlertDialog(
+      builder: (context) => PrismDialog(
         title: const Text('恢复默认设置？'),
         content: const Text('这会重置应用的托管设置。'),
         actions: [
-          TextButton(
+          prism.TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('取消'),
           ),
-          FilledButton(
+          prism.FilledButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('恢复'),
           ),
@@ -273,9 +273,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _message(String value) {
-    if (mounted)
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(value)));
+    if (mounted) showPrismNotice(context, (value).toString());
   }
 
   @override
@@ -284,7 +282,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final automationStatus = _nested(_automation, 'status');
     final automationEnabled = automationSettings['enabled'] == true;
     final automationReady = automationStatus['ready'] == true;
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) return const Center(child: PrismProgressIndicator());
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(28, 22, 28, 28),
@@ -297,13 +295,13 @@ class _SettingsPageState extends State<SettingsPage> {
               Row(
                 children: [
                   const Expanded(child: Text('配置应用外观、功能和本地服务。')),
-                  OutlinedButton.icon(
+                  prism.OutlinedButton.icon(
                     onPressed: _reset,
                     icon: const Icon(Icons.restore, size: 17),
                     label: const Text('恢复默认'),
                   ),
                   const SizedBox(width: 8),
-                  FilledButton.icon(
+                  prism.FilledButton.icon(
                     onPressed: _saving ? null : _save,
                     icon: const Icon(Icons.save_outlined, size: 17),
                     label: Text(_saving ? '保存中' : '保存'),
@@ -322,22 +320,22 @@ class _SettingsPageState extends State<SettingsPage> {
                         Expanded(child: _textField('界面语言', 'language')),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: DropdownButtonFormField<String>(
+                          child: PrismDropdownField<String>(
                             initialValue: '${_settings['theme']}',
-                            decoration: const InputDecoration(
+                            decoration: const PrismInputDecoration(
                               labelText: '主题',
                               isDense: true,
                             ),
                             items: const [
-                              DropdownMenuItem(
+                              PrismDropdownItem(
                                 value: 'light',
                                 child: Text('浅色'),
                               ),
-                              DropdownMenuItem(
+                              PrismDropdownItem(
                                 value: 'dark',
                                 child: Text('深色'),
                               ),
-                              DropdownMenuItem(
+                              PrismDropdownItem(
                                 value: 'system',
                                 child: Text('跟随系统'),
                               ),
@@ -358,7 +356,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 title: '基础功能',
                 child: Column(
                   children: [
-                    SwitchListTile.adaptive(
+                    PrismSwitchTile(
                       contentPadding: EdgeInsets.zero,
                       title: const Text('保存通知历史'),
                       subtitle: const Text('在通知中心保留错误和运行状态提醒'),
@@ -366,8 +364,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       onChanged: (value) =>
                           _change('enableNotifications', value),
                     ),
-                    const Divider(height: 1),
-                    SwitchListTile.adaptive(
+                    const prism.Divider(height: 1),
+                    PrismSwitchTile(
                       contentPadding: EdgeInsets.zero,
                       title: const Text('自动保存'),
                       value: _bool('enableAutoSave'),
@@ -407,7 +405,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 title: '运行与日志',
                 child: Column(
                   children: [
-                    SwitchListTile.adaptive(
+                    PrismSwitchTile(
                       contentPadding: EdgeInsets.zero,
                       title: const Text('启用本地缓存'),
                       value: _bool('cacheEnabled'),
@@ -447,12 +445,14 @@ class _SettingsPageState extends State<SettingsPage> {
                         const SizedBox(width: 22),
                         const Expanded(child: Text('日志级别')),
                         Expanded(
-                          child: DropdownButtonFormField<String>(
+                          child: PrismDropdownField<String>(
                             initialValue: '${_settings['logLevel']}',
-                            decoration: const InputDecoration(isDense: true),
+                            decoration: const PrismInputDecoration(
+                              isDense: true,
+                            ),
                             items: const ['debug', 'info', 'warn', 'error']
                                 .map(
-                                  (value) => DropdownMenuItem(
+                                  (value) => PrismDropdownItem(
                                     value: value,
                                     child: Text(value.toUpperCase()),
                                   ),
@@ -477,8 +477,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       Icons.circle,
                       size: 9,
                       color: automationReady
-                          ? Theme.of(context).colorScheme.tertiary
-                          : Theme.of(context).colorScheme.error,
+                          ? prism.Theme.of(context).colorScheme.tertiary
+                          : prism.Theme.of(context).colorScheme.error,
                     ),
                     const SizedBox(width: 6),
                     Text(
@@ -492,7 +492,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 child: Column(
                   children: [
-                    SwitchListTile.adaptive(
+                    PrismSwitchTile(
                       contentPadding: EdgeInsets.zero,
                       title: const Text('启用自动化脚本支持'),
                       value: automationEnabled,
@@ -503,7 +503,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             )
                           : null,
                     ),
-                    SwitchListTile.adaptive(
+                    PrismSwitchTile(
                       contentPadding: EdgeInsets.zero,
                       title: const Text('默认无头模式'),
                       value: automationSettings['headlessDefault'] == true,
@@ -511,7 +511,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           ? (value) => _saveAutomation(automationEnabled, value)
                           : null,
                     ),
-                    SwitchListTile.adaptive(
+                    PrismSwitchTile(
                       contentPadding: EdgeInsets.zero,
                       title: const Text('允许构建 TypeScript 脚本'),
                       value: automationSettings['allowTypeScriptBuild'] == true,
@@ -520,22 +520,22 @@ class _SettingsPageState extends State<SettingsPage> {
                     Row(
                       children: [
                         Expanded(
-                          child: DropdownButtonFormField<String>(
+                          child: PrismDropdownField<String>(
                             initialValue: _nodeSource,
-                            decoration: const InputDecoration(
+                            decoration: const PrismInputDecoration(
                               labelText: 'Node 来源',
                               isDense: true,
                             ),
                             items: const [
-                              DropdownMenuItem(
+                              PrismDropdownItem(
                                 value: 'auto',
                                 child: Text('自动选择'),
                               ),
-                              DropdownMenuItem(
+                              PrismDropdownItem(
                                 value: 'system',
                                 child: Text('系统 Node'),
                               ),
-                              DropdownMenuItem(
+                              PrismDropdownItem(
                                 value: 'bundled',
                                 child: Text('内置运行时'),
                               ),
@@ -549,16 +549,16 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: TextField(
+                          child: PrismTextField(
                             controller: _systemNodePathController,
-                            decoration: const InputDecoration(
+                            decoration: const PrismInputDecoration(
                               labelText: '系统 Node 路径（可选）',
                               isDense: true,
                             ),
                           ),
                         ),
                         const SizedBox(width: 8),
-                        OutlinedButton(
+                        prism.OutlinedButton(
                           onPressed: _busy.isEmpty ? _probeNode : null,
                           child: const Text('检测'),
                         ),
@@ -575,15 +575,15 @@ class _SettingsPageState extends State<SettingsPage> {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        OutlinedButton(
+                        prism.OutlinedButton(
                           onPressed: _busy.isEmpty ? _saveRuntime : null,
                           child: const Text('保存运行时配置'),
                         ),
-                        OutlinedButton(
+                        prism.OutlinedButton(
                           onPressed: _busy.isEmpty ? _installRuntime : null,
                           child: Text(_busy == 'install' ? '安装中' : '安装运行时'),
                         ),
-                        OutlinedButton(
+                        prism.OutlinedButton(
                           onPressed: _busy.isEmpty ? _checkRuntime : null,
                           child: const Text('运行自检'),
                         ),
@@ -612,8 +612,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       : '未启动',
                   style: TextStyle(
                     color: _launchServer['ready'] == true
-                        ? Theme.of(context).colorScheme.tertiary
-                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                        ? prism.Theme.of(context).colorScheme.tertiary
+                        : prism.Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
                 child: Row(
@@ -621,14 +621,14 @@ class _SettingsPageState extends State<SettingsPage> {
                     const Expanded(child: Text('监听端口')),
                     SizedBox(
                       width: 180,
-                      child: TextField(
+                      child: PrismTextField(
                         controller: _launchPortController,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(isDense: true),
+                        decoration: const PrismInputDecoration(isDense: true),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    FilledButton.tonal(
+                    PrismTonalButton(
                       onPressed: _busy.isEmpty ? _saveLaunchServer : null,
                       child: Text(_busy == 'launch' ? '保存中' : '保存端口'),
                     ),
@@ -638,7 +638,7 @@ class _SettingsPageState extends State<SettingsPage> {
               if (_busy.isNotEmpty)
                 const Padding(
                   padding: EdgeInsets.only(top: 8),
-                  child: LinearProgressIndicator(minHeight: 2),
+                  child: prism.LinearProgressIndicator(minHeight: 2),
                 ),
             ],
           ),
@@ -648,19 +648,19 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _textField(String label, String key, {int maxLines = 1}) =>
-      TextFormField(
+      PrismTextFormField(
         initialValue: '${_settings[key] ?? ''}',
         maxLines: maxLines,
-        decoration: InputDecoration(labelText: label, isDense: true),
+        decoration: PrismInputDecoration(labelText: label, isDense: true),
         onChanged: (value) => _change(key, value),
       );
 
   Widget _numberField(String key, {required int min, required int max}) =>
-      TextFormField(
+      PrismTextFormField(
         key: ValueKey('$key-${_settings[key]}'),
         initialValue: '${_int(key, min)}',
         keyboardType: TextInputType.number,
-        decoration: const InputDecoration(isDense: true),
+        decoration: const PrismInputDecoration(isDense: true),
         onChanged: (value) {
           final parsed = int.tryParse(value);
           if (parsed != null) _change(key, parsed.clamp(min, max).toInt());
@@ -685,7 +685,9 @@ class _SettingsCard extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+        side: BorderSide(
+          color: prism.Theme.of(context).colorScheme.outlineVariant,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -728,8 +730,8 @@ class _ResultLine extends StatelessWidget {
       text,
       style: TextStyle(
         color: error
-            ? Theme.of(context).colorScheme.error
-            : Theme.of(context).colorScheme.onSurfaceVariant,
+            ? prism.Theme.of(context).colorScheme.error
+            : prism.Theme.of(context).colorScheme.onSurfaceVariant,
         fontSize: 12,
       ),
     ),

@@ -1,6 +1,6 @@
-import 'package:material_ui/material_ui.dart';
+import 'prism_widgets.dart';
 
-import 'prism_components.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import 'wails_bridge.dart';
 
@@ -80,9 +80,7 @@ class _TagsPageState extends State<TagsPage> {
       );
 
   void _message(String message) {
-    if (mounted)
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
+    if (mounted) showPrismNotice(context, (message).toString());
   }
 
   void _toggle(String id) => setState(() {
@@ -101,22 +99,22 @@ class _TagsPageState extends State<TagsPage> {
 
   Future<void> _createTag() async {
     final controller = TextEditingController();
-    final value = await showDialog<String>(
+    final value = await showPrismDialog<String>(
       context: context,
       useRootNavigator: false,
-      builder: (context) => AlertDialog(
+      builder: (context) => PrismDialog(
         title: const Text('新建标签'),
-        content: TextField(
+        content: PrismTextField(
           controller: controller,
           autofocus: true,
-          decoration: const InputDecoration(labelText: '标签名称'),
+          decoration: const PrismInputDecoration(labelText: '标签名称'),
         ),
         actions: [
-          TextButton(
+          prism.TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('取消'),
           ),
-          FilledButton(
+          prism.FilledButton(
             onPressed: () => Navigator.pop(context, controller.text),
             child: const Text('创建'),
           ),
@@ -135,22 +133,22 @@ class _TagsPageState extends State<TagsPage> {
 
   Future<void> _renameTag(String oldName) async {
     final controller = TextEditingController(text: oldName);
-    final value = await showDialog<String>(
+    final value = await showPrismDialog<String>(
       context: context,
       useRootNavigator: false,
-      builder: (context) => AlertDialog(
+      builder: (context) => PrismDialog(
         title: const Text('重命名标签'),
-        content: TextField(
+        content: PrismTextField(
           controller: controller,
           autofocus: true,
-          decoration: const InputDecoration(labelText: '新名称'),
+          decoration: const PrismInputDecoration(labelText: '新名称'),
         ),
         actions: [
-          TextButton(
+          prism.TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('取消'),
           ),
-          FilledButton(
+          prism.FilledButton(
             onPressed: () => Navigator.pop(context, controller.text),
             child: const Text('保存'),
           ),
@@ -189,22 +187,22 @@ class _TagsPageState extends State<TagsPage> {
       return;
     }
     final controller = TextEditingController();
-    final value = await showDialog<String>(
+    final value = await showPrismDialog<String>(
       context: context,
       useRootNavigator: false,
-      builder: (context) => AlertDialog(
+      builder: (context) => PrismDialog(
         title: const Text('批量添加标签'),
-        content: TextField(
+        content: PrismTextField(
           controller: controller,
           autofocus: true,
-          decoration: const InputDecoration(hintText: '多个标签用逗号分隔'),
+          decoration: const PrismInputDecoration(hintText: '多个标签用逗号分隔'),
         ),
         actions: [
-          TextButton(
+          prism.TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('取消'),
           ),
-          FilledButton(
+          prism.FilledButton(
             onPressed: () => Navigator.pop(context, controller.text),
             child: const Text('添加'),
           ),
@@ -273,7 +271,7 @@ class _TagsPageState extends State<TagsPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
                 side: BorderSide(
-                  color: Theme.of(context).colorScheme.outlineVariant,
+                  color: prism.Theme.of(context).colorScheme.outlineVariant,
                 ),
               ),
               child: Column(
@@ -288,7 +286,7 @@ class _TagsPageState extends State<TagsPage> {
                             style: TextStyle(fontWeight: FontWeight.w700),
                           ),
                         ),
-                        IconButton(
+                        prism.IconButton(
                           tooltip: '新建标签',
                           onPressed: _createTag,
                           icon: const Icon(Icons.add, size: 19),
@@ -296,7 +294,7 @@ class _TagsPageState extends State<TagsPage> {
                       ],
                     ),
                   ),
-                  const Divider(height: 1),
+                  const prism.Divider(height: 1),
                   Expanded(
                     child: ListView(
                       padding: const EdgeInsets.all(8),
@@ -327,7 +325,7 @@ class _TagsPageState extends State<TagsPage> {
                             child: Text(
                               '暂无标签，点击 + 创建',
                               style: TextStyle(
-                                color: Theme.of(context)
+                                color: prism.Theme.of(context)
                                     .colorScheme
                                     .onSurfaceVariant,
                                 fontSize: 12,
@@ -351,7 +349,7 @@ class _TagsPageState extends State<TagsPage> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                     side: BorderSide(
-                      color: Theme.of(context).colorScheme.outlineVariant,
+                      color: prism.Theme.of(context).colorScheme.outlineVariant,
                     ),
                   ),
                   child: Padding(
@@ -362,25 +360,25 @@ class _TagsPageState extends State<TagsPage> {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text('${_selectedIds.length} 个已选'),
-                        FilledButton.tonalIcon(
+                        PrismTonalButton.icon(
                           onPressed: _saving ? null : _addTags,
                           icon: const Icon(Icons.add, size: 17),
-                          label: const Text('添加标签'),
+                          child: const Text('添加标签'),
                         ),
                         if (tags.isNotEmpty)
                           SizedBox(
                             width: 180,
-                            child: DropdownButtonFormField<String>(
+                            child: PrismDropdownField<String>(
                               initialValue: _removeTagValue.isEmpty
                                   ? null
                                   : _removeTagValue,
-                              decoration: const InputDecoration(
+                              decoration: const PrismInputDecoration(
                                 hintText: '选择要移除的标签',
                                 isDense: true,
                               ),
                               items: tags
                                   .map(
-                                    (tag) => DropdownMenuItem(
+                                    (tag) => PrismDropdownItem(
                                       value: tag,
                                       child: Text(tag),
                                     ),
@@ -390,7 +388,7 @@ class _TagsPageState extends State<TagsPage> {
                                   setState(() => _removeTagValue = value ?? ''),
                             ),
                           ),
-                        OutlinedButton.icon(
+                        prism.OutlinedButton.icon(
                           onPressed: _saving || _removeTagValue.isEmpty
                               ? null
                               : _removeSelectedTag,
@@ -400,14 +398,14 @@ class _TagsPageState extends State<TagsPage> {
                           ),
                           label: const Text('移除'),
                         ),
-                        TextButton.icon(
+                        prism.TextButton.icon(
                           onPressed: _selectedIds.isEmpty
                               ? null
                               : () => setState(_selectedIds.clear),
                           icon: const Icon(Icons.close, size: 17),
                           label: const Text('清除选择'),
                         ),
-                        IconButton(
+                        prism.IconButton(
                           tooltip: '刷新',
                           onPressed: _saving ? null : _load,
                           icon: const Icon(Icons.refresh, size: 19),
@@ -424,17 +422,19 @@ class _TagsPageState extends State<TagsPage> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                       side: BorderSide(
-                        color: Theme.of(context).colorScheme.outlineVariant,
+                        color: prism.Theme.of(context)
+                            .colorScheme
+                            .outlineVariant,
                       ),
                     ),
                     child: _loading
-                        ? const Center(child: CircularProgressIndicator())
+                        ? const Center(child: PrismProgressIndicator())
                         : profiles.isEmpty
                         ? const Center(child: Text('暂无实例'))
                         : Column(
                             children: [
                               Container(
-                                color: Theme.of(context)
+                                color: prism.Theme.of(context)
                                     .colorScheme
                                     .surfaceContainerLow,
                                 padding: const EdgeInsets.symmetric(
@@ -445,7 +445,7 @@ class _TagsPageState extends State<TagsPage> {
                                   children: [
                                     SizedBox(
                                       width: 40,
-                                      child: Checkbox(
+                                      child: prism.Checkbox(
                                         value: _allVisibleSelected,
                                         onChanged: (_) => _toggleAll(),
                                       ),
@@ -484,7 +484,7 @@ class _TagsPageState extends State<TagsPage> {
                                 child: ListView.separated(
                                   itemCount: profiles.length,
                                   separatorBuilder: (context, index) =>
-                                      const Divider(height: 1),
+                                      const prism.Divider(height: 1),
                                   itemBuilder: (context, index) {
                                     final profile = profiles[index];
                                     final id = '${profile['profileId'] ?? ''}';
@@ -494,13 +494,13 @@ class _TagsPageState extends State<TagsPage> {
                                         milliseconds: 150,
                                       ),
                                       color: selected
-                                          ? Theme.of(context)
+                                          ? prism.Theme.of(context)
                                                 .colorScheme
                                                 .secondaryContainer
-                                          : Theme.of(context)
+                                          : prism.Theme.of(context)
                                                 .colorScheme
                                                 .surfaceContainerLowest,
-                                      child: InkWell(
+                                      child: GestureDetector(
                                         onTap: () => _toggle(id),
                                         child: Padding(
                                           padding: const EdgeInsets.symmetric(
@@ -511,7 +511,7 @@ class _TagsPageState extends State<TagsPage> {
                                             children: [
                                               SizedBox(
                                                 width: 40,
-                                                child: Checkbox(
+                                                child: prism.Checkbox(
                                                   value: selected,
                                                   onChanged: (_) => _toggle(id),
                                                 ),
@@ -535,16 +535,21 @@ class _TagsPageState extends State<TagsPage> {
                                                           Text(
                                                             '无标签',
                                                             style: TextStyle(
-                                                              color: Theme.of(context)
-                                                                  .colorScheme
-                                                                  .onSurfaceVariant,
+                                                              color:
+                                                                  prism.Theme.of(
+                                                                        context,
+                                                                      )
+                                                                      .colorScheme
+                                                                      .onSurfaceVariant,
                                                               fontSize: 12,
                                                             ),
                                                           ),
                                                         ]
                                                       : _tags(profile)
                                                             .map(
-                                                              (tag) => Chip(
+                                                              (
+                                                                tag,
+                                                              ) => PrismChip(
                                                                 label: Text(
                                                                   tag,
                                                                   style:
@@ -553,12 +558,6 @@ class _TagsPageState extends State<TagsPage> {
                                                                             11,
                                                                       ),
                                                                 ),
-                                                                visualDensity:
-                                                                    VisualDensity
-                                                                        .compact,
-                                                                padding:
-                                                                    EdgeInsets
-                                                                        .zero,
                                                               ),
                                                             )
                                                             .toList(),
@@ -574,10 +573,12 @@ class _TagsPageState extends State<TagsPage> {
                                                     color:
                                                         profile['running'] ==
                                                             true
-                                                        ? Theme.of(context)
-                                                              .colorScheme
-                                                              .tertiary
-                                                        : Theme.of(context)
+                                                        ? prism.Theme.of(
+                                                            context,
+                                                          ).colorScheme.tertiary
+                                                        : prism.Theme.of(
+                                                                context,
+                                                              )
                                                               .colorScheme
                                                               .onSurfaceVariant,
                                                     fontSize: 12,
@@ -596,7 +597,7 @@ class _TagsPageState extends State<TagsPage> {
                           ),
                   ),
                 ),
-                if (_saving) const LinearProgressIndicator(minHeight: 2),
+                if (_saving) const prism.LinearProgressIndicator(minHeight: 2),
               ],
             ),
           ),
@@ -625,40 +626,44 @@ class _TagButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final colors = prism.Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
         decoration: BoxDecoration(
-          color: selected ? colors.secondaryContainer : Colors.transparent,
+          color: selected ? colors.secondaryContainer : const Color(0x00000000),
           borderRadius: BorderRadius.circular(28),
         ),
         child: Row(
           children: [
             Expanded(
-              child: TextButton(
+              child: prism.TextButton(
                 onPressed: onTap,
-                style: TextButton.styleFrom(
-                  alignment: Alignment.centerLeft,
+                style: prism.ButtonStyle.from(
                   foregroundColor: selected
                       ? colors.onSecondaryContainer
                       : colors.onSurfaceVariant,
+                  minimumSize: const Size(0, 44),
                 ),
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
             ),
             Text(
               '$count',
-              style: Theme.of(context).textTheme.labelSmall
-                  ?.copyWith(color: colors.onSurfaceVariant),
+              style: prism.AppTextStyle.caption2
+                  .of(context)
+                  .copyWith(color: colors.onSurfaceVariant),
             ),
             if (onRename != null)
-              IconButton(
+              prism.IconButton(
                 tooltip: '重命名',
                 onPressed: onRename,
                 icon: const Icon(Icons.edit_outlined, size: 16),

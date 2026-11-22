@@ -1,4 +1,6 @@
-import 'package:material_ui/material_ui.dart';
+import 'prism_widgets.dart';
+
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 class CloseDialog extends StatelessWidget {
   const CloseDialog({required this.isWindows, super.key});
@@ -7,69 +9,72 @@ class CloseDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 420),
-      child: Dialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(26, 26, 26, 22),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.errorContainer,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(Icons.exit_to_app, color: Theme.of(context).colorScheme.onErrorContainer),
+      child: prism.Card(
+        radius: 28,
+        padding: const EdgeInsets.fromLTRB(26, 26, 26, 22),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: colors.errorContainer,
+                borderRadius: BorderRadius.circular(16),
               ),
-              const SizedBox(height: 16),
-              Text('关闭 Ant Browser？', style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 8),
-              Text(
-                '可仅退出应用，或连同浏览器一起关闭。',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, height: 1.5),
-              ),
-              const SizedBox(height: 22),
-              if (isWindows) ...[
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => Navigator.pop(context, 'minimize'),
-                    icon: const Icon(Icons.vertical_align_bottom, size: 18),
-                    label: const Text('最小化到托盘'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-              ],
+              child: Icon(Icons.exit_to_app, color: colors.onErrorContainer),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '关闭 Ant Browser？',
+              style: prism.AppTextStyle.title2.of(context),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '可仅退出应用，或连同浏览器一起关闭。',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.onSurfaceVariant, height: 1.5),
+            ),
+            const SizedBox(height: 22),
+            if (isWindows) ...[
               SizedBox(
                 width: double.infinity,
-                child: FilledButton.tonal(
-                  onPressed: () => Navigator.pop(context, 'quit-app'),
-                  child: const Text('仅退出应用'),
+                child: prism.OutlinedButton.icon(
+                  onPressed: () => Navigator.pop(context, 'minimize'),
+                  icon: const Icon(Icons.vertical_align_bottom, size: 18),
+                  label: const Text('最小化到托盘'),
                 ),
               ),
               const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.error,
-                    foregroundColor: Theme.of(context).colorScheme.onError,
-                  ),
-                  onPressed: () => Navigator.pop(context, 'quit-all'),
-                  child: const Text('退出应用与浏览器'),
-                ),
-              ),
-              const SizedBox(height: 6),
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
             ],
-          ),
+            SizedBox(
+              width: double.infinity,
+              child: PrismTonalButton(
+                onPressed: () => Navigator.pop(context, 'quit-app'),
+                child: const Text('仅退出应用'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: prism.FilledButton(
+                style: prism.ButtonStyle.from(
+                  backgroundColor: colors.error,
+                  foregroundColor: colors.onError,
+                ),
+                onPressed: () => Navigator.pop(context, 'quit-all'),
+                child: const Text('退出应用与浏览器'),
+              ),
+            ),
+            const SizedBox(height: 6),
+            prism.TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
+          ],
         ),
       ),
     );
