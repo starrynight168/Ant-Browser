@@ -1,11 +1,14 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'dart:ui' show PlatformDispatcher;
 
 import 'prism_widgets.dart';
 
 import 'package:prism_ui/prism_ui.dart' as prism;
 
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
-import 'package:flutter/widgets.dart' show WidgetsFlutterBinding;
+import 'package:flutter/foundation.dart' show FlutterError, kDebugMode;
 import 'package:prism_ui/icons/icons.dart' as prism_icons;
 
 import 'ant_prism_theme.dart';
@@ -30,6 +33,7 @@ import 'app_bridge.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  _installDebugErrorLogging();
   await AppBridge.initialize();
   try {
     final settings = AppBridge.readStorage('app_settings');
@@ -39,6 +43,31 @@ Future<void> main() async {
     }
   } catch (_) {}
   runApp(const AntBrowserApp());
+}
+
+void _installDebugErrorLogging() {
+  if (!kDebugMode) return;
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    unawaited(_writeDebugError(details.toString(), details.stack));
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    unawaited(_writeDebugError(error.toString(), stack));
+    return false;
+  };
+}
+
+Future<void> _writeDebugError(String error, StackTrace? stack) async {
+  try {
+    final file = File(
+      '${Directory.systemTemp.path}${Platform.pathSeparator}ant-browser-flutter-error.log',
+    );
+    await file.writeAsString(
+      '${DateTime.now().toIso8601String()}\n$error\n${stack ?? ''}\n\n',
+      mode: FileMode.append,
+      flush: true,
+    );
+  } catch (_) {}
 }
 
 class AntBrowserApp extends StatelessWidget {
@@ -565,6 +594,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
   List<Map<String, dynamic>> _groups = [];
   final Set<String> _testingProxyIds = {};
   bool _loading = true;
+  bool _reloading = false;
   String? _error;
   String? _busyProfile;
   String _viewMode = 'list';
@@ -592,6 +622,8 @@ class _BrowserListPageState extends State<BrowserListPage> {
   }
 
   Future<void> _reload() async {
+    if (_reloading || !mounted) return;
+    _reloading = true;
     setState(() {
       _loading = true;
       _error = null;
@@ -620,6 +652,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     } finally {
+      _reloading = false;
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -2851,7 +2884,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
           ),
           const SizedBox(height: 14),
           Expanded(
-            child: _loading
+            child: _loading && _profiles.isEmpty
                 ? const Center(child: PrismProgressIndicator())
                 : _error != null
                 ? _ErrorPanel(message: _error!, onRetry: _reload)

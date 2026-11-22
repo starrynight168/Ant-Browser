@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' show clampDouble, lerpDouble;
 
+import 'package:flutter/scheduler.dart' show SchedulerBinding, SchedulerPhase;
 import 'package:flutter/widgets.dart';
 import 'package:prism_ui/card_surface.dart';
 import 'package:prism_ui/press_surface.dart';
@@ -587,6 +588,8 @@ class _StyledButton extends StatefulWidget {
 
 class _StyledButtonState extends State<_StyledButton> {
   final _states = WidgetStatesController();
+  bool _syncingStates = false;
+  bool _stateRebuildScheduled = false;
 
   @override
   void initState() {
@@ -608,12 +611,30 @@ class _StyledButtonState extends State<_StyledButton> {
   }
 
   void _syncStates() {
-    _states
-      ..update(WidgetState.disabled, widget.onPressed == null)
-      ..update(WidgetState.selected, widget.selected);
+    _syncingStates = true;
+    try {
+      _states
+        ..update(WidgetState.disabled, widget.onPressed == null)
+        ..update(WidgetState.selected, widget.selected);
+    } finally {
+      _syncingStates = false;
+    }
   }
 
-  void _handleStates() => setState(() {});
+  void _handleStates() {
+    if (_syncingStates) return;
+    if (SchedulerBinding.instance.schedulerPhase !=
+        SchedulerPhase.persistentCallbacks) {
+      setState(() {});
+      return;
+    }
+    if (_stateRebuildScheduled) return;
+    _stateRebuildScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _stateRebuildScheduled = false;
+      if (mounted) setState(() {});
+    });
+  }
 
   T? _resolve<T>(T? Function(ButtonStyle? style) property) =>
       property(widget.style) ??

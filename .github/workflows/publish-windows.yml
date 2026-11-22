@@ -4,13 +4,13 @@ on:
   workflow_call:
     inputs:
       version:
-        description: 版本号，例如 1.9.1；留空则读取 wails.json
+        description: 版本号，例如 1.9.1；留空则读取 frontend_flutter/pubspec.yaml
         required: false
         type: string
   workflow_dispatch:
     inputs:
       version:
-        description: 版本号，例如 1.9.1；留空则读取 wails.json
+        description: 版本号，例如 1.9.1；留空则读取 frontend_flutter/pubspec.yaml
         required: false
         type: string
 
@@ -35,23 +35,11 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.50.0'
           channel: stable
-
-      - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
-
-      - name: Add Go bin to PATH
-        shell: bash
-        run: echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       - name: Verify runtime files
         shell: bash
@@ -67,7 +55,7 @@ jobs:
             version="${BASH_REMATCH[1]}"
           fi
           if [[ -z "$version" ]]; then
-            version="$(node -p "require('./wails.json').info.productVersion" 2>/dev/null || true)"
+            version="$(sed -nE 's/^version:[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' frontend_flutter/pubspec.yaml | head -n 1)"
           fi
           if [[ -z "$version" ]]; then
             echo "::error::无法从 ref '$GITHUB_REF_NAME' 解析版本号，请在 workflow_dispatch 中显式传 version"
@@ -76,28 +64,42 @@ jobs:
           echo "value=$version" >> "$GITHUB_OUTPUT"
           echo "package version: $version"
 
-      - name: Build Flutter app
-        shell: bash
+      - name: Build native Flutter app
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
         run: |
-          set -euo pipefail
-          wails build -platform windows/amd64 -o ant-chrome.exe
-          ls -l build/bin
+          & ".\bat\build-native.ps1" -Mode release -Version $env:VERSION
+          if ($LASTEXITCODE -ne 0) { throw "Native Flutter build failed with exit code $LASTEXITCODE" }
 
       - name: Assemble staging
-        shell: bash
+        shell: pwsh
         run: |
-          set -euo pipefail
-          stage="publish/staging/windows"
-          rm -rf "$stage"
-          mkdir -p "$stage/bin" "$stage/chrome" "$stage/data/diagnostics"
-          cp build/bin/ant-chrome.exe "$stage/ant-chrome.exe"
-          cp publish/config.init.yaml "$stage/config.yaml"
-          cp bin/xray.exe "$stage/bin/xray.exe"
-          cp bin/sing-box.exe "$stage/bin/sing-box.exe"
-          cp chrome/README.md "$stage/chrome/README.md"
-          cp tools/ant-chrome-diagnostics-watcher.ps1 "$stage/data/diagnostics/"
-          cp tools/install-ant-chrome-diagnostics-watcher.ps1 "$stage/data/diagnostics/"
-          ls -R "$stage"
+          $ErrorActionPreference = 'Stop'
+          $stage = Join-Path $env:GITHUB_WORKSPACE "publish\staging\windows"
+          $native = Join-Path $env:GITHUB_WORKSPACE "build\native\release"
+          New-Item -ItemType Directory -Path $stage -Force | Out-Null
+          Copy-Item -Path (Join-Path $native "*") -Destination $stage -Recurse -Force
+          Copy-Item "publish\config.init.yaml" (Join-Path $stage "config.yaml") -Force
+          New-Item -ItemType Directory -Path (Join-Path $stage "chrome") -Force | Out-Null
+          New-Item -ItemType Directory -Path (Join-Path $stage "data\diagnostics") -Force | Out-Null
+          Copy-Item "chrome\README.md" (Join-Path $stage "chrome\README.md") -Force
+          Copy-Item "tools\ant-chrome-diagnostics-watcher.ps1" (Join-Path $stage "data\diagnostics") -Force
+          Copy-Item "tools\install-ant-chrome-diagnostics-watcher.ps1" (Join-Path $stage "data\diagnostics") -Force
+          $required = @(
+            "ant-chrome.exe",
+            "ant-browser-ui.exe",
+            "flutter_windows.dll",
+            "data\flutter_assets",
+            "bin\xray.exe",
+            "bin\sing-box.exe"
+          )
+          foreach ($item in $required) {
+            if (-not (Test-Path -LiteralPath (Join-Path $stage $item))) {
+              throw "Native package is missing: $item"
+            }
+          }
+          Get-ChildItem $stage -Force | Format-Table Name,Length
 
       - name: Install NSIS
         shell: pwsh

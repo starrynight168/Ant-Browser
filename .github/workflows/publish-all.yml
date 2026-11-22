@@ -1,13 +1,13 @@
 name: Publish All Platforms
 
 # 一次性打包 Windows / Linux / macOS，全部成功后创建 tag 并发布 Release。
-# 手动触发：Actions -> Publish All Platforms -> Run workflow（version 留空则读 wails.json）。
+# 手动触发：Actions -> Publish All Platforms -> Run workflow（version 留空则读 Flutter pubspec.yaml）。
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 版本号，例如 1.9.1；留空则读取 wails.json
+        description: 版本号，例如 1.9.1；留空则读取 frontend_flutter/pubspec.yaml
         required: false
         type: string
   push:
@@ -47,7 +47,7 @@ jobs:
             version="${BASH_REMATCH[1]}"
           fi
           if [[ -z "$version" ]]; then
-            version="$(node -p "require('./wails.json').info.productVersion")"
+            version="$(sed -nE 's/^version:[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' frontend_flutter/pubspec.yaml | head -n 1)"
           fi
           if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
             echo "::error::版本号格式无效: $version（期望 1.9.1 这种形式）"

@@ -3,6 +3,24 @@ import 'prism_widgets.dart';
 import 'package:prism_ui/prism_ui.dart' as prism;
 
 import 'app_bridge.dart';
+import 'docs_api_details.dart';
+import 'docs_content.dart';
+
+class _DocsItem {
+  const _DocsItem(this.id, this.label, this.summary);
+
+  final String id;
+  final String label;
+  final String summary;
+}
+
+class _DocsGroup {
+  const _DocsGroup(this.label, this.icon, this.items);
+
+  final String label;
+  final IconData icon;
+  final List<_DocsItem> items;
+}
 
 class DocsPage extends StatefulWidget {
   const DocsPage({super.key});
@@ -11,38 +29,36 @@ class DocsPage extends StatefulWidget {
 }
 
 class _DocsPageState extends State<DocsPage> {
-  int _selected = 0;
-  static const _sections = <(String, IconData, String)>[
-    (
-      '快速开始',
-      Icons.rocket_launch_outlined,
-      '1. 在“内核管理”下载或识别 Chrome 内核。\n2. 在“代理池配置”添加代理，或选择直连。\n3. 在“实例列表”新建浏览器实例并启动。\n4. 需要插件时，在“插件包管理”安装并设置默认安装。',
-    ),
-    (
-      '实例迁移',
-      Icons.swap_horiz,
-      '批量导出：实例列表 → 勾选实例 → 导出。\n单个导出：实例列表 → 更多 → 导出。\n导入实例：实例列表 → 导入实例 → 选择 ZIP。\n导出前先停止实例，避免浏览器数据文件被占用。',
-    ),
-    (
-      'Launch API',
-      Icons.api_outlined,
-      '本地 Launch Server 默认监听 127.0.0.1:19900。\n启动实例：POST /api/launch\n查询健康状态：GET /api/health\n等待实例与 CDP 可用：POST /api/runtime/session\n\n调用接口时请使用本机地址，并根据响应中的字段判断启动结果。',
-    ),
-    (
-      '代理与故障排查',
-      Icons.public_outlined,
-      '代理配置支持 HTTP、HTTPS 与 SOCKS5。可在代理池测试连通性，查看延迟和错误。\n实例无法启动时，依次检查浏览器内核路径、代理状态和实例日志。\n订阅代理刷新后，可在代理池检查异常节点及引用关系。',
-    ),
-    (
-      '备份与恢复',
-      Icons.backup_outlined,
-      '在“备份与恢复”设置本地目录，然后创建完整备份。\n恢复备份会修改当前本地数据，操作前请确认备份文件和实例状态。\nS3 存储需要先在 S3 设置中填写兼容服务的连接信息并测试。',
-    ),
-    (
-      'SKILL 使用',
-      Icons.auto_awesome_outlined,
-      'Ant Browser 与 OpenClaw 需要安装在同一台电脑。确认 Launch Server 可访问，并安装 ant-chrome-openclaw skill。\n\n在 OpenClaw 对话中先写“使用 ant-chrome-openclaw skill”，再说明要操作的实例和目标。优先用 launchCode、profileId 或 profileName 指定实例；只有 debugReady=true 且 cdpUrl 不为空时才接管。\n\n停止浏览器接管只会断开 OpenClaw，不会关闭 Ant Browser 实例。',
-    ),
+  String _selected = 'tutorial-basic';
+  static const _groups = <_DocsGroup>[
+    _DocsGroup('使用教程', Icons.menu_book_outlined, [
+      _DocsItem('tutorial-basic', '基础使用', '应用上手流程、菜单入口和最小接口链路。'),
+      _DocsItem(
+        'tutorial-skill',
+        'SKILL 使用',
+        'OpenClaw 接入 ant-chrome-openclaw 的安装、提问模板和稳定使用规则。',
+      ),
+      _DocsItem('tutorial-flow', '操作流程', '按步骤串起内核、代理、实例和接口调用。'),
+    ]),
+    _DocsGroup('更新日志', Icons.history, [
+      _DocsItem('changelog-versions', '版本更新', '按大版本查看主要变化。'),
+    ]),
+    _DocsGroup('内核介绍', Icons.memory, [
+      _DocsItem('core-management', '内核渠道与用法', '内核下载来源、目录结构和应用内使用方式。'),
+    ]),
+    _DocsGroup('代理介绍', Icons.public_outlined, [
+      _DocsItem('proxy-usage', '代理池使用', '代理类型、导入方式和实例绑定建议。'),
+    ]),
+    _DocsGroup('插件介绍', Icons.extension_outlined, [
+      _DocsItem('extension-usage', '插件包管理', '插件安装、实例限制、分组选择和单实例配置。'),
+    ]),
+    _DocsGroup('接口介绍', Icons.api_outlined, [
+      _DocsItem('api-overview', '接口总览', '认证、选择规则和全部对外接口索引。'),
+      _DocsItem('api-profiles-launch', '实例与启动', '实例配置、按 Code 启动和参数化启动。'),
+      _DocsItem('api-runtime', '运行态与接管', 'runtime session、活动实例和统一 CDP 入口。'),
+      _DocsItem('api-automation', '脚本自动化', '自动化接口总览、字段规则和调用顺序。'),
+      _DocsItem('api-support', '排障与日志', '调用日志、常见错误码和排查顺序。'),
+    ]),
   ];
 
   Future<void> _openProjectRoot() async {
@@ -55,7 +71,9 @@ class _DocsPageState extends State<DocsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final section = _sections[_selected];
+    final section = _groups
+        .expand((group) => group.items)
+        .firstWhere((item) => item.id == _selected);
     final colors = prism.Theme.of(context).colorScheme;
     return Row(
       children: [
@@ -73,18 +91,29 @@ class _DocsPageState extends State<DocsPage> {
                       .copyWith(color: colors.onSurfaceVariant),
                 ),
               ),
-              for (var i = 0; i < _sections.length; i++)
-                PrismListTile(
-                  selected: i == _selected,
-                  selectedTileColor: colors.secondaryContainer,
-                  selectedColor: colors.onSecondaryContainer,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(28),
+              for (final group in _groups) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 14, 12, 6),
+                  child: Text(
+                    group.label,
+                    style: prism.AppTextStyle.footnote
+                        .of(context)
+                        .copyWith(color: colors.onSurfaceVariant),
                   ),
-                  leading: Icon(_sections[i].$2),
-                  title: Text(_sections[i].$1),
-                  onTap: () => setState(() => _selected = i),
                 ),
+                for (final item in group.items)
+                  PrismListTile(
+                    selected: item.id == _selected,
+                    selectedTileColor: colors.secondaryContainer,
+                    selectedColor: colors.onSecondaryContainer,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(28),
+                    ),
+                    leading: Icon(group.icon),
+                    title: Text(item.label),
+                    onTap: () => setState(() => _selected = item.id),
+                  ),
+              ],
             ],
           ),
         ),
@@ -110,40 +139,29 @@ class _DocsPageState extends State<DocsPage> {
               children: [
                 Row(
                   children: [
-                    Icon(section.$2, color: colors.primary),
+                    Icon(Icons.menu_book_outlined, color: colors.primary),
                     const SizedBox(width: 10),
                     Text(
-                      section.$1,
+                      section.label,
                       style: prism.AppTextStyle.pageTitle.of(context),
                     ),
                   ],
                 ),
-                const SizedBox(height: 18),
-                PrismCard(
-                  child: Padding(
-                    padding: const EdgeInsets.all(22),
-                    child: prism.SelectableText(
-                      section.$3,
-                      style: const TextStyle(fontSize: 15, height: 1.9),
-                    ),
-                  ),
+                const SizedBox(height: 8),
+                Text(
+                  section.summary,
+                  style: prism.AppTextStyle.body
+                      .of(context)
+                      .copyWith(color: colors.onSurfaceVariant),
                 ),
-                if (_selected == 2) ...[
-                  const SizedBox(height: 14),
-                  PrismCard(
-                    child: Padding(
-                      padding: const EdgeInsets.all(18),
-                      child: prism.SelectableText(
-                        'curl http://127.0.0.1:19900/api/health\n\ncurl -X POST http://127.0.0.1:19900/api/launch \\\n  -H "Content-Type: application/json" \\\n  -d \'{"code":"BUYER_001","skipDefaultStartUrls":true}\'',
-                        style: const TextStyle(
-                          fontFamily: 'monospace',
-                          height: 1.6,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-                if (_selected == 5) ...[
+                const SizedBox(height: 18),
+                _DocsMarkdown(
+                  source: [
+                    docsContent[section.id] ?? '',
+                    docsApiDetails[section.id] ?? '',
+                  ].where((content) => content.isNotEmpty).join('\n\n'),
+                ),
+                if (section.id == 'tutorial-skill') ...[
                   const SizedBox(height: 14),
                   PrismCard(
                     child: PrismListTile(
@@ -162,6 +180,163 @@ class _DocsPageState extends State<DocsPage> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _DocsMarkdown extends StatelessWidget {
+  const _DocsMarkdown({required this.source});
+
+  final String source;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
+    final children = <Widget>[];
+    final code = StringBuffer();
+    var inCode = false;
+    var codeLanguage = '';
+
+    void addCodeBlock() {
+      children.add(
+        PrismCard(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (codeLanguage.isNotEmpty) ...[
+                  Text(
+                    codeLanguage.toUpperCase(),
+                    style: prism.AppTextStyle.footnote
+                        .of(context)
+                        .copyWith(color: colors.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                prism.SelectableText(
+                  code.toString().trimRight(),
+                  style: const TextStyle(
+                    fontFamily: 'Consolas',
+                    fontSize: 13,
+                    height: 1.6,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      code.clear();
+    }
+
+    for (final line in source.replaceAll('\r', '').split('\n')) {
+      final value = line.trim();
+      if (value.startsWith('```')) {
+        if (inCode) {
+          addCodeBlock();
+          codeLanguage = '';
+          inCode = false;
+        } else {
+          inCode = true;
+          codeLanguage = value.substring(3).trim();
+        }
+        continue;
+      }
+      if (inCode) {
+        code.writeln(line);
+        continue;
+      }
+      if (value.isEmpty) {
+        children.add(const SizedBox(height: 8));
+        continue;
+      }
+      if (value.startsWith('# ')) {
+        children.add(
+          Text(
+            value.substring(2),
+            style: prism.AppTextStyle.headline
+                .of(context)
+                .copyWith(color: colors.onSurface),
+          ),
+        );
+        continue;
+      }
+      if (value.startsWith('## ') || value.startsWith('### ')) {
+        final heading = value.startsWith('### ')
+            ? value.substring(4)
+            : value.substring(3);
+        children.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 10, bottom: 2),
+            child: Text(
+              heading,
+              style: prism.AppTextStyle.subheadline
+                  .of(context)
+                  .copyWith(color: colors.primary),
+            ),
+          ),
+        );
+        continue;
+      }
+      if (RegExp(r'^[|\s:-]+$').hasMatch(value)) continue;
+      if (value.startsWith('|')) {
+        final cells = value
+            .split('|')
+            .where((cell) => cell.trim().isNotEmpty)
+            .map((cell) => cell.trim().replaceAll('`', ''))
+            .toList();
+        children.add(
+          PrismCard(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              child: Wrap(
+                spacing: 18,
+                runSpacing: 6,
+                children: [for (final cell in cells) Text(cell)],
+              ),
+            ),
+          ),
+        );
+        continue;
+      }
+      final bullet = RegExp(r'^([-*]|\d+[.)])\s+(.*)$').firstMatch(value);
+      if (bullet != null) {
+        children.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  bullet.group(1) == '-' || bullet.group(1) == '*'
+                      ? '•'
+                      : bullet.group(1)!,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: prism.SelectableText(
+                    bullet.group(2)!.replaceAll('`', ''),
+                    style: const TextStyle(fontSize: 15, height: 1.7),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+        continue;
+      }
+      children.add(
+        prism.SelectableText(
+          value.replaceAll('`', '').replaceAll('**', ''),
+          style: const TextStyle(fontSize: 15, height: 1.75),
+        ),
+      );
+    }
+    if (inCode) addCodeBlock();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
     );
   }
 }

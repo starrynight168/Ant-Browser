@@ -273,11 +273,13 @@ class PrismMenuItem<T> {
     required this.value,
     required this.child,
     this.danger = false,
+    this.enabled = true,
   });
 
   final T value;
   final Widget child;
   final bool danger;
+  final bool enabled;
 
   String get label => switch (child) {
     Text(:final data) => data ?? value.toString(),
@@ -314,7 +316,7 @@ class PrismPopupMenuButton<T> extends StatelessWidget {
           prism.PopupMenuItem(
             label: item.label,
             danger: item.danger,
-            onPressed: () => onSelected(item.value),
+            onPressed: item.enabled ? () => onSelected(item.value) : null,
           ),
       ],
     ),

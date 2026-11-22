@@ -143,6 +143,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
   List<Map<String, dynamic>> _proxies = [];
   List<Map<String, dynamic>> _virtualGroups = [];
   bool _loading = true;
+  bool _refreshing = false;
   String _busy = '';
   String _query = '';
   String _filterProtocol = 'all';
@@ -168,6 +169,8 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
   }
 
   Future<void> _refresh() async {
+    if (_refreshing || !mounted) return;
+    _refreshing = true;
     setState(() => _loading = true);
     try {
       final values = await Future.wait([
@@ -225,8 +228,10 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
       _error = null;
     } catch (error) {
       _error = error.toString();
+    } finally {
+      _refreshing = false;
+      if (mounted) setState(() => _loading = false);
     }
-    if (mounted) setState(() => _loading = false);
   }
 
   Future<void> _save(List<Map<String, dynamic>> next) async {
@@ -529,7 +534,6 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
 
   Future<void> _checkAllIPHealth(List<Map<String, dynamic>> proxies) async {
     final ids = proxies
-        .where((proxy) => proxy['proxyConfig'] != 'direct://')
         .map((proxy) => (proxy['proxyId'] ?? '').toString())
         .where((id) => id.isNotEmpty)
         .toList();
@@ -1285,8 +1289,14 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
               ),
               prism.IconButton(
                 tooltip: '刷新列表',
-                onPressed: _refresh,
-                icon: const Icon(Icons.refresh),
+                onPressed: _refreshing ? null : _refresh,
+                icon: _refreshing
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: PrismProgressIndicator(),
+                      )
+                    : const Icon(Icons.refresh),
               ),
               prism.IconButton(
                 tooltip: '代理检测设置',
@@ -1507,9 +1517,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                           : speed['ok'] == true
                           ? (speed['latencyMs'] ?? 0).toString() + ' ms'
                           : '失败';
-                      final ipLabel = item['proxyConfig'] == 'direct://'
-                          ? '不适用'
-                          : health == null
+                      final ipLabel = health == null
                           ? '未检测'
                           : health['ok'] == true
                           ? (health['ip'] ?? '已检测').toString()
@@ -1575,7 +1583,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                             children: [
                               prism.IconButton(
                                 tooltip: '检查代理 IP',
-                                onPressed: _busy.isEmpty && !isDirect
+                                onPressed: _busy.isEmpty
                                     ? () => _testIpHealth(item)
                                     : null,
                                 icon: const Icon(Icons.public),
@@ -1595,11 +1603,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                               ),
                               PrismPopupMenuButton<String>(
                                 tooltip: '更多操作',
-                                enabled:
-                                    _busy.isEmpty &&
-                                    (isSelectable ||
-                                        sourceId.isNotEmpty ||
-                                        health != null),
+                                enabled: _busy.isEmpty,
                                 icon: const Icon(Icons.more_vert),
                                 itemBuilder: (_) => [
                                   if (sourceId.isNotEmpty)
@@ -1612,23 +1616,29 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                                       value: 'ip-detail',
                                       child: Text('查看 IP 检测详情'),
                                     ),
-                                  if (isSelectable) ...[
-                                    const PrismMenuItem(
-                                      value: 'edit',
-                                      child: Text('编辑'),
-                                    ),
-                                    const PrismMenuItem(
-                                      value: 'delete',
-                                      child: Text('删除'),
-                                      danger: true,
-                                    ),
-                                  ],
+                                  PrismMenuItem(
+                                    value: 'edit',
+                                    child: const Text('编辑'),
+                                    enabled: isSelectable,
+                                  ),
+                                  PrismMenuItem(
+                                    value: 'ip-health',
+                                    child: const Text('IP 健康'),
+                                  ),
+                                  PrismMenuItem(
+                                    value: 'delete',
+                                    child: const Text('删除'),
+                                    danger: true,
+                                    enabled: isSelectable,
+                                  ),
                                 ],
                                 onSelected: (action) {
                                   if (action == 'refresh') {
                                     _refreshSource(item);
                                   } else if (action == 'ip-detail') {
                                     _showIPHealthDetail(item);
+                                  } else if (action == 'ip-health') {
+                                    _testIpHealth(item);
                                   } else if (action == 'edit') {
                                     _edit(item);
                                   } else if (action == 'delete') {
