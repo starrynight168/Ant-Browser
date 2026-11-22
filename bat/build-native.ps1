@@ -13,8 +13,8 @@ $flutterCandidates = @(
     (Join-Path $repoRoot '..\.toolchains\flutter\flutter\bin\flutter.bat')
 )
 $goCandidates = @(
-    (Join-Path $repoRoot '.tools\go\bin\go.exe'),
-    (Join-Path $repoRoot '..\Ant-Browser-master\.tools\go\bin\go.exe')
+    (Join-Path $repoRoot '..\.toolchains\go\bin\go.exe'),
+    (Join-Path $repoRoot '.tools\go\bin\go.exe')
 )
 
 $flutter = $flutterCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
@@ -68,14 +68,8 @@ if (-not (Test-Path -LiteralPath (Join-Path $outputDirectory 'data\flutter_asset
 
 Push-Location $repoRoot
 $previousPath = $env:PATH
-$previousGoPath = $env:GOPATH
 try {
-    $goToolRoot = Join-Path $env:TEMP 'ant-browser-go-1.22.12-codex'
-    $goToolBin = Join-Path $goToolRoot 'go\bin'
-    if (Test-Path -LiteralPath $goToolBin -PathType Container) {
-        $env:GOPATH = Join-Path $goToolRoot 'gopath'
-        $env:PATH = $goToolBin + ';' + $env:PATH
-    }
+    $env:PATH = (Split-Path -Parent $go) + ';' + $env:PATH
     $linkerFlags = "-X main.appVersion=$appVersion"
     if ($Mode -eq 'release') { $linkerFlags = "-H=windowsgui $linkerFlags" }
     & $go build -ldflags $linkerFlags -o (Join-Path $outputDirectory 'ant-chrome.exe') ./cmd/nativehost
@@ -84,7 +78,6 @@ try {
 finally {
     Pop-Location
     $env:PATH = $previousPath
-    $env:GOPATH = $previousGoPath
 }
 
 $resourceDirectory = Join-Path $repoRoot 'bin'
