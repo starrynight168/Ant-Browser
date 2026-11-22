@@ -45,7 +45,7 @@ func (a *App) AutomationScriptImportLocalFile() (*automation.ScriptRecord, error
 		return nil, fmt.Errorf("打开文件对话框失败: %w", err)
 	}
 	if strings.TrimSpace(path) == "" {
-		return nil, fmt.Errorf("未选择脚本文件")
+		return nil, nil
 	}
 
 	bundle, err := automation.ImportBundleFromFileWithOptions(path, "本地文件 "+path, a.automationScriptImportOptions())
@@ -67,7 +67,7 @@ func (a *App) AutomationScriptImportLocalDirectory() (*automation.ScriptRecord, 
 		return nil, fmt.Errorf("打开目录对话框失败: %w", err)
 	}
 	if strings.TrimSpace(path) == "" {
-		return nil, fmt.Errorf("未选择脚本目录")
+		return nil, nil
 	}
 
 	bundle, err := automation.ImportBundleFromDirectoryWithOptions(path, "", "本地目录 "+path, a.automationScriptImportOptions())
@@ -89,7 +89,7 @@ func (a *App) AutomationScriptImportLocalLibrary() (*AutomationScriptBatchImport
 		return nil, fmt.Errorf("打开目录对话框失败: %w", err)
 	}
 	if strings.TrimSpace(path) == "" {
-		return nil, fmt.Errorf("未选择脚本库目录")
+		return nil, nil
 	}
 
 	return a.importAutomationLocalLibrary(path)
