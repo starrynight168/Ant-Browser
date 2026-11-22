@@ -13,7 +13,7 @@
 
 ### `dev.bat`
 
-启动 Flutter 界面和 Wails 桌面壳。
+构建并启动 Flutter Windows 原生桌面版。
 
 ```bat
 bat\dev.bat
@@ -27,7 +27,7 @@ Linux 或其他 POSIX shell 环境使用 `scripts/dev.sh`：
 ./scripts/dev.sh
 ```
 
-该入口需要 Flutter、Go 和 Wails CLI。
+该入口需要 Flutter、Go 和 Visual Studio C++ 构建工具。
 
 开发代理相关变量：
 
@@ -39,7 +39,7 @@ DEV_GOPROXY     -> 覆盖 GOPROXY；未设置时默认使用 https://goproxy.cn,
 
 ### `build.bat`
 
-构建 `build\bin\ant-chrome.exe`。
+构建 `build\native\release\ant-chrome.exe` 和 Flutter 界面程序。
 
 ```bat
 bat\build.bat
@@ -47,8 +47,7 @@ bat\build.bat
 
 说明：
 
-- 开发分支默认按完整源码构建
-- 若缺少 `go.mod`、`main.go`、`wails.json` 等核心入口文件，脚本会直接失败，避免复用旧产物掩盖问题
+- 使用 Flutter Windows runner 与 Go 桌面宿主构建
 
 ### `publish.bat`
 

@@ -111,6 +111,12 @@ func main() {
 }
 
 func resolveAppRoot() string {
+	if configuredRoot := strings.TrimSpace(os.Getenv("ANT_BROWSER_APP_ROOT")); configuredRoot != "" {
+		if absoluteRoot, err := filepath.Abs(configuredRoot); err == nil {
+			return absoluteRoot
+		}
+		return configuredRoot
+	}
 	executable, err := os.Executable()
 	if err == nil {
 		directory := filepath.Dir(executable)

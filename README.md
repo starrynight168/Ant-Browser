@@ -227,16 +227,16 @@ Ant Browser 适合以下场景：
 
 1. 开发默认使用 `master` 分支；该分支不带测试用户数据，适合作为日常开发基线。
 2. 如需带测试库的演示环境，请切换到 `user_data` 分支。
-3. Windows 执行 `start-dev.ps1` 启动 Flutter 界面开发模式；也可用 `bat\dev.bat`。
+3. Windows 执行 `start-dev.ps1` 构建并启动 Flutter 原生桌面版；也可用 `bat\dev.bat`。
 4. Windows 运行时使用 `bin/xray.exe`、`bin/sing-box.exe`；Linux 运行时使用 `bin/linux-<arch>/xray`、`bin/linux-<arch>/sing-box`；macOS 运行时使用 `bin/darwin-<arch>/xray`、`bin/darwin-<arch>/sing-box`。
 5. 运行时文件采用“仓库固定 + 哈希校验”，校验清单在 `publish/runtime-manifest.json`，固定来源清单在 `publish/runtime-sources.json`。
 6. 如需刷新 Linux / macOS 运行时，执行 `python3 tools/runtime/sync-runtime.py --target <target>`（会按固定来源下载、校验归档并更新 manifest）。
 
 开发模式说明：
 
-- `start-dev.ps1`：自动加入项目内 Go、Flutter 工具路径，再由 Wails 构建并启动 Flutter 界面
+- `start-dev.ps1`：构建并启动 Flutter Windows 原生界面与 Go 后端
 - `bat\dev.bat`：`start-dev.ps1` 的 Windows 包装入口
-- Linux shell 入口：`./scripts/dev.sh`，需要系统已安装 Flutter、Go 和 Wails
+- Linux shell 入口：`./scripts/dev.sh`（Linux 原生迁移尚未完成）
 - 如需为 Go/Flutter 依赖下载配置代理，可在启动前设置 `DEV_PROXY_URL`、`DEV_NO_PROXY`、`DEV_GOPROXY`
 
 ### 自动化脚本包

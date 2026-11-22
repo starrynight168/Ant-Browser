@@ -1,3 +1,8 @@
+param(
+    [ValidateSet('debug', 'release')]
+    [string]$Mode = 'release'
+)
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -30,25 +35,32 @@ try {
     & $flutter pub get
     if ($LASTEXITCODE -ne 0) { throw 'Flutter 依赖准备失败。' }
 
-    & $flutter build windows --release
+    & $flutter build windows "--$Mode"
     if ($LASTEXITCODE -ne 0) { throw 'Flutter Windows 构建失败。' }
 }
 finally {
     Pop-Location
 }
 
+$configuration = $Mode.Substring(0, 1).ToUpperInvariant() + $Mode.Substring(1)
 $releaseDirectory = Get-ChildItem -LiteralPath (Join-Path $repoRoot 'frontend_flutter\build\windows') -Directory |
-    ForEach-Object { Join-Path $_.FullName 'runner\Release' } |
+    ForEach-Object { Join-Path $_.FullName "runner\$configuration" } |
     Where-Object { Test-Path -LiteralPath $_ } |
     Select-Object -First 1
 if (-not $releaseDirectory) { throw '找不到 Flutter Windows Release 输出目录。' }
 
-$outputDirectory = Join-Path $repoRoot 'build\native'
+$outputDirectory = Join-Path $repoRoot "build\native\$Mode"
 New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
 Copy-Item -Path (Join-Path $releaseDirectory '*') -Destination $outputDirectory -Recurse -Force
 
 Push-Location $repoRoot
 try {
+    $goToolRoot = Join-Path $env:TEMP 'ant-browser-go-1.22.12-codex'
+    $goToolBin = Join-Path $goToolRoot 'go\bin'
+    if (Test-Path -LiteralPath $goToolBin -PathType Container) {
+        $env:GOPATH = Join-Path $goToolRoot 'gopath'
+        $env:PATH = $goToolBin + ';' + $env:PATH
+    }
     & $go build -o (Join-Path $outputDirectory 'ant-chrome.exe') ./cmd/nativehost
     if ($LASTEXITCODE -ne 0) { throw 'Go 桌面宿主构建失败。' }
 }
@@ -61,4 +73,4 @@ if (Test-Path -LiteralPath $resourceDirectory -PathType Container) {
     Copy-Item -LiteralPath $resourceDirectory -Destination $outputDirectory -Recurse -Force
 }
 
-Write-Host "原生 Flutter 版本已构建：$outputDirectory"
+Write-Host "原生 Flutter $Mode 版本已构建：$outputDirectory"
