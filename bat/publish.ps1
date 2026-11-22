@@ -99,18 +99,18 @@ function Resolve-Version {
     }
 
     Write-Host "[1/3] 读取版本号..."
-    $wailsConfigPath = Join-Path $repoRoot "wails.json"
-    if (-not (Test-Path -LiteralPath $wailsConfigPath -PathType Leaf)) {
-        throw "无法读取版本号：缺少 wails.json"
+    $pubspecPath = Join-Path $repoRoot "frontend_flutter\pubspec.yaml"
+    if (-not (Test-Path -LiteralPath $pubspecPath -PathType Leaf)) {
+        throw "无法读取版本号：缺少 frontend_flutter\pubspec.yaml"
     }
 
-    $wailsConfig = Get-Content -LiteralPath $wailsConfigPath -Raw | ConvertFrom-Json
-    $resolvedVersion = Get-TrimmedText ([string]$wailsConfig.info.productVersion)
-    if ($resolvedVersion -eq "") {
-        throw "无法从 wails.json 读取版本号"
+    $versionLine = Select-String -LiteralPath $pubspecPath -Pattern '^version:\s*(\d+\.\d+\.\d+)' | Select-Object -First 1
+    if (-not $versionLine) {
+        throw "无法从 Flutter pubspec.yaml 读取应用版本"
     }
 
-    $script:ResolvedVersion = Assert-VersionValue -Value $resolvedVersion -Source "wails.json productVersion"
+    $resolvedVersion = $versionLine.Matches[0].Groups[1].Value
+    $script:ResolvedVersion = Assert-VersionValue -Value $resolvedVersion -Source "pubspec.yaml version"
     Write-Host "✓ 版本号: $script:ResolvedVersion"
     Write-Host ""
 }
@@ -288,51 +288,32 @@ function Resolve-NsisPath {
 }
 
 function Build-WindowsBinary {
-    Write-Host "[Windows] 执行 Wails 构建..."
-    $binaryPath = Join-Path $repoRoot "build/bin/ant-chrome.exe"
+    Write-Host "[Windows] 执行 Flutter 原生桌面版构建..."
+    $nativeOutput = Join-Path $repoRoot "build/native/release"
+    $binaryPath = Join-Path $nativeOutput "ant-chrome.exe"
+    $uiPath = Join-Path $nativeOutput "ant-browser-ui.exe"
     Assert-RequiredSourceFiles -Action "Windows packaging" -Paths @(
         "go.mod",
         "go.sum",
-        "main.go",
-        "wails.json"
+        "cmd/nativehost/main.go",
+        "frontend_flutter/pubspec.yaml",
+        "frontend_flutter/windows/CMakeLists.txt",
+        "bat/build-native.ps1"
     )
 
-    $previousGoProxy = $env:GOPROXY
-    $previousPath = $env:PATH
-    try {
-        $env:GOPROXY = "https://goproxy.cn,direct"
-        $flutterRoots = @(
-            (Join-Path $repoRoot ".tools\flutter"),
-            (Join-Path $repoRoot "..\.toolchains\flutter\flutter")
-        )
-        $flutterBin = $flutterRoots |
-            ForEach-Object { Join-Path $_ "bin" } |
-            Where-Object { Test-Path -LiteralPath (Join-Path $_ "flutter.bat") } |
-            Select-Object -First 1
-        if ($flutterBin) {
-            $env:PATH = "$flutterBin;$env:PATH"
-        } elseif (-not (Get-Command flutter -ErrorAction SilentlyContinue)) {
-            throw "未找到 Flutter SDK。请放在 .tools\flutter 或系统 PATH 中。"
-        }
-        $goBin = Join-Path $repoRoot ".tools\go\bin"
-        if (Test-Path -LiteralPath $goBin -PathType Container) {
-            $env:PATH = "$goBin;$env:PATH"
-        }
-        $wailsPath = Join-Path $repoRoot ".tools\wails.exe"
-        if (-not (Test-Path -LiteralPath $wailsPath -PathType Leaf)) {
-            $wailsPath = (Get-Command wails -ErrorAction Stop).Source
-        }
-        Invoke-NativeCommand -FilePath $wailsPath -Arguments @("build", "-tags", "native_webview2loader")
-    }
-    finally {
-        $env:GOPROXY = $previousGoProxy
-        $env:PATH = $previousPath
-    }
+    & (Join-Path $repoRoot "bat\build-native.ps1") -Mode release -Version $script:ResolvedVersion
+    if ($LASTEXITCODE -ne 0) { throw "Flutter 原生桌面版构建失败" }
 
-    if (-not (Test-Path -LiteralPath $binaryPath -PathType Leaf)) {
-        throw "构建产物不存在: build\bin\ant-chrome.exe"
+    foreach ($requiredOutput in @($binaryPath, $uiPath, (Join-Path $nativeOutput "flutter_windows.dll"))) {
+        if (-not (Test-Path -LiteralPath $requiredOutput -PathType Leaf)) {
+            throw "构建产物不存在: $requiredOutput"
+        }
     }
-    Write-Host "✓ 构建成功: build\bin\ant-chrome.exe"
+    $flutterAssetsPath = Join-Path $nativeOutput "data\flutter_assets"
+    if (-not (Test-Path -LiteralPath $flutterAssetsPath -PathType Container)) {
+        throw "构建产物不存在: $flutterAssetsPath"
+    }
+    Write-Host "✓ 构建成功: build\native\release\ant-chrome.exe"
     Write-Host ""
 }
 
@@ -551,20 +532,42 @@ function New-WindowsStaging {
 
     $stagingDir = Join-Path $repoRoot "publish/staging"
     $releaseConfig = Join-Path $repoRoot "publish/config.init.yaml"
-    $binaryPath = Join-Path $repoRoot "build/bin/ant-chrome.exe"
+    $nativeOutput = Join-Path $repoRoot "build/native/release"
+    $binaryPath = Join-Path $nativeOutput "ant-chrome.exe"
+    $flutterWindowsOutput = Join-Path $repoRoot "frontend_flutter/build/windows"
+    $flutterRelease = Get-ChildItem -LiteralPath $flutterWindowsOutput -Directory |
+        ForEach-Object { Join-Path $_.FullName "runner/Release" } |
+        Where-Object { Test-Path -LiteralPath $_ -PathType Container } |
+        Select-Object -First 1
     $binDir = Join-Path $repoRoot "bin"
     $chromeRoot = Join-Path $repoRoot "chrome"
+
+    if (-not $flutterRelease) {
+        throw "找不到 Flutter Windows Release 文件夹"
+    }
 
     if (Test-Path -LiteralPath $stagingDir) {
         Remove-Item -LiteralPath $stagingDir -Recurse -Force
     }
     New-Item -ItemType Directory -Path $stagingDir -Force | Out-Null
 
+    Copy-Item -Path (Join-Path $flutterRelease "*") -Destination $stagingDir -Recurse -Force
     Copy-Item -LiteralPath $binaryPath -Destination (Join-Path $stagingDir "ant-chrome.exe") -Force
     if (-not (Test-Path -LiteralPath (Join-Path $stagingDir "ant-chrome.exe") -PathType Leaf)) {
         throw "staging 中缺少 ant-chrome.exe"
     }
-    Write-Host "✓ 复制 ant-chrome.exe"
+    foreach ($requiredUiFile in @("ant-browser-ui.exe", "flutter_windows.dll")) {
+        if (-not (Test-Path -LiteralPath (Join-Path $stagingDir $requiredUiFile) -PathType Leaf)) {
+            throw "staging 中缺少 Flutter 文件: $requiredUiFile"
+        }
+    }
+    Write-Host "✓ 复制 Flutter 原生界面和 Go 宿主"
+
+    $iconSource = Join-Path $repoRoot "build/windows/icon.ico"
+    if (-not (Test-Path -LiteralPath $iconSource -PathType Leaf)) {
+        throw "未找到应用图标: build\windows\icon.ico"
+    }
+    Copy-Item -LiteralPath $iconSource -Destination (Join-Path $stagingDir "AntBrowser.ico") -Force
 
     if (-not (Test-Path -LiteralPath $releaseConfig -PathType Leaf)) {
         throw "未找到发布配置模板: publish\config.init.yaml"
@@ -821,21 +824,19 @@ try {
     $publishTarget = Resolve-PublishTarget -InputTarget $Target
     $resolvedWindowsFormat = Resolve-WindowsFormat -InputFormat $WindowsFormat -PublishTarget $publishTarget -Interactive (-not $targetWasProvided)
 
-    Invoke-WithTemporaryWailsVersion {
-        switch ($publishTarget) {
-            "WINDOWS" {
-                Publish-Windows -Format $resolvedWindowsFormat
-            }
-            "LINUX" {
-                Publish-Linux
-            }
-            "BOTH" {
-                Publish-Windows -Format $resolvedWindowsFormat
-                Publish-Linux
-            }
-            default {
-                throw "不支持的打包目标: $publishTarget"
-            }
+    switch ($publishTarget) {
+        "WINDOWS" {
+            Publish-Windows -Format $resolvedWindowsFormat
+        }
+        "LINUX" {
+            Invoke-WithTemporaryWailsVersion { Publish-Linux }
+        }
+        "BOTH" {
+            Publish-Windows -Format $resolvedWindowsFormat
+            Invoke-WithTemporaryWailsVersion { Publish-Linux }
+        }
+        default {
+            throw "不支持的打包目标: $publishTarget"
         }
     }
 

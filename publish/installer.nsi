@@ -345,7 +345,9 @@ Section "Ant Browser (required)" SecMain
   Call PreserveLegacyBackupLocalConfig
   SetOutPath "$INSTDIR"
   File "${STAGINGDIR}\${PRODUCT_EXE}"
-  File /oname=${PRODUCT_ICON} "..\build\windows\icon.ico"
+  File "${STAGINGDIR}\ant-browser-ui.exe"
+  File "${STAGINGDIR}\*.dll"
+  File "${STAGINGDIR}\${PRODUCT_ICON}"
 !if /FileExists "${STAGINGDIR}\config.yaml"
   IfFileExists "$INSTDIR\config.yaml" +2 0
     File "${STAGINGDIR}\config.yaml"
@@ -358,8 +360,8 @@ Section "Ant Browser (required)" SecMain
   SetOutPath "$INSTDIR"
 !endif
   CreateDirectory "$INSTDIR\data"
-  SetOutPath "$INSTDIR\data\diagnostics"
-  File /r "${STAGINGDIR}\data\diagnostics\*"
+  SetOutPath "$INSTDIR\data"
+  File /r "${STAGINGDIR}\data\*"
   SetOutPath "$INSTDIR"
   ${If} $InstallScope == "machine"
     WriteRegStr HKLM "${UNINSTALL_KEY}" "DisplayName"     "${PRODUCT_NAME}"

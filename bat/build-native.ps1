@@ -1,6 +1,7 @@
 param(
     [ValidateSet('debug', 'release')]
-    [string]$Mode = 'release'
+    [string]$Mode = 'release',
+    [string]$Version = ''
 )
 
 Set-StrictMode -Version Latest
@@ -31,16 +32,20 @@ if (-not $go) {
 if (-not $go) { throw '找不到 Go SDK。' }
 
 $pubspecPath = Join-Path $repoRoot 'frontend_flutter\pubspec.yaml'
-$versionLine = Select-String -LiteralPath $pubspecPath -Pattern '^version:\s*(\d+\.\d+\.\d+)' | Select-Object -First 1
-if (-not $versionLine) { throw '无法从 Flutter pubspec.yaml 读取应用版本。' }
-$appVersion = $versionLine.Matches[0].Groups[1].Value
+$appVersion = ([string]$Version).Trim()
+if (-not $appVersion) {
+    $versionLine = Select-String -LiteralPath $pubspecPath -Pattern '^version:\s*(\d+\.\d+\.\d+)' | Select-Object -First 1
+    if (-not $versionLine) { throw '无法从 Flutter pubspec.yaml 读取应用版本。' }
+    $appVersion = $versionLine.Matches[0].Groups[1].Value
+}
+if ($appVersion -notmatch '^\d+\.\d+\.\d+$') { throw "无效的应用版本：$appVersion" }
 
 Push-Location (Join-Path $repoRoot 'frontend_flutter')
 try {
     & $flutter pub get
     if ($LASTEXITCODE -ne 0) { throw 'Flutter 依赖准备失败。' }
 
-    & $flutter build windows "--$Mode"
+    & $flutter build windows "--$Mode" "--build-name=$appVersion"
     if ($LASTEXITCODE -ne 0) { throw 'Flutter Windows 构建失败。' }
 }
 finally {
@@ -52,11 +57,14 @@ $releaseDirectory = Get-ChildItem -LiteralPath (Join-Path $repoRoot 'frontend_fl
     ForEach-Object { Join-Path $_.FullName "runner\$configuration" } |
     Where-Object { Test-Path -LiteralPath $_ } |
     Select-Object -First 1
-if (-not $releaseDirectory) { throw '找不到 Flutter Windows Release 输出目录。' }
+if (-not $releaseDirectory) { throw "找不到 Flutter Windows $configuration 输出目录。" }
 
 $outputDirectory = Join-Path $repoRoot "build\native\$Mode"
 New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
 Copy-Item -Path (Join-Path $releaseDirectory '*') -Destination $outputDirectory -Recurse -Force
+if (-not (Test-Path -LiteralPath (Join-Path $outputDirectory 'data\flutter_assets') -PathType Container)) {
+    throw 'Flutter Windows 构建产物缺少 data\flutter_assets。'
+}
 
 Push-Location $repoRoot
 $previousPath = $env:PATH
@@ -80,8 +88,17 @@ finally {
 }
 
 $resourceDirectory = Join-Path $repoRoot 'bin'
-if (Test-Path -LiteralPath $resourceDirectory -PathType Container) {
-    Copy-Item -LiteralPath $resourceDirectory -Destination $outputDirectory -Recurse -Force
+if (-not (Test-Path -LiteralPath $resourceDirectory -PathType Container)) {
+    throw '找不到 Windows 运行时目录 bin。'
+}
+$runtimeOutputDirectory = Join-Path $outputDirectory 'bin'
+New-Item -ItemType Directory -Path $runtimeOutputDirectory -Force | Out-Null
+foreach ($runtimeName in @('xray.exe', 'sing-box.exe')) {
+    $runtimePath = Join-Path $resourceDirectory $runtimeName
+    if (-not (Test-Path -LiteralPath $runtimePath -PathType Leaf)) {
+        throw "缺少 Windows 运行时文件 bin\$runtimeName。"
+    }
+    Copy-Item -LiteralPath $runtimePath -Destination $runtimeOutputDirectory -Force
 }
 
 Write-Host "原生 Flutter $Mode 版本已构建：$outputDirectory"

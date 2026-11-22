@@ -23,6 +23,11 @@ func main() {
 	appRoot := resolveAppRoot()
 	lifecycle.Log(appRoot, "process.start", map[string]interface{}{"native": true})
 	defer lifecycle.Log(appRoot, "process.defer_exit", map[string]interface{}{"native": true})
+	if err := os.Chdir(appRoot); err != nil {
+		log.Printf("切换应用目录失败: %v", err)
+		lifecycle.Log(appRoot, "app_root.chdir.error", map[string]interface{}{"error": err.Error()})
+		return
+	}
 	if err := backend.EnsureRuntimeLayout(appRoot); err != nil {
 		log.Printf("准备用户数据目录失败: %v", err)
 		lifecycle.Log(appRoot, "runtime_layout.error", map[string]interface{}{"error": err.Error()})
@@ -94,6 +99,7 @@ func main() {
 		return
 	}
 	ui := exec.Command(uiPath)
+	ui.Dir = filepath.Dir(uiPath)
 	ui.Env = append(os.Environ(),
 		"ANT_BROWSER_NATIVE_RPC_URL="+rpc.Address(),
 		"ANT_BROWSER_NATIVE_RPC_TOKEN="+rpc.Token(),

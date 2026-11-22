@@ -74,7 +74,7 @@ bat\publish.bat B -Version 1.8.0
 说明：
 
 - `-Version 1.8.0` 会覆盖本次发布使用的版本号；发布其他版本时替换为目标版本。
-- Windows / Linux 包名、NSIS 安装包版本号，以及本次构建期间读取到的 `wails.json productVersion` 会统一使用该值。
+- Windows 原生版本从 `frontend_flutter/pubspec.yaml` 读取版本号；Linux 仍通过 Wails 发布流程临时覆盖版本。
 
 Windows 打包依赖 NSIS，默认查找顺序：
 
@@ -96,7 +96,8 @@ Windows 分支使用的项目路径：
 
 ```text
 输入：
-- build\bin\ant-chrome.exe
+- build\native\release\ant-chrome.exe
+- Flutter Windows Release 文件和运行库
 - publish\config.init.yaml
 - bin\xray.exe
 - bin\sing-box.exe
@@ -174,6 +175,5 @@ pwsh -File bat/recover-profiles.ps1 -AppRoot 'E:\software\Ant Browser' -Apply -R
 
 ## 备注
 
-- `generate-bindings.bat` 是辅助脚本，通常由 `build.bat` 调用。
-- `generate-bindings.bat`、`build.bat`、`dev.bat` 都假定当前分支是完整源码仓库。
-- 如果这些脚本报告缺少 `go.mod`、`main.go`、`wails.json`，应先恢复源码入口，而不是继续复用旧二进制。
+- `build.bat`、`dev.bat` 都假定当前分支是完整源码仓库。
+- Windows 原生构建需要 Flutter、Go 和 Visual Studio C++ 工具链。
