@@ -38,8 +38,11 @@ Future<void> main() async {
   try {
     final settings = AppBridge.readStorage('app_settings');
     if (settings.isNotEmpty) {
-      final value = (jsonDecode(settings) as Map)['theme'];
+      final saved = jsonDecode(settings) as Map;
+      final value = saved['theme'];
       if (value is String) setAppThemeMode(value);
+      final color = saved['themeColor'];
+      if (color is String) setAppThemeColor(color);
     }
   } catch (_) {}
   runApp(const AntBrowserApp());
@@ -78,16 +81,19 @@ class AntBrowserApp extends StatelessWidget {
     return ValueListenableBuilder<prism.ThemeMode>(
       valueListenable: appThemeMode,
       builder: (context, themeMode, child) {
-        return prism.PrismApp(
-          title: 'Ant Browser',
-          debugShowCheckedModeBanner: false,
-          locale: const Locale('zh', 'CN'),
-          supportedLocales: const [Locale('zh', 'CN'), Locale('en', 'US')],
-          localizationsDelegates: [AntPrismLocalizationsDelegate()],
-          themeMode: themeMode,
-          theme: buildAntPrismTheme(Brightness.light),
-          darkTheme: buildAntPrismTheme(Brightness.dark),
-          home: const AntBrowserShell(),
+        return ValueListenableBuilder<int>(
+          valueListenable: appThemeColor,
+          builder: (context, seedColor, child) => prism.PrismApp(
+            title: 'Ant Browser',
+            debugShowCheckedModeBanner: false,
+            locale: const Locale('zh', 'CN'),
+            supportedLocales: const [Locale('zh', 'CN'), Locale('en', 'US')],
+            localizationsDelegates: [AntPrismLocalizationsDelegate()],
+            themeMode: themeMode,
+            theme: buildAntPrismTheme(Brightness.light, seedColor),
+            darkTheme: buildAntPrismTheme(Brightness.dark, seedColor),
+            home: const AntBrowserShell(),
+          ),
         );
       },
     );

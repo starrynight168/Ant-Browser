@@ -11,6 +11,7 @@ const _defaultAppSettings = <String, dynamic>{
   'appName': 'Ant Browser',
   'appDescription': '基于 Flutter 与 Go 的桌面应用',
   'theme': 'light',
+  'themeColor': 'forest',
   'primaryColor': '#3B82F6',
   'language': 'zh-CN',
   'enableNotifications': true,
@@ -90,6 +91,7 @@ class _SettingsPageState extends State<SettingsPage> {
           _settings['logLevel'] = '${results[2]}'.toLowerCase();
       });
       setAppThemeMode('${settings['theme'] ?? 'light'}');
+      setAppThemeColor('${settings['themeColor'] ?? 'forest'}');
     } catch (error) {
       if (mounted) _message('设置加载失败：$error');
     } finally {
@@ -120,6 +122,7 @@ class _SettingsPageState extends State<SettingsPage> {
         '${_settings['logLevel'] ?? 'info'}',
       ]);
       setAppThemeMode('${_settings['theme'] ?? 'light'}');
+      setAppThemeColor('${_settings['themeColor'] ?? 'forest'}');
       _message('设置已保存');
     } catch (error) {
       _message('保存设置失败：$error');
@@ -156,6 +159,7 @@ class _SettingsPageState extends State<SettingsPage> {
         () => _settings = Map<String, dynamic>.from(_defaultAppSettings),
       );
       setAppThemeMode('light');
+      setAppThemeColor('forest');
       await _load();
       _message('已恢复默认设置');
     } catch (error) {
@@ -365,6 +369,29 @@ class _SettingsPageState extends State<SettingsPage> {
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 10),
+                    PrismDropdownField<String>(
+                      initialValue: '${_settings['themeColor'] ?? 'forest'}',
+                      decoration: const PrismInputDecoration(
+                        labelText: '主题配色',
+                        isDense: true,
+                      ),
+                      items: const [
+                        PrismDropdownItem(value: 'forest', child: Text('森林绿')),
+                        PrismDropdownItem(value: 'ocean', child: Text('海洋蓝')),
+                        PrismDropdownItem(value: 'violet', child: Text('薰衣草紫')),
+                        PrismDropdownItem(value: 'rose', child: Text('玫瑰粉')),
+                        PrismDropdownItem(value: 'amber', child: Text('琥珀橙')),
+                        PrismDropdownItem(value: 'teal', child: Text('青碧色')),
+                        PrismDropdownItem(value: 'slate', child: Text('石墨灰')),
+                        PrismDropdownItem(value: 'red', child: Text('中国红')),
+                      ],
+                      onChanged: (value) {
+                        final color = value ?? 'forest';
+                        _change('themeColor', color);
+                        setAppThemeColor(color);
+                      },
                     ),
                     const SizedBox(height: 10),
                     _textField('应用说明', 'appDescription', maxLines: 2),
