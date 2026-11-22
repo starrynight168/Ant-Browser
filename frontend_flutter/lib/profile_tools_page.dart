@@ -27,6 +27,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
   List<Map<String, dynamic>> _tabs = [];
   List<Map<String, dynamic>> _cookies = [];
   final _url = TextEditingController();
+  final _cookieFilter = TextEditingController();
   final _cookieExportController = TextEditingController();
   bool _loading = true;
   String _busy = '';
@@ -44,6 +45,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
   @override
   void dispose() {
     _url.dispose();
+    _cookieFilter.dispose();
     _cookieExportController.dispose();
     super.dispose();
   }
@@ -120,6 +122,14 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
     }
   }
 
+  String _cookieExpiry(dynamic value) {
+    final expires = double.tryParse(value?.toString() ?? '') ?? 0;
+    if (expires <= 0) return '会话 Cookie';
+    return DateTime.fromMillisecondsSinceEpoch((expires * 1000).round())
+        .toLocal()
+        .toString();
+  }
+
   void _message(String text) {
     if (mounted) {
       showPrismNotice(context, (text).toString());
@@ -153,8 +163,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
     if (value.isEmpty) return;
     await _perform(
       'url',
-      () =>
-          AppBridge.call('BrowserInstanceOpenUrl', [widget.profileId, value]),
+      () => AppBridge.call('BrowserInstanceOpenUrl', [widget.profileId, value]),
     );
   }
 
@@ -186,8 +195,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
     if (value == null || value.isEmpty) return;
     await _perform(
       'snapshot',
-      () =>
-          AppBridge.call('BrowserSnapshotCreate', [widget.profileId, value]),
+      () => AppBridge.call('BrowserSnapshotCreate', [widget.profileId, value]),
     );
   }
 
@@ -546,6 +554,14 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                 ),
                 Column(
                   children: [
+                    PrismTextField(
+                      controller: _cookieFilter,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const PrismInputDecoration(
+                        labelText: '按域名过滤 Cookie',
+                        isDense: true,
+                      ),
+                    ),
                     Padding(
                       padding: const EdgeInsets.only(top: 16, bottom: 8),
                       child: Wrap(
@@ -599,26 +615,68 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                           ? _empty(
                               _running ? '点击“读取”加载 Cookie' : '启动实例后可管理 Cookie',
                             )
-                          : ListView(
-                              children: [
-                                for (final cookie in _cookies)
-                                  PrismCard(
-                                    margin: const EdgeInsets.only(bottom: 6),
-                                    child: PrismListTile(
-                                      title: Text(
-                                        (cookie['name'] ?? '').toString(),
+                          : Builder(
+                              builder: (context) {
+                                final query = _cookieFilter.text
+                                    .trim()
+                                    .toLowerCase();
+                                final cookies = _cookies.where((cookie) {
+                                  return query.isEmpty ||
+                                      (cookie['domain'] ?? '')
+                                          .toString()
+                                          .toLowerCase()
+                                          .contains(query);
+                                }).toList();
+                                if (cookies.isEmpty) {
+                                  return _empty('没有匹配的 Cookie');
+                                }
+                                return ListView(
+                                  children: [
+                                    for (final cookie in cookies)
+                                      PrismCard(
+                                        margin: const EdgeInsets.only(
+                                          bottom: 6,
+                                        ),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(12),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                (cookie['name'] ?? '')
+                                                    .toString(),
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                '${cookie['domain'] ?? ''} · ${cookie['path'] ?? '/'} · ${_cookieExpiry(cookie['expires'])}',
+                                              ),
+                                              const SizedBox(height: 4),
+                                              prism.SelectableText(
+                                                (cookie['value'] ?? '')
+                                                    .toString(),
+                                                maxLines: 2,
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                'HttpOnly ${cookie['httpOnly'] == true ? '是' : '否'} · Secure ${cookie['secure'] == true ? '是' : '否'}',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: prism.Theme.of(context)
+                                                      .colorScheme
+                                                      .onSurfaceVariant,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                       ),
-                                      subtitle: Text(
-                                        '${cookie['domain'] ?? ''} · ${cookie['path'] ?? '/'}',
-                                      ),
-                                      trailing: Text(
-                                        cookie['secure'] == true
-                                            ? 'Secure'
-                                            : '',
-                                      ),
-                                    ),
-                                  ),
-                              ],
+                                  ],
+                                );
+                              },
                             ),
                     ),
                   ],

@@ -65,8 +65,12 @@ class _BookmarksPageState extends State<BookmarksPage> {
     setState(() => _saving = true);
     try {
       await AppBridge.call('BookmarkSave', [_items]);
-      final sync = await AppBridge.call('BookmarkSyncToProfiles');
-      _message(_syncMessage(sync, prefix: '书签已保存'));
+      try {
+        final result = await AppBridge.call('BookmarkSyncToProfiles');
+        _message(_syncMessage(result, prefix: '书签已保存'));
+      } catch (error) {
+        _message('书签已保存，但同步失败：$error');
+      }
     } catch (error) {
       _message('保存失败：$error');
     } finally {

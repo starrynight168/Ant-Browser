@@ -1,4 +1,7 @@
 import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 
 import 'prism_widgets.dart';
 
@@ -14,9 +17,13 @@ class ExtensionsPage extends StatefulWidget {
 }
 
 class _ExtensionsPageState extends State<ExtensionsPage> {
+  static const _historyKey = 'ant-chrome.extensionManagement.history.v1';
+  static const _proxyPreferenceKey =
+      'ant-chrome.extensionManagement.downloadProxy.v1';
   final _query = TextEditingController();
   List<Map<String, dynamic>> _items = [];
   List<Map<String, dynamic>> _proxies = [];
+  List<Map<String, dynamic>> _history = [];
   Map<String, dynamic>? _lookup;
   bool _loading = true;
   String _busy = '';
@@ -27,6 +34,14 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
   @override
   void initState() {
     super.initState();
+    _history = _readHistory();
+    try {
+      final preference = jsonDecode(AppBridge.readStorage(_proxyPreferenceKey));
+      if (preference is Map) {
+        _useProxy = preference['useProxy'] == true;
+        _selectedProxyId = (preference['proxyId'] ?? '').toString();
+      }
+    } catch (_) {}
     _refresh();
   }
 
@@ -56,6 +71,10 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
       if (!_proxies.any((proxy) => proxy['proxyId'] == _selectedProxyId)) {
         _selectedProxyId = '';
       }
+      if (!_proxies.any((proxy) => proxy['proxyId'] == _selectedProxyId)) {
+        _useProxy = false;
+      }
+      _saveProxyPreference();
       _error = null;
     } catch (error) {
       _error = error.toString();
@@ -64,12 +83,70 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
     }
   }
 
-  Future<void> _run(String id, Future<void> Function() action) async {
+  List<Map<String, dynamic>> _readHistory() {
+    try {
+      final value = jsonDecode(AppBridge.readStorage(_historyKey));
+      return (value as List? ?? [])
+          .whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .take(100)
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  void _appendHistory(Map<String, dynamic> entry) {
+    final record = {
+      'id': DateTime.now().microsecondsSinceEpoch.toString(),
+      'createdAt': DateTime.now().toIso8601String(),
+      ...entry,
+    };
+    if (mounted) {
+      setState(() => _history = [record, ..._history].take(100).toList());
+    } else {
+      _history = [record, ..._history].take(100).toList();
+    }
+    AppBridge.writeStorage(_historyKey, jsonEncode(_history));
+  }
+
+  void _saveProxyPreference() {
+    AppBridge.writeStorage(
+      _proxyPreferenceKey,
+      jsonEncode({'useProxy': _useProxy, 'proxyId': _selectedProxyId}),
+    );
+  }
+
+  Future<void> _openExternalUrl(String value) async {
+    final uri = Uri.tryParse(value);
+    if (uri == null || uri.scheme != 'https') return;
+    final command = Platform.isWindows
+        ? ('rundll32.exe', ['url.dll,FileProtocolHandler', uri.toString()])
+        : Platform.isMacOS
+        ? ('open', [uri.toString()])
+        : ('xdg-open', [uri.toString()]);
+    try {
+      await Process.run(command.$1, command.$2);
+    } catch (error) {
+      if (mounted) showPrismNotice(context, '打开链接失败：$error');
+    }
+  }
+
+  Future<void> _run(
+    String id,
+    Future<void> Function() action, {
+    Map<String, dynamic>? history,
+  }) async {
     setState(() => _busy = id);
     try {
       await action();
+      if (history != null)
+        _appendHistory({...history, 'ok': true, 'message': ''});
       await _refresh();
     } catch (error) {
+      if (history != null) {
+        _appendHistory({...history, 'ok': false, 'message': '$error'});
+      }
       if (mounted) showPrismNotice(context, (error.toString()).toString());
     } finally {
       if (mounted) setState(() => _busy = '');
@@ -92,9 +169,33 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
           'proxyConfig': _selectedProxyConfig,
         },
       ]);
-      if (mounted)
+      if (mounted) {
         setState(() => _lookup = Map<String, dynamic>.from(result as Map));
+        final value = Map<String, dynamic>.from(result as Map);
+        _appendHistory({
+          'action': 'lookup',
+          'query': query,
+          'extensionId': (value['extensionId'] ?? '').toString(),
+          'name': (value['name'] ?? '').toString(),
+          'version': (value['version'] ?? '').toString(),
+          'storeUrl': (value['storeUrl'] ?? '').toString(),
+          'proxyLabel': _useProxy ? _selectedProxyId : '直连查询',
+          'ok': true,
+          'message': (value['message'] ?? '').toString(),
+        });
+      }
     } catch (error) {
+      _appendHistory({
+        'action': 'lookup',
+        'query': query,
+        'extensionId': '',
+        'name': '',
+        'version': '',
+        'storeUrl': '',
+        'proxyLabel': _useProxy ? _selectedProxyId : '直连查询',
+        'ok': false,
+        'message': '$error',
+      });
       if (mounted) showPrismNotice(context, (error.toString()).toString());
     } finally {
       if (mounted) setState(() => _busy = '');
@@ -108,26 +209,255 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
       showPrismNotice(context, ('请先选择下载代理').toString());
       return;
     }
-    await _run('install', () async {
-      await AppBridge.call('BrowserExtensionInstallWithProxy', [
-        {
-          'query': id,
-          'useProxy': _useProxy,
-          'proxyConfig': _selectedProxyConfig,
-        },
-      ]);
-      if (mounted)
-        setState(() {
-          _lookup = null;
-          _query.clear();
-        });
-    });
+    await _run(
+      'install',
+      () async {
+        await AppBridge.call('BrowserExtensionInstallWithProxy', [
+          {
+            'query': id,
+            'useProxy': _useProxy,
+            'proxyConfig': _selectedProxyConfig,
+          },
+        ]);
+        if (mounted)
+          setState(() {
+            _lookup = null;
+            _query.clear();
+          });
+      },
+      history: {
+        'action': 'install',
+        'query': id,
+        'extensionId': (_lookup?['extensionId'] ?? id).toString(),
+        'name': (_lookup?['name'] ?? '').toString(),
+        'version': (_lookup?['version'] ?? '').toString(),
+        'storeUrl': (_lookup?['storeUrl'] ?? '').toString(),
+        'proxyLabel': _useProxy ? _selectedProxyId : '直连',
+      },
+    );
   }
 
   String get _selectedProxyConfig {
     final proxy = _proxies.where((item) => item['proxyId'] == _selectedProxyId);
     if (proxy.isEmpty) return '';
     return (proxy.first['proxyConfig'] ?? '').toString();
+  }
+
+  String _historyActionLabel(String value) => switch (value) {
+    'install' => '安装',
+    'import' => '导入',
+    _ => '查询',
+  };
+
+  Future<void> _showHistory() async {
+    var records = List<Map<String, dynamic>>.from(_history);
+    await showPrismDialog<void>(
+      context: context,
+      useRootNavigator: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialog) => PrismDialog(
+          title: const Text('插件操作历史'),
+          content: SizedBox(
+            width: 700,
+            height: 520,
+            child: records.isEmpty
+                ? const Center(child: Text('暂无插件查询、安装或导入记录'))
+                : ListView.builder(
+                    itemCount: records.length,
+                    itemBuilder: (context, index) {
+                      final record = records[index];
+                      final success = record['ok'] == true;
+                      final storeUrl = (record['storeUrl'] ?? '').toString();
+                      return PrismCard(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: PrismListTile(
+                          title: Text(
+                            '${_historyActionLabel((record['action'] ?? '').toString())} · ${record['name'] ?? record['extensionId'] ?? record['query'] ?? ''}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: Text(
+                            '${success ? '成功' : '失败'} · ${record['createdAt'] ?? ''}\n${record['message'] ?? record['query'] ?? ''}',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          leading: Icon(
+                            success
+                                ? Icons.check_circle_outline
+                                : Icons.error_outline,
+                            color: success
+                                ? prism.Theme.of(context).colorScheme.tertiary
+                                : prism.Theme.of(context).colorScheme.error,
+                          ),
+                          trailing: Wrap(
+                            spacing: 2,
+                            children: [
+                              prism.TextButton(
+                                onPressed: () {
+                                  _query.text = (record['query'] ?? '')
+                                      .toString();
+                                  Navigator.pop(context);
+                                },
+                                child: const Text('使用'),
+                              ),
+                              if (storeUrl.isNotEmpty)
+                                prism.IconButton(
+                                  tooltip: '打开商店页',
+                                  onPressed: () => _openExternalUrl(storeUrl),
+                                  icon: const Icon(Icons.open_in_new, size: 18),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          actions: [
+            prism.TextButton(
+              onPressed: () {
+                records = [];
+                _history = [];
+                AppBridge.writeStorage(_historyKey, '[]');
+                setDialog(() {});
+              },
+              child: const Text('清空历史'),
+            ),
+            prism.TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('关闭'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openStoreSearch() async {
+    final query = _query.text.trim();
+    if (query.isEmpty) return;
+    final url = RegExp(r'^[a-p]{32}$', caseSensitive: false).hasMatch(query)
+        ? 'https://chromewebstore.google.com/detail/${query.toLowerCase()}'
+        : 'https://chromewebstore.google.com/search/${Uri.encodeComponent(query)}';
+    await _openExternalUrl(url);
+  }
+
+  Future<void> _showInstalledProfiles(Map<String, dynamic> extension) async {
+    final extensionId = (extension['extensionId'] ?? '').toString();
+    if (extensionId.isEmpty) return;
+    try {
+      final profileResult = await AppBridge.call('BrowserProfileList');
+      final profiles = (profileResult as List? ?? [])
+          .whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList();
+      final settings = await Future.wait(
+        profiles.map(
+          (profile) => AppBridge.call('BrowserProfileExtensionGet', [
+            profile['profileId'],
+          ]),
+        ),
+      );
+      final usingProfiles = <Map<String, dynamic>>[];
+      for (var index = 0; index < profiles.length; index++) {
+        final value = Map<String, dynamic>.from(settings[index] as Map);
+        final extensionIds = (value['extensionIds'] as List? ?? [])
+            .map((id) => id.toString())
+            .toSet();
+        final usesExtension = value['configured'] == true
+            ? extensionIds.contains(extensionId)
+            : extension['enabled'] == true &&
+                  extension['defaultInstall'] == true;
+        if (usesExtension) usingProfiles.add(profiles[index]);
+      }
+      if (!mounted) return;
+      await showPrismDialog<void>(
+        context: context,
+        useRootNavigator: false,
+        builder: (context) => StatefulBuilder(
+          builder: (context, setDialog) => PrismDialog(
+            title: Text('使用实例 · ${extension['name'] ?? extensionId}'),
+            content: SizedBox(
+              width: 600,
+              height: 450,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    '共 ${usingProfiles.length} 个实例配置使用此插件。插件在实例启动时加载，修改配置后需要重启实例。',
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: usingProfiles.isEmpty
+                        ? const Center(child: Text('没有实例配置使用此插件'))
+                        : ListView(
+                            children: [
+                              for (final profile in usingProfiles)
+                                PrismListTile(
+                                  title: Text(
+                                    (profile['profileName'] ??
+                                            profile['profileId'] ??
+                                            '')
+                                        .toString(),
+                                  ),
+                                  subtitle: Text(
+                                    (profile['profileId'] ?? '').toString(),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  leading: Icon(
+                                    profile['running'] == true
+                                        ? Icons.play_circle_outline
+                                        : Icons.stop_circle_outlined,
+                                  ),
+                                  trailing: prism.OutlinedButton(
+                                    onPressed: () async {
+                                      final id = (profile['profileId'] ?? '')
+                                          .toString();
+                                      final running =
+                                          profile['running'] == true;
+                                      try {
+                                        await AppBridge.call(
+                                          running
+                                              ? 'BrowserInstanceStop'
+                                              : 'BrowserInstanceStart',
+                                          [id],
+                                        );
+                                        setDialog(() {
+                                          profile['running'] = !running;
+                                        });
+                                      } catch (error) {
+                                        if (context.mounted) {
+                                          showPrismNotice(
+                                            context,
+                                            '操作实例失败：$error',
+                                          );
+                                        }
+                                      }
+                                    },
+                                    child: Text(
+                                      profile['running'] == true ? '停止' : '启动',
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              prism.TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('关闭'),
+              ),
+            ],
+          ),
+        ),
+      );
+    } catch (error) {
+      if (mounted) showPrismNotice(context, '读取实例插件状态失败：$error');
+    }
   }
 
   Future<void> _openManualInstall() async {
@@ -163,6 +493,31 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                   const SizedBox(height: 10),
                   prism.SelectableText('下载地址：${guide['downloadUrl'] ?? ''}'),
                   prism.SelectableText('下载目录：${guide['downloadDir'] ?? ''}'),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      prism.TextButton.icon(
+                        onPressed: () async {
+                          await Clipboard.setData(
+                            ClipboardData(
+                              text: (guide['downloadUrl'] ?? '').toString(),
+                            ),
+                          );
+                          showPrismNotice(context, '下载地址已复制');
+                        },
+                        icon: const Icon(Icons.copy, size: 16),
+                        label: const Text('复制下载地址'),
+                      ),
+                      if ((guide['storeUrl'] ?? '').toString().isNotEmpty)
+                        prism.TextButton.icon(
+                          onPressed: () => _openExternalUrl(
+                            (guide['storeUrl'] ?? '').toString(),
+                          ),
+                          icon: const Icon(Icons.open_in_new, size: 16),
+                          label: const Text('打开商店页'),
+                        ),
+                    ],
+                  ),
                   Align(
                     alignment: Alignment.centerLeft,
                     child: prism.TextButton.icon(
@@ -197,6 +552,17 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                           'BrowserExtensionInstallManualDownloadFile',
                                           [file['fileName']],
                                         );
+                                        _appendHistory({
+                                          'action': 'import',
+                                          'query': file['fileName'] ?? '',
+                                          'extensionId': '',
+                                          'name': file['fileName'] ?? '',
+                                          'version': '',
+                                          'storeUrl': '',
+                                          'proxyLabel': '',
+                                          'ok': true,
+                                          'message': '本地插件包导入成功',
+                                        });
                                         await _refresh();
                                         if (context.mounted)
                                           Navigator.pop(context);
@@ -219,6 +585,32 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
               ),
             ),
             actions: [
+              prism.TextButton(
+                onPressed: () async {
+                  try {
+                    await AppBridge.call(
+                      'BrowserExtensionInstallLocalDirectory',
+                    );
+                    _appendHistory({
+                      'action': 'import',
+                      'query': '本地插件目录',
+                      'extensionId': '',
+                      'name': '',
+                      'version': '',
+                      'storeUrl': '',
+                      'proxyLabel': '',
+                      'ok': true,
+                      'message': '本地插件目录导入成功',
+                    });
+                    await _refresh();
+                  } catch (error) {
+                    if (context.mounted) {
+                      showPrismNotice(context, '导入目录失败：$error');
+                    }
+                  }
+                },
+                child: const Text('导入目录'),
+              ),
               prism.TextButton(
                 onPressed: () async {
                   try {
@@ -392,13 +784,25 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                     );
                   });
                 } else {
-                  _run(mode, () async {
-                    await AppBridge.call(
-                      mode == 'file'
-                          ? 'BrowserExtensionInstallLocalFile'
-                          : 'BrowserExtensionInstallLocalDirectory',
-                    );
-                  });
+                  _run(
+                    mode,
+                    () async {
+                      await AppBridge.call(
+                        mode == 'file'
+                            ? 'BrowserExtensionInstallLocalFile'
+                            : 'BrowserExtensionInstallLocalDirectory',
+                      );
+                    },
+                    history: {
+                      'action': 'import',
+                      'query': mode == 'file' ? '本地插件包' : '本地插件目录',
+                      'extensionId': '',
+                      'name': '',
+                      'version': '',
+                      'storeUrl': '',
+                      'proxyLabel': '',
+                    },
+                  );
                 }
               },
               itemBuilder: (_) => const [
@@ -407,6 +811,12 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                 PrismMenuItem(value: 'manual', child: Text('手动下载与导入')),
                 PrismMenuItem(value: 'download-dir', child: Text('打开手动下载目录')),
               ],
+            ),
+            const SizedBox(width: 8),
+            prism.OutlinedButton.icon(
+              onPressed: _showHistory,
+              icon: const Icon(Icons.history),
+              label: const Text('历史记录'),
             ),
           ],
         ),
@@ -437,13 +847,21 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                       onPressed: _busy.isEmpty ? _lookupExtension : null,
                       child: const Text('查询'),
                     ),
+                    prism.OutlinedButton.icon(
+                      onPressed: _openStoreSearch,
+                      icon: const Icon(Icons.open_in_new, size: 16),
+                      label: const Text('网页查询'),
+                    ),
                   ],
                 ),
                 PrismSwitchTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('通过代理下载'),
                   value: _useProxy,
-                  onChanged: (value) => setState(() => _useProxy = value),
+                  onChanged: (value) {
+                    setState(() => _useProxy = value);
+                    _saveProxyPreference();
+                  },
                 ),
                 if (_useProxy)
                   PrismDropdownField<String>(
@@ -465,8 +883,10 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                           ),
                         ),
                     ],
-                    onChanged: (value) =>
-                        setState(() => _selectedProxyId = value ?? ''),
+                    onChanged: (value) {
+                      setState(() => _selectedProxyId = value ?? '');
+                      _saveProxyPreference();
+                    },
                   ),
                 if (_lookup case final result?) ...[
                   const SizedBox(height: 12),
@@ -483,11 +903,25 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                   ),
                   Align(
                     alignment: Alignment.centerRight,
-                    child: prism.FilledButton(
-                      onPressed: _busy.isEmpty && result['installable'] != false
-                          ? _install
-                          : null,
-                      child: const Text('安装'),
+                    child: Wrap(
+                      spacing: 8,
+                      children: [
+                        if ((result['storeUrl'] ?? '').toString().isNotEmpty)
+                          prism.OutlinedButton.icon(
+                            onPressed: () => _openExternalUrl(
+                              (result['storeUrl'] ?? '').toString(),
+                            ),
+                            icon: const Icon(Icons.open_in_new, size: 16),
+                            label: const Text('打开商店页'),
+                          ),
+                        prism.FilledButton(
+                          onPressed:
+                              _busy.isEmpty && result['installable'] != false
+                              ? _install
+                              : null,
+                          child: const Text('安装'),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -573,18 +1007,30 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
               tooltip: '重新安装 / 更新',
               onPressed: busy
                   ? null
-                  : () => _run(id, () async {
-                      await AppBridge.call(
-                        'BrowserExtensionInstallWithProxy',
-                        [
-                          {
-                            'query': id,
-                            'useProxy': _useProxy,
-                            'proxyConfig': _selectedProxyConfig,
-                          },
-                        ],
-                      );
-                    }),
+                  : () => _run(
+                      id,
+                      () async {
+                        await AppBridge.call(
+                          'BrowserExtensionInstallWithProxy',
+                          [
+                            {
+                              'query': id,
+                              'useProxy': _useProxy,
+                              'proxyConfig': _selectedProxyConfig,
+                            },
+                          ],
+                        );
+                      },
+                      history: {
+                        'action': 'install',
+                        'query': id,
+                        'extensionId': id,
+                        'name': item['name'] ?? '',
+                        'version': item['version'] ?? '',
+                        'storeUrl': item['sourceUrl'] ?? '',
+                        'proxyLabel': _useProxy ? _selectedProxyId : '直连',
+                      },
+                    ),
               icon: const Icon(Icons.system_update_alt),
             ),
             prism.IconButton(
@@ -607,6 +1053,11 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
               tooltip: '指定安装实例',
               onPressed: busy ? null : () => _configureProfiles(item),
               icon: const Icon(Icons.tune),
+            ),
+            prism.IconButton(
+              tooltip: '打开使用此插件的实例',
+              onPressed: busy ? null : () => _showInstalledProfiles(item),
+              icon: const Icon(Icons.open_in_browser_outlined),
             ),
             prism.Switch(
               value: item['enabled'] == true,
@@ -644,9 +1095,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                       );
                       if (confirm == true)
                         _run(id, () async {
-                          await AppBridge.call('BrowserExtensionDelete', [
-                            id,
-                          ]);
+                          await AppBridge.call('BrowserExtensionDelete', [id]);
                         });
                     },
               icon: const Icon(Icons.delete_outline),

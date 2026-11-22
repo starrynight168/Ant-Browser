@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'prism_widgets.dart';
 
 import 'package:prism_ui/prism_ui.dart' as prism;
@@ -16,7 +18,208 @@ class BackupPage extends StatefulWidget {
   State<BackupPage> createState() => _BackupPageState();
 }
 
-class _BackupPageState extends State<BackupPage> {
+mixin _BackupProfileImportFlow<T extends StatefulWidget> on State<T> {
+  Future<List<Map<String, dynamic>>?> _confirmProfileImport(
+    Map<String, dynamic> preview,
+  ) async {
+    final profiles = (preview['profiles'] as List? ?? [])
+        .whereType<Map>()
+        .map((row) => Map<String, dynamic>.from(row))
+        .toList();
+    final actions = profiles.map((profile) {
+      return <String, dynamic>{
+        'sourceProfileId': profile['sourceProfileId'],
+        'sourceIndex': profile['sourceIndex'] ?? 0,
+        'mode': profile['suggestedAction'] ?? 'new',
+        'profileName':
+            profile['suggestedProfileName'] ??
+            profile['sourceProfileName'] ??
+            '',
+      };
+    }).toList();
+    return showPrismDialog<List<Map<String, dynamic>>>(
+      context: context,
+      useRootNavigator: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialog) => PrismDialog(
+          title: Text('导入 ${preview['profileCount'] ?? profiles.length} 个实例'),
+          content: SizedBox(
+            width: 560,
+            height: 420,
+            child: ListView.separated(
+              itemCount: profiles.length,
+              separatorBuilder: (_, __) => const prism.Divider(height: 1),
+              itemBuilder: (context, index) {
+                final profile = profiles[index];
+                final action = actions[index];
+                final canOverwrite = profile['canOverwrite'] == true;
+                final choices = <String>[
+                  'new',
+                  if (canOverwrite) 'overwrite',
+                  'rename',
+                ];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        (profile['sourceProfileName'] ?? '未命名实例').toString(),
+                      ),
+                      if ((profile['targetProfileName'] ?? '')
+                          .toString()
+                          .isNotEmpty)
+                        Text('匹配到本机实例：${profile['targetProfileName']}'),
+                      PrismDropdownField<String>(
+                        value: choices.contains(action['mode'])
+                            ? action['mode'] as String
+                            : 'new',
+                        items: [
+                          const PrismDropdownItem(
+                            value: 'new',
+                            child: Text('新建实例'),
+                          ),
+                          if (canOverwrite)
+                            const PrismDropdownItem(
+                              value: 'overwrite',
+                              child: Text('覆盖匹配实例'),
+                            ),
+                          const PrismDropdownItem(
+                            value: 'rename',
+                            child: Text('重命名导入'),
+                          ),
+                        ],
+                        decoration: const PrismInputDecoration(
+                          labelText: '导入方式',
+                        ),
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setDialog(() {
+                            action['mode'] = value;
+                            if (value == 'rename') {
+                              action['profileName'] =
+                                  profile['suggestedProfileName'] ??
+                                  '${profile['sourceProfileName'] ?? '实例'}-副本';
+                            }
+                          });
+                        },
+                      ),
+                      if (action['mode'] == 'rename')
+                        PrismTextFormField(
+                          key: ValueKey('backup-import-name-$index'),
+                          initialValue: (action['profileName'] ?? '')
+                              .toString(),
+                          decoration: const PrismInputDecoration(
+                            labelText: '导入后的名称',
+                          ),
+                          onChanged: (value) => action['profileName'] = value,
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+          actions: [
+            prism.TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
+            prism.FilledButton(
+              onPressed:
+                  actions.any(
+                    (action) =>
+                        action['mode'] == 'rename' &&
+                        (action['profileName'] ?? '').toString().trim().isEmpty,
+                  )
+                  ? null
+                  : () => Navigator.pop(context, actions),
+              child: const Text('继续导入'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<String?> _askImportPassword() async {
+    final password = TextEditingController();
+    final result = await showPrismDialog<String>(
+      context: context,
+      useRootNavigator: false,
+      builder: (context) => PrismDialog(
+        title: const Text('恢复登录态'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('输入导出时设置的迁移密码；留空可跳过登录态恢复。'),
+            const SizedBox(height: 12),
+            PrismTextField(
+              controller: password,
+              obscureText: true,
+              decoration: const PrismInputDecoration(labelText: '迁移密码'),
+            ),
+          ],
+        ),
+        actions: [
+          prism.TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          prism.FilledButton(
+            onPressed: () => Navigator.pop(context, password.text),
+            child: const Text('继续'),
+          ),
+        ],
+      ),
+    );
+    password.dispose();
+    return result;
+  }
+
+  Future<Map<String, dynamic>> _completeProfileImport(
+    Map<String, dynamic> result,
+  ) async {
+    if (result['cancelled'] == true ||
+        result['requiresProfileImportConfirmation'] != true) {
+      return result;
+    }
+    final preview = Map<String, dynamic>.from(
+      (result['profileImportPreview'] as Map?) ?? result,
+    );
+    final actions = await _confirmProfileImport(preview);
+    if (actions == null) {
+      return {'cancelled': true, 'message': '已取消导入'};
+    }
+    var password = '';
+    if (preview['portableSessionAvailable'] == true) {
+      final value = await _askImportPassword();
+      if (value == null) {
+        return {'cancelled': true, 'message': '已取消导入'};
+      }
+      password = value;
+    }
+    final imported = await AppBridge.call(
+      'BrowserProfilePackageImportWithOptions',
+      [
+        preview['zipPath'] ?? result['zipPath'],
+        {
+          'conflictMode': 'new',
+          'confirmConflict': true,
+          'actions': actions,
+          'portableSessionPassword': password,
+        },
+      ],
+    );
+    return imported is Map
+        ? Map<String, dynamic>.from(imported)
+        : <String, dynamic>{'message': imported?.toString() ?? '导入完成'};
+  }
+}
+
+class _BackupPageState extends State<BackupPage>
+    with _BackupProfileImportFlow<BackupPage> {
   String _directory = '';
   List<Map<String, dynamic>> _backups = [];
   bool _loading = true;
@@ -96,10 +299,257 @@ class _BackupPageState extends State<BackupPage> {
       ),
     );
     if (accepted == true)
-      await _run(
-        'restore',
-        () => AppBridge.call('BackupRestoreLocalPackage', [backup['path']]),
-      );
+      await _run('restore', () async {
+        final value = await AppBridge.call('BackupRestoreLocalPackage', [
+          backup['path'],
+        ]);
+        if (value is Map) {
+          return _completeProfileImport(Map<String, dynamic>.from(value));
+        }
+        return value;
+      });
+  }
+
+  Future<List<String>?> _selectProfileIds() async {
+    final result = await AppBridge.call('BrowserProfileList');
+    final profiles = (result as List? ?? [])
+        .whereType<Map>()
+        .map((row) => Map<String, dynamic>.from(row))
+        .where((profile) => (profile['profileId'] ?? '').toString().isNotEmpty)
+        .toList();
+    final selected = <String>{};
+    return showPrismDialog<List<String>>(
+      context: context,
+      useRootNavigator: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialog) => PrismDialog(
+          title: const Text('选择要备份的实例'),
+          content: SizedBox(
+            width: 520,
+            height: 420,
+            child: profiles.isEmpty
+                ? const Center(child: Text('没有可备份的实例'))
+                : ListView.builder(
+                    itemCount: profiles.length,
+                    itemBuilder: (context, index) {
+                      final profile = profiles[index];
+                      final id = profile['profileId'].toString();
+                      final running = profile['running'] == true;
+                      return PrismCheckboxTile(
+                        value: selected.contains(id),
+                        title: Text((profile['profileName'] ?? id).toString()),
+                        subtitle: running ? const Text('运行中，请先关闭') : null,
+                        onChanged: running
+                            ? null
+                            : (checked) => setDialog(() {
+                                if (checked == true) {
+                                  selected.add(id);
+                                } else {
+                                  selected.remove(id);
+                                }
+                              }),
+                      );
+                    },
+                  ),
+          ),
+          actions: [
+            prism.TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
+            prism.FilledButton(
+              onPressed: selected.isEmpty
+                  ? null
+                  : () => Navigator.pop(context, selected.toList()),
+              child: Text('备份所选（${selected.length}）'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<String?> _askExportPassword() async {
+    final password = TextEditingController();
+    var error = '';
+    final result = await showPrismDialog<String>(
+      context: context,
+      useRootNavigator: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialog) => PrismDialog(
+          title: const Text('迁移登录态'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('可以设置密码，将实例 Cookie 一并迁移到另一台电脑。'),
+              const SizedBox(height: 12),
+              PrismTextField(
+                controller: password,
+                obscureText: true,
+                decoration: PrismInputDecoration(
+                  labelText: '迁移密码（至少 8 个字符）',
+                  errorText: error.isEmpty ? null : error,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            prism.TextButton(
+              onPressed: () => Navigator.pop(context, ''),
+              child: const Text('仅导出配置'),
+            ),
+            prism.FilledButton(
+              onPressed: () {
+                if (password.text.runes.length < 8) {
+                  setDialog(() => error = '密码至少需要 8 个字符');
+                  return;
+                }
+                Navigator.pop(context, password.text);
+              },
+              child: const Text('导出配置和登录态'),
+            ),
+          ],
+        ),
+      ),
+    );
+    password.dispose();
+    return result;
+  }
+
+  Future<Set<String>?> _selectDestinations() async {
+    var openListConfigured = false;
+    var s3Configured = false;
+    try {
+      final value = await AppBridge.call('BackupOpenListGetSettings');
+      final settings = Map<String, dynamic>.from(value as Map);
+      openListConfigured =
+          (settings['baseURL'] ?? '').toString().trim().isNotEmpty &&
+          settings['authConfigured'] == true;
+    } catch (_) {}
+    try {
+      final value = await AppBridge.call('BackupS3GetSettings');
+      final settings = Map<String, dynamic>.from(value as Map);
+      s3Configured =
+          (settings['endpoint'] ?? '').toString().trim().isNotEmpty &&
+          (settings['bucket'] ?? '').toString().trim().isNotEmpty &&
+          settings['credentialsConfigured'] == true;
+    } catch (_) {}
+
+    final selected = <String>{'local'};
+    final destinations = await showPrismDialog<Set<String>>(
+      context: context,
+      useRootNavigator: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialog) => PrismDialog(
+          title: const Text('选择备份位置'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              PrismCheckboxTile(
+                value: selected.contains('local'),
+                title: const Text('本地 ZIP'),
+                subtitle: const Text('保存到电脑，可选择多个位置'),
+                onChanged: (checked) => setDialog(() {
+                  checked == true
+                      ? selected.add('local')
+                      : selected.remove('local');
+                }),
+              ),
+              PrismCheckboxTile(
+                value: selected.contains('openlist'),
+                title: const Text('OpenList'),
+                subtitle: Text(openListConfigured ? '已配置' : '未配置，选择后会打开设置页'),
+                onChanged: (checked) => setDialog(() {
+                  checked == true
+                      ? selected.add('openlist')
+                      : selected.remove('openlist');
+                }),
+              ),
+              PrismCheckboxTile(
+                value: selected.contains('s3'),
+                title: const Text('S3'),
+                subtitle: Text(s3Configured ? '已配置' : '未配置，选择后会打开设置页'),
+                onChanged: (checked) => setDialog(() {
+                  checked == true ? selected.add('s3') : selected.remove('s3');
+                }),
+              ),
+            ],
+          ),
+          actions: [
+            prism.TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
+            prism.FilledButton(
+              onPressed: selected.isEmpty
+                  ? null
+                  : () => Navigator.pop(context, selected),
+              child: const Text('继续'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (destinations == null) return null;
+    if (destinations.contains('openlist') && !openListConfigured) {
+      _message('请先配置 OpenList，再开始备份');
+      widget.onOpenOpenList();
+      return null;
+    }
+    if (destinations.contains('s3') && !s3Configured) {
+      _message('请先配置 S3，再开始备份');
+      widget.onOpenS3();
+      return null;
+    }
+    return destinations;
+  }
+
+  Future<void> _createBackup() async {
+    final scope = await showPrismDialog<bool>(
+      context: context,
+      useRootNavigator: false,
+      builder: (context) => PrismDialog(
+        title: const Text('选择备份范围'),
+        content: const Text('全量备份保存应用配置；实例备份保存选中的浏览器实例数据。'),
+        actions: [
+          prism.TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('全量备份'),
+          ),
+          prism.FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('选择实例'),
+          ),
+        ],
+      ),
+    );
+    if (scope == null) return;
+    final destinations = await _selectDestinations();
+    if (destinations == null) return;
+    List<String> profileIds = [];
+    var portableSessionPassword = '';
+    if (scope) {
+      final selected = await _selectProfileIds();
+      if (selected == null || selected.isEmpty) return;
+      profileIds = selected;
+      final password = await _askExportPassword();
+      if (password == null) return;
+      portableSessionPassword = password;
+    }
+    await _run(
+      'backup',
+      () => AppBridge.call('BackupCreatePackage', [
+        {
+          'local': destinations.contains('local').toString(),
+          'openList': destinations.contains('openlist').toString(),
+          's3': destinations.contains('s3').toString(),
+          if (profileIds.isNotEmpty) 'profileIds': jsonEncode(profileIds),
+          if (portableSessionPassword.isNotEmpty)
+            'portableSessionPassword': portableSessionPassword,
+        },
+      ]),
+    );
   }
 
   Future<void> _importBackup() async {
@@ -121,8 +571,12 @@ class _BackupPageState extends State<BackupPage> {
         ],
       ),
     );
-    if (yes == true)
-      await _run('import', () => AppBridge.call('BackupImportPackage'));
+    if (yes != true) return;
+    await _run('import', () async {
+      final value = await AppBridge.call('BackupImportPackage');
+      if (value is! Map) return value;
+      return _completeProfileImport(Map<String, dynamic>.from(value));
+    });
   }
 
   @override
@@ -184,14 +638,7 @@ class _BackupPageState extends State<BackupPage> {
                   spacing: 8,
                   children: [
                     prism.FilledButton.icon(
-                      onPressed: _busy.isEmpty && _directory.isNotEmpty
-                          ? () => _run(
-                              'backup',
-                              () => AppBridge.call('BackupCreatePackage', [
-                                {'local': 'true'},
-                              ]),
-                            )
-                          : null,
+                      onPressed: _busy.isEmpty ? _createBackup : null,
                       icon: const Icon(Icons.archive_outlined),
                       label: Text(_busy == 'backup' ? '备份中…' : '立即备份'),
                     ),
@@ -272,7 +719,8 @@ class OpenListConfigPage extends StatefulWidget {
   State<OpenListConfigPage> createState() => _OpenListConfigPageState();
 }
 
-class _OpenListConfigPageState extends State<OpenListConfigPage> {
+class _OpenListConfigPageState extends State<OpenListConfigPage>
+    with _BackupProfileImportFlow<OpenListConfigPage> {
   final _url = TextEditingController();
   final _path = TextEditingController(text: 'ant-chrome/backups');
   final _username = TextEditingController();
@@ -420,7 +868,7 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
       useRootNavigator: false,
       builder: (context) => PrismDialog(
         title: const Text('从 OpenList 恢复？'),
-        content: Text('将使用 $fileName 覆盖当前应用数据。'),
+        content: Text('将合并恢复「$fileName」中的数据；已有数据会保留。'),
         actions: [
           prism.TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -440,11 +888,11 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
         _payload,
         fileName,
       ]);
+      final completed = result is Map
+          ? await _completeProfileImport(Map<String, dynamic>.from(result))
+          : <String, dynamic>{'message': result?.toString() ?? '恢复完成'};
       if (mounted)
-        showPrismNotice(
-          context,
-          ((result as Map?)?['message']?.toString() ?? '恢复完成').toString(),
-        );
+        showPrismNotice(context, (completed['message'] ?? '恢复完成').toString());
     } catch (error) {
       if (mounted) showPrismNotice(context, (error.toString()).toString());
     } finally {
@@ -736,7 +1184,8 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
         );
 }
 
-class _S3ConfigPageState extends State<S3ConfigPage> {
+class _S3ConfigPageState extends State<S3ConfigPage>
+    with _BackupProfileImportFlow<S3ConfigPage> {
   final _endpoint = TextEditingController();
   final _region = TextEditingController(text: 'us-east-1');
   final _bucket = TextEditingController();
@@ -903,7 +1352,7 @@ class _S3ConfigPageState extends State<S3ConfigPage> {
       useRootNavigator: false,
       builder: (context) => PrismDialog(
         title: const Text('从 S3 恢复？'),
-        content: Text('将使用 $name 覆盖当前应用数据。'),
+        content: Text('将合并恢复「$name」中的数据；已有数据会保留。'),
         actions: [
           prism.TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -920,11 +1369,11 @@ class _S3ConfigPageState extends State<S3ConfigPage> {
     setState(() => _busy = 'restore');
     try {
       final result = await AppBridge.call('BackupS3Restore', [_payload, name]);
+      final completed = result is Map
+          ? await _completeProfileImport(Map<String, dynamic>.from(result))
+          : <String, dynamic>{'message': result?.toString() ?? '恢复完成'};
       if (mounted)
-        showPrismNotice(
-          context,
-          ((result as Map?)?['message']?.toString() ?? '恢复完成').toString(),
-        );
+        showPrismNotice(context, (completed['message'] ?? '恢复完成').toString());
     } catch (error) {
       if (mounted) showPrismNotice(context, (error.toString()).toString());
     } finally {

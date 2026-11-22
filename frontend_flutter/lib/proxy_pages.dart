@@ -2821,9 +2821,7 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
       text: (group?['groupName'] ?? '').toString(),
     );
     var strategy = (group?['strategy'] ?? 'round_robin').toString();
-    final selected = Set<String>.from(
-      (group?['memberProxyIds'] as List? ?? []).map((e) => e.toString()),
-    );
+    final selected = _resolveMemberProxyIds(group ?? const <String, dynamic>{});
     final result = await showPrismDialog<bool>(
       context: context,
       useRootNavigator: false,
@@ -2921,6 +2919,99 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
     }
   }
 
+  Set<String> _resolveMemberProxyIds(Map<String, dynamic> group) {
+    final selected = (group['memberProxyIds'] as List? ?? [])
+        .map((value) => value.toString().trim())
+        .where((value) => value.isNotEmpty)
+        .toSet();
+    final groupNames = (group['memberGroupNames'] as List? ?? [])
+        .map((value) => value.toString().trim().toLowerCase())
+        .where((value) => value.isNotEmpty)
+        .toSet();
+    for (final proxy in _proxies) {
+      final proxyGroup = (proxy['groupName'] ?? '')
+          .toString()
+          .trim()
+          .toLowerCase();
+      if (proxyGroup.isNotEmpty && groupNames.contains(proxyGroup)) {
+        selected.add((proxy['proxyId'] ?? '').toString());
+      }
+    }
+    return selected;
+  }
+
+  Future<void> _showMembers(Map<String, dynamic> group) async {
+    final id = (group['groupId'] ?? '').toString();
+    final memberIds = _resolveMemberProxyIds(group);
+    final healthRows = _health.where((row) => row['groupId'] == id);
+    final health = healthRows.isEmpty ? null : healthRows.first;
+    final memberHealth = (health?['members'] as List? ?? [])
+        .whereType<Map>()
+        .map((row) => Map<String, dynamic>.from(row))
+        .toList();
+    await showPrismDialog<void>(
+      context: context,
+      useRootNavigator: false,
+      builder: (context) => PrismDialog(
+        title: Text('关联代理 · ${group['groupName'] ?? id}'),
+        content: SizedBox(
+          width: 680,
+          height: 500,
+          child: memberIds.isEmpty
+              ? const Center(child: Text('此虚拟分组还没有关联代理'))
+              : ListView(
+                  children: [
+                    for (final proxyId in memberIds)
+                      Builder(
+                        builder: (context) {
+                          final proxies = _proxies.where(
+                            (proxy) => proxy['proxyId'] == proxyId,
+                          );
+                          final proxy = proxies.isEmpty ? null : proxies.first;
+                          final states = memberHealth.where(
+                            (row) => row['proxyId'] == proxyId,
+                          );
+                          final state = states.isEmpty ? null : states.first;
+                          final status = (state?['state'] ?? '未检测').toString();
+                          final latency = state?['latencyMs'];
+                          return PrismListTile(
+                            leading: Icon(
+                              state?['active'] == true
+                                  ? Icons.check_circle_outline
+                                  : Icons.circle_outlined,
+                              color: state?['active'] == true
+                                  ? prism.Theme.of(context).colorScheme.tertiary
+                                  : prism.Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                            ),
+                            title: Text(
+                              (proxy?['proxyName'] ??
+                                      state?['proxyName'] ??
+                                      proxyId)
+                                  .toString(),
+                            ),
+                            subtitle: Text(
+                              '${proxy?['proxyConfig'] ?? ''} · $status${latency == null || (latency as num) <= 0 ? '' : ' · ${latency} ms'}${state?['lastError'] == null || state?['lastError'] == '' ? '' : '\n${state?['lastError']}'}',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        },
+                      ),
+                  ],
+                ),
+        ),
+        actions: [
+          prism.TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('关闭'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _delete(Map<String, dynamic> group) async {
     final yes = await showPrismDialog<bool>(
       context: context,
@@ -2990,16 +3081,21 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
                           final health = healthRows.isEmpty
                               ? null
                               : healthRows.first;
-                          final members =
-                              (group['memberProxyIds'] as List? ?? []).length;
+                          final members = _resolveMemberProxyIds(group).length;
+                          final healthLabel = health == null
+                              ? '待检测'
+                              : health['allDegraded'] == true
+                              ? '全部降级'
+                              : '可用 ${health['healthy'] ?? 0}/${health['total'] ?? 0}';
                           return PrismCard(
                             margin: const EdgeInsets.only(bottom: 10),
                             child: PrismListTile(
+                              onTap: () => _showMembers(group),
                               title: Text(
                                 (group['groupName'] ?? id).toString(),
                               ),
                               subtitle: Text(
-                                '${group['strategy'] == 'sticky' ? '固定节点' : '轮询'} · $members 个成员 · ${health?['status'] ?? '状态未知'}',
+                                '${group['strategy'] == 'sticky' ? '固定节点' : '轮询'} · $members 个成员 · $healthLabel',
                               ),
                               trailing: Wrap(
                                 children: [

@@ -361,6 +361,9 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
                                   onOpenDetails: (id) => setState(
                                     () => _activePath = '/browser/detail/$id',
                                   ),
+                                  onOpenExtensionManagement: () => setState(
+                                    () => _activePath = '/browser/extensions',
+                                  ),
                                 )
                               : _activePath.startsWith('/browser/detail/')
                               ? BrowserProfileToolsPage(
@@ -374,6 +377,9 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
                               ? BrowserListPage(
                                   onOpenDetails: (id) => setState(
                                     () => _activePath = '/browser/detail/$id',
+                                  ),
+                                  onOpenExtensionManagement: () => setState(
+                                    () => _activePath = '/browser/extensions',
                                   ),
                                   initialQuery:
                                       _activePath.split('/').last == 'new'
@@ -424,9 +430,27 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
                                     () =>
                                         _activePath = '/browser/automation/$id',
                                   ),
+                                  onRun: (id) => setState(
+                                    () => _activePath =
+                                        '/browser/automation/run/$id',
+                                  ),
                                   onCreate: () => setState(
                                     () =>
                                         _activePath = '/browser/automation/new',
+                                  ),
+                                )
+                              : _activePath.startsWith(
+                                  '/browser/automation/run/',
+                                )
+                              ? AutomationScriptDetailPage(
+                                  scriptId: _activePath.split('/').last,
+                                  autoRun: true,
+                                  onBack: () => setState(
+                                    () => _activePath = '/browser/automation',
+                                  ),
+                                  onCreated: (id) => setState(
+                                    () =>
+                                        _activePath = '/browser/automation/$id',
                                   ),
                                 )
                               : _activePath.startsWith('/browser/automation/')
@@ -578,10 +602,12 @@ class BrowserListPage extends StatefulWidget {
     super.key,
     this.initialQuery = '',
     this.onOpenDetails,
+    this.onOpenExtensionManagement,
   });
 
   final String initialQuery;
   final ValueChanged<String>? onOpenDetails;
+  final VoidCallback? onOpenExtensionManagement;
 
   @override
   State<BrowserListPage> createState() => _BrowserListPageState();
@@ -1019,6 +1045,10 @@ class _BrowserListPageState extends State<BrowserListPage> {
                     if (action == 'edit') _editProfile(profile);
                     if (action == 'copy') _copyProfile(profile);
                     if (action == 'code') _editLaunchCode(profile);
+                    if (action == 'keywords') _editProfileKeywords(profile);
+                    if (action == 'extensions')
+                      _configureProfileExtensions(profile);
+                    if (action == 'data-dir') _openProfileDataDir(profile);
                     if (action == 'export') _exportProfiles([id]);
                     if (action == 'delete') _deleteProfile(profile);
                     if (action == 'change-proxy') _pickProfileProxy(profile);
@@ -1040,6 +1070,18 @@ class _BrowserListPageState extends State<BrowserListPage> {
                     const PrismMenuItem(value: 'edit', child: Text('编辑实例')),
                     const PrismMenuItem(value: 'copy', child: Text('复制配置')),
                     const PrismMenuItem(value: 'code', child: Text('管理启动码')),
+                    const PrismMenuItem(
+                      value: 'keywords',
+                      child: Text('管理关键字'),
+                    ),
+                    const PrismMenuItem(
+                      value: 'extensions',
+                      child: Text('配置实例插件'),
+                    ),
+                    const PrismMenuItem(
+                      value: 'data-dir',
+                      child: Text('打开数据目录'),
+                    ),
                     const PrismMenuItem(value: 'export', child: Text('导出实例')),
                     const PrismMenuItem(value: 'delete', child: Text('移入回收站')),
                   ],
@@ -1404,6 +1446,52 @@ class _BrowserListPageState extends State<BrowserListPage> {
     var proxyMode = proxyModeValue.isEmpty ? 'fixed' : proxyModeValue;
     var groupId = (profile?['groupId'] ?? '').toString();
     var resolvingLocation = false;
+    List<Object?> formValues() => [
+      name.text,
+      userDataDir.text,
+      memoryLimit.text,
+      tags.text,
+      keywords.text,
+      fingerprintArgs.text,
+      launchArgs.text,
+      localProxyConfig.text,
+      proxyGroupName.text,
+      coreId,
+      proxyId,
+      restoreMode,
+      proxyMode,
+      groupId,
+    ];
+
+    final initialFormValues = jsonEncode(formValues());
+    Future<void> cancelEdit(BuildContext dialogContext) async {
+      if (jsonEncode(formValues()) == initialFormValues) {
+        Navigator.pop(dialogContext, false);
+        return;
+      }
+      final discard = await showPrismDialog<bool>(
+        context: dialogContext,
+        useRootNavigator: false,
+        builder: (confirmContext) => PrismDialog(
+          title: const Text('放弃未保存的更改？'),
+          content: const Text('离开后，当前修改将不会保存。'),
+          actions: [
+            prism.TextButton(
+              onPressed: () => Navigator.pop(confirmContext, false),
+              child: const Text('继续编辑'),
+            ),
+            prism.FilledButton(
+              onPressed: () => Navigator.pop(confirmContext, true),
+              child: const Text('放弃更改'),
+            ),
+          ],
+        ),
+      );
+      if (discard == true && dialogContext.mounted) {
+        Navigator.pop(dialogContext, false);
+      }
+    }
+
     final saved = await showPrismDialog<bool>(
       context: context,
       useRootNavigator: false,
@@ -1475,11 +1563,22 @@ class _BrowserListPageState extends State<BrowserListPage> {
                 if (proxyMode == 'fixed')
                   PrismDropdownField<String>(
                     initialValue:
-                        proxies.any((proxy) => proxy['proxyId'] == proxyId)
+                        proxies.any((proxy) => proxy['proxyId'] == proxyId) ||
+                            virtualGroups.any(
+                              (group) => group['groupId'] == proxyId,
+                            )
                         ? proxyId
                         : null,
                     decoration: const PrismInputDecoration(labelText: '代理'),
                     items: [
+                      for (final group in virtualGroups)
+                        PrismDropdownItem(
+                          value: group['groupId']?.toString(),
+                          child: Text(
+                            '虚拟分组：${group['groupName'] ?? ''}（${group['strategy'] == 'sticky' ? '代理保持' : '轮询'}）',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       for (final proxy in proxies)
                         PrismDropdownItem(
                           value: proxy['proxyId']?.toString(),
@@ -1568,6 +1667,14 @@ class _BrowserListPageState extends State<BrowserListPage> {
                   controller: keywords,
                   decoration: const PrismInputDecoration(
                     labelText: '搜索关键词（逗号分隔）',
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: prism.OutlinedButton.icon(
+                    onPressed: () => _editFingerprintArgs(fingerprintArgs),
+                    icon: const Icon(Icons.tune),
+                    label: const Text('图形化指纹设置'),
                   ),
                 ),
                 PrismTextField(
@@ -1694,12 +1801,31 @@ class _BrowserListPageState extends State<BrowserListPage> {
                     labelText: '浏览器启动参数（每行一项）',
                   ),
                 ),
+                if (profile != null &&
+                    (profile['lastLaunchArgs'] as List? ?? []).isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  const Text('上次实际启动参数'),
+                  const SizedBox(height: 6),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: prism.Theme.of(context)
+                          .colorScheme
+                          .surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: prism.SelectableText(
+                      (profile['lastLaunchArgs'] as List).join('\n'),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
           actions: [
             prism.TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => cancelEdit(context),
               child: const Text('取消'),
             ),
             prism.FilledButton(
@@ -1716,11 +1842,18 @@ class _BrowserListPageState extends State<BrowserListPage> {
         final selectedProxy = proxies.where(
           (proxy) => proxy['proxyId'] == proxyId,
         );
+        final selectedVirtualGroup = virtualGroups.where(
+          (group) => group['groupId'] == proxyId,
+        );
         final fixedProxyId = selectedProxy.isNotEmpty
             ? selectedProxy.first['proxyId']
+            : selectedVirtualGroup.isNotEmpty
+            ? selectedVirtualGroup.first['groupId']
             : (profile?['proxyId'] ?? '');
         final fixedProxyConfig = selectedProxy.isNotEmpty
             ? selectedProxy.first['proxyConfig']
+            : selectedVirtualGroup.isNotEmpty
+            ? ''
             : (profile?['proxyConfig'] ?? 'direct://');
         final tagsToList = (String value) => value
             .split(',')
@@ -1795,6 +1928,419 @@ class _BrowserListPageState extends State<BrowserListPage> {
     launchArgs.dispose();
     localProxyConfig.dispose();
     proxyGroupName.dispose();
+  }
+
+  Future<void> _editFingerprintArgs(TextEditingController source) async {
+    final args = source.text
+        .split('\n')
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+    String value(String prefix) {
+      final match = args.where((item) => item.startsWith(prefix));
+      return match.isEmpty ? '' : match.last.substring(prefix.length);
+    }
+
+    final controllers = <String, TextEditingController>{
+      'seed': TextEditingController(text: value('--fingerprint=')),
+      'brand': TextEditingController(text: value('--fingerprint-brand=')),
+      'brandVersion': TextEditingController(
+        text: value('--fingerprint-brand-version='),
+      ),
+      'platform': TextEditingController(text: value('--fingerprint-platform=')),
+      'platformVersion': TextEditingController(
+        text: value('--fingerprint-platform-version='),
+      ),
+      'language': TextEditingController(text: value('--lang=')),
+      'acceptLanguage': TextEditingController(text: value('--accept-lang=')),
+      'timezone': TextEditingController(text: value('--timezone=')),
+      'windowSize': TextEditingController(text: value('--window-size=')),
+      'cpu': TextEditingController(
+        text: value('--fingerprint-hardware-concurrency='),
+      ),
+      'webrtc': TextEditingController(
+        text: args.contains('--disable-non-proxied-udp')
+            ? 'disable_non_proxied_udp'
+            : value('--webrtc-ip-handling-policy='),
+      ),
+    };
+    String noiseValue(String canonical, String legacy) {
+      if (args.contains(canonical) || args.contains(legacy)) return '1';
+      for (final item in args.reversed) {
+        if (item.startsWith('$canonical='))
+          return item.substring(canonical.length + 1);
+        if (item.startsWith('$legacy='))
+          return item.substring(legacy.length + 1);
+      }
+      return '';
+    }
+
+    var canvasNoise = noiseValue(
+      '--fingerprinting-canvas-image-data-noise',
+      '--fingerprint-canvas-noise',
+    );
+    var rectNoise = noiseValue(
+      '--fingerprinting-client-rects-noise',
+      '--fingerprint-client-rects-noise',
+    );
+    final disableSpoofing = <String>{};
+    for (final arg in args.where(
+      (item) => item.startsWith('--disable-spoofing='),
+    )) {
+      disableSpoofing.addAll(
+        arg.substring('--disable-spoofing='.length).split(','),
+      );
+    }
+    final recognized = [
+      '--fingerprint=',
+      '--fingerprint-brand=',
+      '--fingerprint-brand-version=',
+      '--fingerprint-platform=',
+      '--fingerprint-platform-version=',
+      '--lang=',
+      '--accept-lang=',
+      '--timezone=',
+      '--window-size=',
+      '--fingerprint-hardware-concurrency=',
+      '--webrtc-ip-handling-policy=',
+      '--fingerprinting-canvas-image-data-noise',
+      '--fingerprinting-client-rects-noise',
+      '--fingerprint-canvas-noise=',
+      '--fingerprint-client-rects-noise=',
+      '--disable-spoofing=',
+    ];
+    final unknownArgs = args.where((arg) {
+      if (arg == '--disable-non-proxied-udp') return false;
+      return !recognized.any((prefix) => arg.startsWith(prefix));
+    }).toList();
+    final result = await showPrismDialog<List<String>>(
+      context: context,
+      useRootNavigator: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialog) {
+          Widget field(String key, String label, {String? hint}) =>
+              PrismTextField(
+                controller: controllers[key],
+                decoration: PrismInputDecoration(
+                  labelText: label,
+                  hintText: hint,
+                ),
+              );
+          Widget toggle(String label, String key, Set<String> values) =>
+              SizedBox(
+                width: 160,
+                child: Row(
+                  children: [
+                    prism.Checkbox(
+                      value: values.contains(key),
+                      onChanged: (enabled) => setDialog(() {
+                        if (enabled == true) {
+                          values.add(key);
+                        } else {
+                          values.remove(key);
+                        }
+                      }),
+                    ),
+                    Expanded(child: Text(label)),
+                  ],
+                ),
+              );
+          void applyPreset({
+            required String brand,
+            required String platform,
+            required String platformVersion,
+            required String language,
+            required String timezone,
+            required String resolution,
+            required String cpu,
+          }) {
+            controllers['brand']!.text = brand;
+            controllers['brandVersion']!.clear();
+            controllers['platform']!.text = platform;
+            controllers['platformVersion']!.text = platformVersion;
+            controllers['language']!.text = language;
+            final base = language.split(RegExp('[-_]')).first;
+            controllers['acceptLanguage']!.text = language == base
+                ? language
+                : '$language,$base';
+            controllers['timezone']!.text = timezone;
+            controllers['windowSize']!.text = resolution;
+            controllers['cpu']!.text = cpu;
+            controllers['webrtc']!.text = 'disable_non_proxied_udp';
+            canvasNoise = '1';
+            rectNoise = '1';
+          }
+
+          return PrismDialog(
+            title: const Text('图形化指纹设置'),
+            content: SizedBox(
+              width: 540,
+              height: 600,
+              child: ListView(
+                children: [
+                  const Text('快速预设'),
+                  Wrap(
+                    spacing: 4,
+                    children: [
+                      prism.TextButton(
+                        onPressed: () => setDialog(
+                          () => applyPreset(
+                            brand: 'Chrome',
+                            platform: 'windows',
+                            platformVersion: '10.0.0',
+                            language: 'en-US',
+                            timezone: 'America/New_York',
+                            resolution: '1920,1080',
+                            cpu: '8',
+                          ),
+                        ),
+                        child: const Text('美国 Windows Chrome'),
+                      ),
+                      prism.TextButton(
+                        onPressed: () => setDialog(
+                          () => applyPreset(
+                            brand: 'Chrome',
+                            platform: 'macos',
+                            platformVersion: '15.2.0',
+                            language: 'ja-JP',
+                            timezone: 'Asia/Tokyo',
+                            resolution: '1440,900',
+                            cpu: '8',
+                          ),
+                        ),
+                        child: const Text('日本 macOS Chrome'),
+                      ),
+                      prism.TextButton(
+                        onPressed: () => setDialog(
+                          () => applyPreset(
+                            brand: 'Edge',
+                            platform: 'windows',
+                            platformVersion: '10.0.0',
+                            language: 'en-GB',
+                            timezone: 'Europe/London',
+                            resolution: '1920,1080',
+                            cpu: '8',
+                          ),
+                        ),
+                        child: const Text('英国 Windows Edge'),
+                      ),
+                      prism.TextButton(
+                        onPressed: () => setDialog(
+                          () => applyPreset(
+                            brand: 'Chrome',
+                            platform: 'windows',
+                            platformVersion: '10.0.0',
+                            language: 'zh-CN',
+                            timezone: 'Asia/Shanghai',
+                            resolution: '1920,1080',
+                            cpu: '8',
+                          ),
+                        ),
+                        child: const Text('Windows Chrome 办公'),
+                      ),
+                      prism.TextButton(
+                        onPressed: () => setDialog(
+                          () => applyPreset(
+                            brand: 'Chrome',
+                            platform: 'windows',
+                            platformVersion: '10.0.0',
+                            language: 'en-US',
+                            timezone: 'America/New_York',
+                            resolution: '2560,1440',
+                            cpu: '16',
+                          ),
+                        ),
+                        child: const Text('Windows Chrome 游戏主机'),
+                      ),
+                      prism.TextButton(
+                        onPressed: () => setDialog(
+                          () => applyPreset(
+                            brand: 'Chrome',
+                            platform: 'macos',
+                            platformVersion: '15.2.0',
+                            language: 'zh-CN',
+                            timezone: 'Asia/Shanghai',
+                            resolution: '2560,1440',
+                            cpu: '10',
+                          ),
+                        ),
+                        child: const Text('macOS Chrome 设计师'),
+                      ),
+                      prism.TextButton(
+                        onPressed: () => setDialog(
+                          () => applyPreset(
+                            brand: 'Chrome',
+                            platform: 'windows',
+                            platformVersion: '10.0.0',
+                            language: 'en-SG',
+                            timezone: 'Asia/Singapore',
+                            resolution: '1920,1080',
+                            cpu: '8',
+                          ),
+                        ),
+                        child: const Text('新加坡 Windows Chrome'),
+                      ),
+                      prism.TextButton(
+                        onPressed: () => setDialog(
+                          () => applyPreset(
+                            brand: 'Chrome',
+                            platform: 'linux',
+                            platformVersion: '',
+                            language: 'de-DE',
+                            timezone: 'Europe/Berlin',
+                            resolution: '1920,1080',
+                            cpu: '12',
+                          ),
+                        ),
+                        child: const Text('德国 Linux Chrome'),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: field('seed', '指纹种子', hint: '留空则按实例自动生成'),
+                      ),
+                      const SizedBox(width: 8),
+                      prism.TextButton.icon(
+                        onPressed: () => setDialog(
+                          () => controllers['seed']!.text =
+                              '${DateTime.now().microsecondsSinceEpoch % 2147483647 + 1}',
+                        ),
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('重新生成'),
+                      ),
+                    ],
+                  ),
+                  field(
+                    'brand',
+                    '浏览器品牌',
+                    hint: 'Chrome / Edge / Opera / Vivaldi',
+                  ),
+                  field('brandVersion', '浏览器版本'),
+                  field('platform', '系统平台', hint: 'windows / macos / linux'),
+                  field('platformVersion', '系统版本'),
+                  field('language', '语言', hint: 'zh-CN / en-US / ja-JP'),
+                  field('acceptLanguage', '语言列表', hint: 'en-US,en'),
+                  field('timezone', '时区', hint: 'Asia/Shanghai'),
+                  field('windowSize', '窗口大小', hint: '1920,1080'),
+                  field('cpu', 'CPU 核心数', hint: '1 到 128'),
+                  field(
+                    'webrtc',
+                    'WebRTC 策略',
+                    hint: 'disable_non_proxied_udp / default_public_interface_only',
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('噪声开关（留空使用内核默认）'),
+                  PrismDropdownField<String>(
+                    initialValue: canvasNoise,
+                    decoration: const PrismInputDecoration(
+                      labelText: 'Canvas 噪声',
+                    ),
+                    items: const [
+                      PrismDropdownItem(value: '', child: Text('默认')),
+                      PrismDropdownItem(value: '1', child: Text('开启')),
+                      PrismDropdownItem(value: '0', child: Text('关闭')),
+                    ],
+                    onChanged: (value) =>
+                        setDialog(() => canvasNoise = value ?? ''),
+                  ),
+                  PrismDropdownField<String>(
+                    initialValue: rectNoise,
+                    decoration: const PrismInputDecoration(
+                      labelText: 'ClientRects 噪声',
+                    ),
+                    items: const [
+                      PrismDropdownItem(value: '', child: Text('默认')),
+                      PrismDropdownItem(value: '1', child: Text('开启')),
+                      PrismDropdownItem(value: '0', child: Text('关闭')),
+                    ],
+                    onChanged: (value) =>
+                        setDialog(() => rectNoise = value ?? ''),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('排除伪装项'),
+                  Wrap(
+                    children: [
+                      toggle('字体', 'font', disableSpoofing),
+                      toggle('音频', 'audio', disableSpoofing),
+                      toggle('Canvas', 'canvas', disableSpoofing),
+                      toggle('ClientRects', 'clientrects', disableSpoofing),
+                      toggle('GPU', 'gpu', disableSpoofing),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              prism.TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('取消'),
+              ),
+              prism.FilledButton(
+                onPressed: () {
+                  final next = <String>[];
+                  void add(String key, String flag) {
+                    final text = controllers[key]!.text.trim();
+                    if (text.isNotEmpty) next.add('$flag$text');
+                  }
+
+                  add('seed', '--fingerprint=');
+                  add('brand', '--fingerprint-brand=');
+                  add('brandVersion', '--fingerprint-brand-version=');
+                  add('platform', '--fingerprint-platform=');
+                  add('platformVersion', '--fingerprint-platform-version=');
+                  final language = controllers['language']!.text.trim();
+                  final acceptLanguage = controllers['acceptLanguage']!.text
+                      .trim();
+                  if (language.isNotEmpty) {
+                    next.add('--lang=$language');
+                    final base = language.split(RegExp('[-_]')).first;
+                    next.add(
+                      '--accept-lang=${acceptLanguage.isNotEmpty
+                          ? acceptLanguage
+                          : language == base
+                          ? language
+                          : '$language,$base'}',
+                    );
+                  } else if (acceptLanguage.isNotEmpty) {
+                    next.add('--accept-lang=$acceptLanguage');
+                  }
+                  add('timezone', '--timezone=');
+                  add('windowSize', '--window-size=');
+                  add('cpu', '--fingerprint-hardware-concurrency=');
+                  final webrtc = controllers['webrtc']!.text.trim();
+                  if (webrtc == 'disable_non_proxied_udp') {
+                    next.add('--disable-non-proxied-udp');
+                  } else if (webrtc.isNotEmpty) {
+                    next.add('--webrtc-ip-handling-policy=$webrtc');
+                  }
+                  if (canvasNoise.isNotEmpty) {
+                    next.add(
+                      '--fingerprinting-canvas-image-data-noise${canvasNoise == '0' ? '=0' : ''}',
+                    );
+                  }
+                  if (rectNoise.isNotEmpty) {
+                    next.add(
+                      '--fingerprinting-client-rects-noise${rectNoise == '0' ? '=0' : ''}',
+                    );
+                  }
+                  if (disableSpoofing.isNotEmpty) {
+                    next.add('--disable-spoofing=${disableSpoofing.join(',')}');
+                  }
+                  Navigator.pop(context, [...next, ...unknownArgs]);
+                },
+                child: const Text('应用'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    for (final controller in controllers.values) {
+      controller.dispose();
+    }
+    if (result != null) source.text = result.join('\n');
   }
 
   Future<void> _showJsonResult(String title, Future<dynamic> request) async {
@@ -2029,6 +2575,254 @@ class _BrowserListPageState extends State<BrowserListPage> {
       }
     } finally {
       code.dispose();
+    }
+  }
+
+  Future<void> _editProfileKeywords(Map<String, dynamic> profile) async {
+    final id = (profile['profileId'] ?? '').toString();
+    if (id.isEmpty) return;
+    final controllers = (profile['keywords'] as List? ?? [])
+        .map((value) => TextEditingController(text: value.toString()))
+        .toList();
+    if (controllers.isEmpty) controllers.add(TextEditingController());
+    final saved = await showPrismDialog<bool>(
+      context: context,
+      useRootNavigator: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialog) => PrismDialog(
+          title: Text('关键字 · ${profile['profileName'] ?? '实例'}'),
+          content: SizedBox(
+            width: 460,
+            height: 390,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('关键字用于备注账号等信息，也可以在实例列表中搜索。'),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: controllers.length,
+                    itemBuilder: (context, index) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: PrismTextField(
+                              controller: controllers[index],
+                              decoration: PrismInputDecoration(
+                                labelText: '关键字 ${index + 1}',
+                              ),
+                            ),
+                          ),
+                          prism.IconButton(
+                            tooltip: '移除关键字',
+                            onPressed: () => setDialog(() {
+                              if (controllers.length == 1) {
+                                controllers[index].clear();
+                              } else {
+                                controllers.removeAt(index).dispose();
+                              }
+                            }),
+                            icon: const Icon(Icons.remove_circle_outline),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                prism.TextButton.icon(
+                  onPressed: () =>
+                      setDialog(() => controllers.add(TextEditingController())),
+                  icon: const Icon(Icons.add),
+                  label: const Text('添加关键字'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            prism.TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('取消'),
+            ),
+            prism.FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('保存'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (saved == true) {
+      final keywords = controllers
+          .map((controller) => controller.text.trim())
+          .where((value) => value.isNotEmpty)
+          .toList();
+      try {
+        await AppBridge.call('BrowserProfileSetKeywords', [id, keywords]);
+        if (mounted) {
+          setState(() {
+            _profiles = _profiles
+                .map(
+                  (item) => item['profileId'] == id
+                      ? {...item, 'keywords': keywords}
+                      : item,
+                )
+                .toList();
+          });
+          showPrismNotice(context, '关键字已保存');
+        }
+      } catch (error) {
+        if (mounted) showPrismNotice(context, '保存关键字失败：$error');
+      }
+    }
+    for (final controller in controllers) {
+      controller.dispose();
+    }
+  }
+
+  Future<void> _configureProfileExtensions(Map<String, dynamic> profile) async {
+    final id = (profile['profileId'] ?? '').toString();
+    if (id.isEmpty) return;
+    try {
+      final values = await Future.wait([
+        AppBridge.call('BrowserExtensionList'),
+        AppBridge.call('BrowserProfileExtensionGet', [id]),
+      ]);
+      final extensions = (values[0] as List? ?? [])
+          .whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList();
+      final settings = Map<String, dynamic>.from(values[1] as Map);
+      var configured = settings['configured'] == true;
+      final selectedIds = (settings['extensionIds'] as List? ?? [])
+          .map((value) => value.toString())
+          .toSet();
+      final defaultCount = extensions
+          .where(
+            (item) => item['enabled'] == true && item['defaultInstall'] == true,
+          )
+          .length;
+      if (!mounted) return;
+      final result = await showPrismDialog<String>(
+        context: context,
+        useRootNavigator: false,
+        builder: (context) => StatefulBuilder(
+          builder: (context, setDialog) => PrismDialog(
+            title: Text('插件配置 · ${profile['profileName'] ?? '实例'}'),
+            content: SizedBox(
+              width: 620,
+              height: 500,
+              child: Column(
+                children: [
+                  PrismSwitchTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('手动设置本实例'),
+                    value: configured,
+                    onChanged: (value) => setDialog(() => configured = value),
+                  ),
+                  if (!configured)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          '当前继承默认安装的插件（共 $defaultCount 个）。开启手动设置后，可单独选择本实例使用的插件。',
+                        ),
+                      ),
+                    ),
+                  const prism.Divider(),
+                  Expanded(
+                    child: extensions.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text('还没有安装任何插件包。'),
+                                const SizedBox(height: 8),
+                                prism.TextButton(
+                                  onPressed: () =>
+                                      Navigator.pop(context, 'manage'),
+                                  child: const Text('去插件包管理安装'),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView(
+                            children: [
+                              for (final extension in extensions)
+                                PrismCheckboxTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  title: Text(
+                                    (extension['name'] ??
+                                            extension['extensionId'] ??
+                                            '')
+                                        .toString(),
+                                  ),
+                                  subtitle: Text(
+                                    '${extension['extensionId'] ?? ''}${extension['version'] == null ? '' : ' · v${extension['version']}'}${extension['enabled'] == true ? '' : ' · 全局停用'}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  value: selectedIds.contains(
+                                    extension['extensionId'],
+                                  ),
+                                  onChanged: !configured
+                                      ? null
+                                      : (value) => setDialog(() {
+                                          final extensionId =
+                                              (extension['extensionId'] ?? '')
+                                                  .toString();
+                                          if (value == true) {
+                                            selectedIds.add(extensionId);
+                                          } else {
+                                            selectedIds.remove(extensionId);
+                                          }
+                                        }),
+                                ),
+                            ],
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              prism.TextButton(
+                onPressed: () => Navigator.pop(context, 'cancel'),
+                child: const Text('取消'),
+              ),
+              prism.FilledButton(
+                onPressed: () => Navigator.pop(context, 'save'),
+                child: const Text('保存'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (result == 'manage') {
+        widget.onOpenExtensionManagement?.call();
+      } else if (result == 'save') {
+        await AppBridge.call('BrowserProfileExtensionSave', [
+          id,
+          selectedIds.toList(),
+          configured,
+        ]);
+        if (mounted) showPrismNotice(context, '实例插件配置已保存；运行中的实例下次启动生效');
+      }
+    } catch (error) {
+      if (mounted) showPrismNotice(context, '加载或保存实例插件配置失败：$error');
+    }
+  }
+
+  Future<void> _openProfileDataDir(Map<String, dynamic> profile) async {
+    final path = (profile['userDataDir'] ?? '').toString().trim();
+    if (path.isEmpty) {
+      showPrismNotice(context, '该实例没有用户数据目录');
+      return;
+    }
+    try {
+      await AppBridge.call('OpenUserDataDir', [path]);
+    } catch (error) {
+      if (mounted) showPrismNotice(context, '打开数据目录失败：$error');
     }
   }
 
@@ -3064,6 +3858,12 @@ class _BrowserListPageState extends State<BrowserListPage> {
                                   if (action == 'export') _exportProfiles([id]);
                                   if (action == 'code')
                                     _editLaunchCode(profile);
+                                  if (action == 'keywords')
+                                    _editProfileKeywords(profile);
+                                  if (action == 'extensions')
+                                    _configureProfileExtensions(profile);
+                                  if (action == 'data-dir')
+                                    _openProfileDataDir(profile);
                                 },
                                 itemBuilder: (_) => [
                                   PrismMenuItem(
@@ -3097,6 +3897,18 @@ class _BrowserListPageState extends State<BrowserListPage> {
                                   PrismMenuItem(
                                     value: 'code',
                                     child: Text('管理启动码'),
+                                  ),
+                                  PrismMenuItem(
+                                    value: 'keywords',
+                                    child: Text('管理关键字'),
+                                  ),
+                                  PrismMenuItem(
+                                    value: 'extensions',
+                                    child: Text('配置实例插件'),
+                                  ),
+                                  PrismMenuItem(
+                                    value: 'data-dir',
+                                    child: Text('打开数据目录'),
                                   ),
                                   PrismMenuItem(
                                     value: 'export',

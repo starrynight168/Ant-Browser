@@ -1,5 +1,8 @@
 import 'prism_widgets.dart';
 
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:prism_ui/prism_ui.dart' as prism;
 
 import 'app_bridge.dart';
@@ -13,6 +16,7 @@ class CoresPage extends StatefulWidget {
 
 class _CoresPageState extends State<CoresPage> {
   List<Map<String, dynamic>> _cores = [];
+  List<Map<String, dynamic>> _proxies = [];
   Map<String, dynamic> _settings = {};
   bool _loading = true;
   bool _busy = false;
@@ -23,9 +27,7 @@ class _CoresPageState extends State<CoresPage> {
   @override
   void initState() {
     super.initState();
-    _removeDownloadListener = AppBridge.onEvent('download:progress', (
-      payload,
-    ) {
+    _removeDownloadListener = AppBridge.onEvent('download:progress', (payload) {
       if (!mounted || payload is! Map) return;
       final progress = Map<String, dynamic>.from(payload);
       setState(() => _downloadProgress = progress);
@@ -65,6 +67,14 @@ class _CoresPageState extends State<CoresPage> {
           .whereType<Map>()
           .map((item) => Map<String, dynamic>.from(item))
           .toList();
+      var proxies = <Map<String, dynamic>>[];
+      try {
+        final proxyResult = await AppBridge.call('BrowserProxyList');
+        proxies = (proxyResult as List? ?? [])
+            .whereType<Map>()
+            .map((item) => Map<String, dynamic>.from(item))
+            .toList();
+      } catch (_) {}
       final extended = <String, Map<String, dynamic>>{};
       for (final item in (values[1] is List ? values[1] as List : const [])) {
         if (item is Map)
@@ -97,6 +107,7 @@ class _CoresPageState extends State<CoresPage> {
                   : const <String, dynamic>{},
             },
         ];
+        _proxies = proxies;
       });
     } catch (error) {
       if (mounted) _message('读取内核列表失败：$error');
@@ -447,48 +458,340 @@ class _CoresPageState extends State<CoresPage> {
     }
   }
 
-  Future<void> _redownload(Map<String, dynamic> core) async {
+  Future<Map<String, String>?> _downloadOptions({String? coreName}) async {
+    final name = TextEditingController(text: coreName ?? '');
     final url = TextEditingController();
-    final proxy = TextEditingController();
-    final values = await showPrismDialog<List<String>>(
+    var proxyMode = 'system';
+    String? proxyId = _proxies.isEmpty
+        ? null
+        : (_proxies.first['proxyId'] ?? '').toString();
+    var recommendationLoading = false;
+    var recommendationError = '';
+    var recommendation = <String, String>{};
+    final values = await showPrismDialog<Map<String, String>>(
       context: context,
       useRootNavigator: false,
-      builder: (context) => PrismDialog(
-        title: Text('重新下载 ${core['coreName'] ?? '内核'}'),
-        content: SizedBox(
-          width: 500,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              PrismTextField(
-                controller: url,
-                decoration: const PrismInputDecoration(labelText: '下载地址'),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialog) => PrismDialog(
+          title: Text(coreName == null ? '下载浏览器内核' : '重新下载 $coreName'),
+          content: SizedBox(
+            width: 560,
+            height: 410,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (coreName == null)
+                    PrismTextField(
+                      controller: name,
+                      decoration: const PrismInputDecoration(labelText: '内核名称'),
+                    ),
+                  PrismTextField(
+                    controller: url,
+                    decoration: const PrismInputDecoration(labelText: '下载地址'),
+                  ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Wrap(
+                      spacing: 8,
+                      children: [
+                        prism.TextButton.icon(
+                          onPressed: recommendationLoading
+                              ? null
+                              : () async {
+                                  setDialog(() {
+                                    recommendationLoading = true;
+                                    recommendationError = '';
+                                  });
+                                  try {
+                                    final result =
+                                        await _fetchCoreRecommendation();
+                                    if (!context.mounted) return;
+                                    setDialog(() {
+                                      recommendation = result;
+                                      url.text = result['downloadUrl'] ?? '';
+                                      if (coreName == null &&
+                                          name.text.trim().isEmpty) {
+                                        name.text = result['name'] ?? '';
+                                      }
+                                    });
+                                  } catch (error) {
+                                    if (context.mounted) {
+                                      setDialog(
+                                        () => recommendationError = '$error',
+                                      );
+                                    }
+                                  } finally {
+                                    if (context.mounted) {
+                                      setDialog(
+                                        () => recommendationLoading = false,
+                                      );
+                                    }
+                                  }
+                                },
+                          icon: recommendationLoading
+                              ? const SizedBox.square(
+                                  dimension: 15,
+                                  child: PrismProgressIndicator(size: 15),
+                                )
+                              : const Icon(Icons.auto_awesome, size: 17),
+                          label: Text(
+                            recommendationLoading ? '正在匹配…' : '匹配最新内核版本',
+                          ),
+                        ),
+                        prism.TextButton.icon(
+                          onPressed: () => _openExternalUrl(
+                            recommendation['releasesUrl'] ?? 'https://github.com/adryfish/fingerprint-chromium/releases',
+                          ),
+                          icon: const Icon(Icons.open_in_new, size: 16),
+                          label: const Text('打开 Releases'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (recommendation.isNotEmpty)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        '已匹配 ${recommendation['assetName']}（${recommendation['releaseTag']}）',
+                        style: TextStyle(
+                          color: prism.Theme.of(context)
+                              .colorScheme
+                              .onSurfaceVariant,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  if (recommendationError.isNotEmpty)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        recommendationError,
+                        style: TextStyle(
+                          color: prism.Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ),
+                  PrismDropdownField<String>(
+                    initialValue: proxyMode,
+                    decoration: const PrismInputDecoration(labelText: '下载代理'),
+                    items: [
+                      const PrismDropdownItem(
+                        value: 'system',
+                        child: Text('跟随系统代理'),
+                      ),
+                      const PrismDropdownItem(
+                        value: 'direct',
+                        child: Text('直连，不使用代理'),
+                      ),
+                      if (_proxies.isNotEmpty)
+                        const PrismDropdownItem(
+                          value: 'custom',
+                          child: Text('使用指定代理节点'),
+                        ),
+                    ],
+                    onChanged: (value) =>
+                        setDialog(() => proxyMode = value ?? 'system'),
+                  ),
+                  if (proxyMode == 'custom')
+                    PrismDropdownField<String>(
+                      initialValue:
+                          _proxies.any((proxy) => proxy['proxyId'] == proxyId)
+                          ? proxyId
+                          : null,
+                      decoration: const PrismInputDecoration(labelText: '代理节点'),
+                      items: [
+                        for (final proxy in _proxies)
+                          PrismDropdownItem(
+                            value: (proxy['proxyId'] ?? '').toString(),
+                            child: Text(
+                              '${proxy['proxyName'] ?? '未命名代理'} · ${proxy['proxyConfig'] ?? ''}',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                      ],
+                      onChanged: (value) => setDialog(() => proxyId = value),
+                    ),
+                ],
               ),
-              PrismTextField(
-                controller: proxy,
-                decoration: const PrismInputDecoration(labelText: '代理配置（可选）'),
-              ),
-            ],
+            ),
           ),
+          actions: [
+            prism.TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
+            prism.FilledButton(
+              onPressed: () {
+                final selectedProxy = _proxies.where(
+                  (proxy) => proxy['proxyId'] == proxyId,
+                );
+                final proxyConfig = switch (proxyMode) {
+                  'direct' => '__direct__',
+                  'custom' =>
+                    selectedProxy.isEmpty
+                        ? ''
+                        : ((selectedProxy.first['proxyConfig'] ?? proxyId ?? '')
+                              .toString()),
+                  _ => '__system__',
+                };
+                Navigator.pop(context, {
+                  'name': name.text.trim(),
+                  'url': url.text.trim(),
+                  'proxy': proxyConfig,
+                });
+              },
+              child: Text(coreName == null ? '开始下载' : '开始重新下载'),
+            ),
+          ],
         ),
-        actions: [
-          prism.TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          prism.FilledButton(
-            onPressed: () =>
-                Navigator.pop(context, [url.text.trim(), proxy.text.trim()]),
-            child: const Text('开始重新下载'),
-          ),
-        ],
       ),
     );
+    name.dispose();
     url.dispose();
-    proxy.dispose();
+    return values;
+  }
+
+  Future<Map<String, String>> _fetchCoreRecommendation() async {
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 15);
+    try {
+      final request = await client.getUrl(
+        Uri.parse(
+          'https://api.github.com/repos/adryfish/fingerprint-chromium/releases/latest',
+        ),
+      );
+      request.headers.set(
+        HttpHeaders.acceptHeader,
+        'application/vnd.github+json',
+      );
+      request.headers.set(HttpHeaders.userAgentHeader, 'AntBrowser');
+      final response = await request.close();
+      if (response.statusCode != HttpStatus.ok) {
+        throw HttpException('GitHub Releases 请求失败：${response.statusCode}');
+      }
+      final release = jsonDecode(await response.transform(utf8.decoder).join());
+      if (release is! Map) throw const FormatException('Releases 返回内容无效');
+      final platform = Platform.operatingSystem;
+      final architecture = await _currentArchitecture();
+      if (architecture.isEmpty) {
+        throw const FormatException('无法识别当前设备架构');
+      }
+      final assets = (release['assets'] as List? ?? []).whereType<Map>().where((
+        asset,
+      ) {
+        final assetName = (asset['name'] ?? '').toString().toLowerCase();
+        final archive = [
+          '.zip',
+          '.tar.xz',
+          '.txz',
+          '.tar.gz',
+          '.tgz',
+          '.tar.bz2',
+          '.tbz2',
+          '.tar',
+        ].any(assetName.endsWith);
+        final platformMatches = switch (platform) {
+          'windows' => assetName.contains('windows'),
+          'linux' => assetName.contains('linux'),
+          'macos' =>
+            assetName.contains('macos') || assetName.contains('darwin'),
+          _ => false,
+        };
+        final architectureMatches = architecture == 'arm64'
+            ? assetName.contains('arm64') || assetName.contains('aarch64')
+            : assetName.contains('amd64') ||
+                  assetName.contains('x64') ||
+                  assetName.contains('x86_64');
+        return archive &&
+            platformMatches &&
+            architectureMatches &&
+            (asset['browser_download_url'] ?? '').toString().isNotEmpty;
+      }).toList();
+      if (assets.isEmpty) throw const FormatException('没有找到适配当前系统和架构的内核包');
+      assets.sort((left, right) {
+        final leftName = (left['name'] ?? '').toString().toLowerCase();
+        final rightName = (right['name'] ?? '').toString().toLowerCase();
+        final preferredSuffix = platform == 'windows'
+            ? '.zip'
+            : platform == 'linux'
+            ? '.tar.xz'
+            : '';
+        final leftScore =
+            preferredSuffix.isNotEmpty && leftName.endsWith(preferredSuffix)
+            ? 1
+            : 0;
+        final rightScore =
+            preferredSuffix.isNotEmpty && rightName.endsWith(preferredSuffix)
+            ? 1
+            : 0;
+        return rightScore.compareTo(leftScore);
+      });
+      final asset = assets.first;
+      final releaseTag = (release['tag_name'] ?? '').toString();
+      final major = releaseTag.split('.').first;
+      return {
+        'assetName': (asset['name'] ?? '').toString(),
+        'downloadUrl': (asset['browser_download_url'] ?? '').toString(),
+        'releaseTag': releaseTag,
+        'releasesUrl':
+            (release['html_url'] ??
+                    'https://github.com/adryfish/fingerprint-chromium/releases')
+                .toString(),
+        'name': major.isEmpty ? 'chrome-latest' : 'chrome-$major',
+      };
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  Future<String> _currentArchitecture() async {
+    var value =
+        (Platform.environment['PROCESSOR_ARCHITEW6432'] ??
+                Platform.environment['PROCESSOR_ARCHITECTURE'] ??
+                '')
+            .toLowerCase();
+    if (value.isEmpty && !Platform.isWindows) {
+      try {
+        final result = await Process.run('uname', ['-m']);
+        value = result.stdout.toString().trim().toLowerCase();
+      } catch (_) {}
+    }
+    if (value.contains('arm64') || value.contains('aarch64')) return 'arm64';
+    if (value.contains('amd64') ||
+        value.contains('x64') ||
+        value.contains('x86_64')) {
+      return 'amd64';
+    }
+    return '';
+  }
+
+  Future<void> _openExternalUrl(String value) async {
+    final uri = Uri.tryParse(value);
+    if (uri == null || uri.scheme != 'https') return;
+    final command = Platform.isWindows
+        ? ('rundll32.exe', ['url.dll,FileProtocolHandler', uri.toString()])
+        : Platform.isMacOS
+        ? ('open', [uri.toString()])
+        : ('xdg-open', [uri.toString()]);
+    try {
+      await Process.run(command.$1, command.$2);
+    } catch (error) {
+      _message('打开链接失败：$error');
+    }
+  }
+
+  Future<void> _redownload(Map<String, dynamic> core) async {
+    final values = await _downloadOptions(
+      coreName: (core['coreName'] ?? '内核').toString(),
+    );
     if (values == null) return;
-    if (values[0].isEmpty) {
+    if ((values['url'] ?? '').isEmpty) {
       _message('请填写下载地址');
+      return;
+    }
+    if ((values['proxy'] ?? '').isEmpty) {
+      _message('请选择有效的下载代理节点');
       return;
     }
     setState(() {
@@ -502,7 +805,8 @@ class _CoresPageState extends State<CoresPage> {
     try {
       await AppBridge.call('BrowserCoreRedownload', [
         core['coreId'],
-        ...values,
+        values['url'],
+        values['proxy'],
       ]);
     } catch (error) {
       _message('重新下载失败：$error');
@@ -513,56 +817,14 @@ class _CoresPageState extends State<CoresPage> {
   }
 
   Future<void> _download() async {
-    final name = TextEditingController();
-    final url = TextEditingController();
-    final proxy = TextEditingController();
-    final values = await showPrismDialog<List<String>>(
-      context: context,
-      useRootNavigator: false,
-      builder: (context) => PrismDialog(
-        title: const Text('下载浏览器内核'),
-        content: SizedBox(
-          width: 500,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              PrismTextField(
-                controller: name,
-                decoration: const PrismInputDecoration(labelText: '内核名称'),
-              ),
-              PrismTextField(
-                controller: url,
-                decoration: const PrismInputDecoration(labelText: '下载地址'),
-              ),
-              PrismTextField(
-                controller: proxy,
-                decoration: const PrismInputDecoration(labelText: '代理配置（可选）'),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          prism.TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          prism.FilledButton(
-            onPressed: () => Navigator.pop(context, [
-              name.text.trim(),
-              url.text.trim(),
-              proxy.text.trim(),
-            ]),
-            child: const Text('开始下载'),
-          ),
-        ],
-      ),
-    );
-    name.dispose();
-    url.dispose();
-    proxy.dispose();
+    final values = await _downloadOptions();
     if (values == null) return;
-    if (values[0].isEmpty || values[1].isEmpty) {
+    if ((values['name'] ?? '').isEmpty || (values['url'] ?? '').isEmpty) {
       _message('请填写内核名称和下载地址');
+      return;
+    }
+    if ((values['proxy'] ?? '').isEmpty) {
+      _message('请选择有效的下载代理节点');
       return;
     }
     setState(() {
@@ -574,7 +836,11 @@ class _CoresPageState extends State<CoresPage> {
       };
     });
     try {
-      await AppBridge.call('BrowserCoreDownload', values);
+      await AppBridge.call('BrowserCoreDownload', [
+        values['name'],
+        values['url'],
+        values['proxy'],
+      ]);
     } catch (error) {
       _message('下载失败：$error');
       if (mounted) setState(() => _downloadProgress = null);

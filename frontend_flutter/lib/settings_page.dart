@@ -317,7 +317,27 @@ class _SettingsPageState extends State<SettingsPage> {
                       children: [
                         Expanded(child: _textField('应用名称', 'appName')),
                         const SizedBox(width: 12),
-                        Expanded(child: _textField('界面语言', 'language')),
+                        Expanded(
+                          child: PrismDropdownField<String>(
+                            value: '${_settings['language']}',
+                            decoration: const PrismInputDecoration(
+                              labelText: '界面语言',
+                              isDense: true,
+                            ),
+                            items: const [
+                              PrismDropdownItem(
+                                value: 'zh-CN',
+                                child: Text('简体中文'),
+                              ),
+                              PrismDropdownItem(
+                                value: 'en-US',
+                                child: Text('English'),
+                              ),
+                            ],
+                            onChanged: (value) =>
+                                _change('language', value ?? 'zh-CN'),
+                          ),
+                        ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: PrismDropdownField<String>(
@@ -371,19 +391,20 @@ class _SettingsPageState extends State<SettingsPage> {
                       value: _bool('enableAutoSave'),
                       onChanged: (value) => _change('enableAutoSave', value),
                     ),
-                    Row(
-                      children: [
-                        const Expanded(child: Text('自动保存间隔（秒）')),
-                        SizedBox(
-                          width: 140,
-                          child: _numberField(
-                            'autoSaveInterval',
-                            min: 1,
-                            max: 3600,
+                    if (_bool('enableAutoSave'))
+                      Row(
+                        children: [
+                          const Expanded(child: Text('自动保存间隔（秒）')),
+                          SizedBox(
+                            width: 140,
+                            child: _numberField(
+                              'autoSaveInterval',
+                              min: 5,
+                              max: 300,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
                     Row(
                       children: [
                         const Expanded(child: Text('最大上传大小（MB）')),

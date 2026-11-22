@@ -10,9 +10,11 @@ class AutomationPage extends StatefulWidget {
   const AutomationPage({
     super.key,
     required this.onOpen,
+    required this.onRun,
     required this.onCreate,
   });
   final ValueChanged<String> onOpen;
+  final ValueChanged<String> onRun;
   final VoidCallback onCreate;
   @override
   State<AutomationPage> createState() => _AutomationPageState();
@@ -262,6 +264,223 @@ class _AutomationPageState extends State<AutomationPage> {
     );
   }
 
+  Future<void> _showHistory() async {
+    var runs = List<Map<String, dynamic>>.from(_runs);
+    var refreshing = false;
+    var expandedId = '';
+    await showPrismDialog<void>(
+      context: context,
+      useRootNavigator: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialog) {
+          final successful = runs
+              .where((run) => run['status'] == 'success')
+              .length;
+          final failed = runs.where((run) => run['status'] == 'failed').length;
+          final scriptCount = runs
+              .map((run) => (run['scriptId'] ?? '').toString())
+              .where((id) => id.isNotEmpty)
+              .toSet()
+              .length;
+          return PrismDialog(
+            title: const Text('脚本调用记录'),
+            content: SizedBox(
+              width: 920,
+              height: 610,
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '共 ${runs.length} 条记录 · 覆盖 $scriptCount 个脚本',
+                        ),
+                      ),
+                      prism.OutlinedButton.icon(
+                        onPressed: refreshing
+                            ? null
+                            : () async {
+                                setDialog(() => refreshing = true);
+                                try {
+                                  final value = await AppBridge.call(
+                                    'AutomationScriptRunList',
+                                    [200],
+                                  );
+                                  if (context.mounted) {
+                                    setDialog(() {
+                                      runs = (value as List? ?? [])
+                                          .whereType<Map>()
+                                          .map(
+                                            (row) =>
+                                                Map<String, dynamic>.from(row),
+                                          )
+                                          .toList();
+                                      _runs = runs;
+                                    });
+                                  }
+                                } catch (error) {
+                                  if (context.mounted) {
+                                    showPrismNotice(context, '刷新调用记录失败：$error');
+                                  }
+                                } finally {
+                                  if (context.mounted) {
+                                    setDialog(() => refreshing = false);
+                                  }
+                                }
+                              },
+                        icon: refreshing
+                            ? const SizedBox.square(
+                                dimension: 16,
+                                child: PrismProgressIndicator(size: 16),
+                              )
+                            : const Icon(Icons.refresh),
+                        label: const Text('刷新'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(child: PrismCard(child: Text('成功：$successful'))),
+                      const SizedBox(width: 8),
+                      Expanded(child: PrismCard(child: Text('失败：$failed'))),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: PrismCard(
+                          child: Text(
+                            '最近：${runs.isEmpty ? '暂无' : runs.first['startedAt'] ?? '-'}',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: runs.isEmpty
+                        ? const Center(child: Text('还没有调用记录'))
+                        : ListView.builder(
+                            itemCount: runs.length,
+                            itemBuilder: (context, index) {
+                              final run = runs[index];
+                              final id = (run['id'] ?? '').toString();
+                              final expanded =
+                                  id.isNotEmpty && expandedId == id;
+                              final success = run['status'] == 'success';
+                              return PrismCard(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                child: Column(
+                                  children: [
+                                    PrismListTile(
+                                      onTap: () => setDialog(
+                                        () => expandedId = expanded ? '' : id,
+                                      ),
+                                      leading: Icon(
+                                        success
+                                            ? Icons.check_circle_outline
+                                            : run['status'] == 'running'
+                                            ? Icons.pending_outlined
+                                            : Icons.error_outline,
+                                        color: success
+                                            ? prism.Theme.of(context)
+                                                  .colorScheme
+                                                  .tertiary
+                                            : prism.Theme.of(context)
+                                                  .colorScheme
+                                                  .error,
+                                      ),
+                                      title: Text(
+                                        (run['scriptName'] ??
+                                                run['scriptId'] ??
+                                                '未命名脚本')
+                                            .toString(),
+                                      ),
+                                      subtitle: Text(
+                                        '${run['startedAt'] ?? ''} · ${run['durationMs'] ?? 0} ms\n${run['summary'] ?? run['error'] ?? ''}',
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      trailing: Icon(
+                                        expanded
+                                            ? Icons.expand_less
+                                            : Icons.expand_more,
+                                      ),
+                                    ),
+                                    if (expanded)
+                                      Padding(
+                                        padding: const EdgeInsets.fromLTRB(
+                                          16,
+                                          0,
+                                          16,
+                                          14,
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              '状态：${run['status'] ?? ''} · 类型：${run['scriptType'] ?? '-'}',
+                                            ),
+                                            Text(
+                                              '开始：${run['startedAt'] ?? '-'} · 结束：${run['finishedAt'] ?? '-'}',
+                                            ),
+                                            if ((run['error'] ?? '')
+                                                .toString()
+                                                .isNotEmpty) ...[
+                                              const SizedBox(height: 8),
+                                              const Text('错误信息'),
+                                              prism.SelectableText(
+                                                (run['error'] ?? '').toString(),
+                                              ),
+                                            ],
+                                            if ((run['resultText'] ?? '')
+                                                .toString()
+                                                .isNotEmpty) ...[
+                                              const SizedBox(height: 8),
+                                              const Text('运行结果'),
+                                              prism.SelectableText(
+                                                (run['resultText'] ?? '')
+                                                    .toString(),
+                                              ),
+                                            ],
+                                            if ((run['logText'] ?? '')
+                                                .toString()
+                                                .isNotEmpty) ...[
+                                              const SizedBox(height: 8),
+                                              const Text('运行日志'),
+                                              SizedBox(
+                                                height: 150,
+                                                child: SingleChildScrollView(
+                                                  child: prism.SelectableText(
+                                                    (run['logText'] ?? '')
+                                                        .toString(),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              prism.TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('关闭'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.all(24),
@@ -280,6 +499,12 @@ class _AutomationPageState extends State<AutomationPage> {
               onPressed: _busy.isEmpty ? widget.onCreate : null,
               icon: const Icon(Icons.add),
               label: const Text('新建脚本'),
+            ),
+            const SizedBox(width: 8),
+            prism.OutlinedButton.icon(
+              onPressed: _showHistory,
+              icon: const Icon(Icons.history),
+              label: const Text('调用记录'),
             ),
             if (_selectedScriptIds.isNotEmpty) ...[
               const SizedBox(width: 8),
@@ -353,6 +578,8 @@ class _AutomationPageState extends State<AutomationPage> {
                             onSelected: (action) {
                               if (action == 'open') {
                                 widget.onOpen((script['id'] ?? '').toString());
+                              } else if (action == 'run') {
+                                widget.onRun((script['id'] ?? '').toString());
                               } else if (action.startsWith('export-')) {
                                 _exportScript(
                                   (script['id'] ?? '').toString(),
@@ -365,8 +592,16 @@ class _AutomationPageState extends State<AutomationPage> {
                                 );
                               }
                             },
-                            itemBuilder: (_) => const [
-                              PrismMenuItem(value: 'open', child: Text('编辑')),
+                            itemBuilder: (_) => [
+                              const PrismMenuItem(
+                                value: 'open',
+                                child: Text('编辑'),
+                              ),
+                              if (script['type'] != 'launch-api')
+                                const PrismMenuItem(
+                                  value: 'run',
+                                  child: Text('运行脚本'),
+                                ),
                               PrismMenuItem(
                                 value: 'export-json',
                                 child: Text('导出 JSON 模板'),
@@ -431,10 +666,12 @@ class AutomationScriptDetailPage extends StatefulWidget {
     required this.scriptId,
     required this.onBack,
     required this.onCreated,
+    this.autoRun = false,
   });
   final String scriptId;
   final VoidCallback onBack;
   final ValueChanged<String> onCreated;
+  final bool autoRun;
   @override
   State<AutomationScriptDetailPage> createState() =>
       _AutomationScriptDetailPageState();
@@ -454,13 +691,18 @@ class _AutomationScriptDetailPageState
   final _apiResponse = TextEditingController();
   final _apiVariables = TextEditingController(text: '[]');
   final _apiTimeout = TextEditingController(text: '300000');
+  final _createNameTemplate = TextEditingController();
+  final _targetSelector = TextEditingController(text: '{}');
   bool _loading = true;
   bool _apiEnabled = false;
   String _apiRequestMode = 'standard';
   String _apiResponseMode = 'envelope';
+  String _savedDraftSnapshot = '';
   String _busy = '';
   String _runOutput = '';
   String? _targetProfileId;
+  String _targetMode = 'manual';
+  String? _templateProfileId;
 
   @override
   void initState() {
@@ -480,6 +722,8 @@ class _AutomationScriptDetailPageState
     _apiResponse.dispose();
     _apiVariables.dispose();
     _apiTimeout.dispose();
+    _createNameTemplate.dispose();
+    _targetSelector.dispose();
     super.dispose();
   }
 
@@ -537,6 +781,23 @@ class _AutomationScriptDetailPageState
       _apiResponse.text = (publicApi['responseBodyText'] ?? '').toString();
       _apiVariables.text = const JsonEncoder.withIndent('  ')
           .convert(publicApi['variables'] ?? []);
+      final targetConfig = _record!['targetConfig'] is Map
+          ? Map<String, dynamic>.from(_record!['targetConfig'] as Map)
+          : <String, dynamic>{};
+      final storedMode = (targetConfig['mode'] ?? 'manual').toString();
+      _targetMode = storedMode == 'existing' ? 'manual' : storedMode;
+      _templateProfileId =
+          (targetConfig['templateSelector'] is Map
+                  ? (targetConfig['templateSelector'] as Map)['profileId']
+                  : null)
+              ?.toString();
+      _createNameTemplate.text = (targetConfig['createNameTemplate'] ?? '')
+          .toString();
+      _targetSelector.text = const JsonEncoder.withIndent('  ').convert(
+        targetConfig['selector'] is Map
+            ? targetConfig['selector']
+            : <String, dynamic>{},
+      );
     }
     try {
       final profiles = await AppBridge.call('BrowserProfileList');
@@ -547,9 +808,25 @@ class _AutomationScriptDetailPageState
       final selector = jsonDecode(_selector.text);
       if (selector is Map && selector['profileId'] is String) {
         _targetProfileId = selector['profileId'] as String;
+      } else {
+        final targetConfig = _record?['targetConfig'] is Map
+            ? Map<String, dynamic>.from(_record!['targetConfig'] as Map)
+            : <String, dynamic>{};
+        final targetSelector = targetConfig['selector'];
+        if (targetSelector is Map && targetSelector['profileId'] is String) {
+          _targetProfileId = targetSelector['profileId'] as String;
+        }
       }
     } catch (_) {}
-    if (mounted) setState(() => _loading = false);
+    _savedDraftSnapshot = _draftSnapshot();
+    if (mounted) {
+      setState(() => _loading = false);
+      if (widget.autoRun) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _run();
+        });
+      }
+    }
   }
 
   void _changeNewScriptType(String type) {
@@ -580,6 +857,54 @@ class _AutomationScriptDetailPageState
     });
   }
 
+  String _draftSnapshot() => jsonEncode({
+    'type': _record?['type'],
+    'name': _name.text,
+    'description': _description.text,
+    'script': _script.text,
+    'selector': _selector.text,
+    'params': _params.text,
+    'targetMode': _targetMode,
+    'targetProfileId': _targetProfileId,
+    'templateProfileId': _templateProfileId,
+    'createNameTemplate': _createNameTemplate.text,
+    'targetSelector': _targetSelector.text,
+    'apiEnabled': _apiEnabled,
+    'apiPath': _apiPath.text,
+    'apiRequestMode': _apiRequestMode,
+    'apiResponseMode': _apiResponseMode,
+    'apiTimeout': _apiTimeout.text,
+    'apiRequest': _apiRequest.text,
+    'apiResponse': _apiResponse.text,
+    'apiVariables': _apiVariables.text,
+  });
+
+  Future<void> _leavePage() async {
+    if (_savedDraftSnapshot == _draftSnapshot()) {
+      widget.onBack();
+      return;
+    }
+    final leave = await showPrismDialog<bool>(
+      context: context,
+      useRootNavigator: false,
+      builder: (context) => PrismDialog(
+        title: const Text('有未保存的修改'),
+        content: const Text('离开后，这些脚本修改会丢失。仍要离开吗？'),
+        actions: [
+          prism.TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('继续编辑'),
+          ),
+          prism.FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('放弃修改并离开'),
+          ),
+        ],
+      ),
+    );
+    if (leave == true) widget.onBack();
+  }
+
   Future<void> _save() async {
     final record = _record;
     if (record == null) return;
@@ -598,7 +923,18 @@ class _AutomationScriptDetailPageState
       return;
     }
     dynamic apiVariables;
+    Map<String, dynamic>? storedTargetSelector;
     try {
+      if (_targetMode == 'create' && (_templateProfileId ?? '').isEmpty) {
+        throw const FormatException('按模板新建至少要选择一个模板实例');
+      }
+      if (_targetMode == 'rotate') {
+        final selector = jsonDecode(_targetSelector.text);
+        if (selector is! Map || selector.isEmpty) {
+          throw const FormatException('按条件轮询至少要填写一个实例条件');
+        }
+        storedTargetSelector = Map<String, dynamic>.from(selector);
+      }
       if (_apiEnabled && _normalizePublicApiPath(_apiPath.text).isEmpty) {
         throw const FormatException('请填写接口路径');
       }
@@ -631,6 +967,24 @@ class _AutomationScriptDetailPageState
         'scriptText': _script.text,
         'selectorText': _selector.text,
         'paramsText': _params.text,
+        'targetConfig': {
+          ...(_record!['targetConfig'] is Map
+              ? Map<String, dynamic>.from(_record!['targetConfig'] as Map)
+              : <String, dynamic>{}),
+          'mode': _targetMode,
+          'selector':
+              storedTargetSelector ??
+              (_record!['targetConfig'] is Map
+                  ? (_record!['targetConfig'] as Map)['selector'] ?? {}
+                  : {}),
+          'templateSelector': _targetMode == 'create'
+              ? {'profileId': _templateProfileId}
+              : (_record!['targetConfig'] is Map
+                    ? (_record!['targetConfig'] as Map)['templateSelector'] ??
+                          {}
+                    : {}),
+          'createNameTemplate': _createNameTemplate.text.trim(),
+        },
         'publicAPI': {
           ...(_record!['publicAPI'] is Map
               ? Map<String, dynamic>.from(_record!['publicAPI'] as Map)
@@ -655,6 +1009,7 @@ class _AutomationScriptDetailPageState
       if (savedPublicApi is Map) {
         _apiPath.text = (savedPublicApi['path'] ?? '').toString();
       }
+      _savedDraftSnapshot = _draftSnapshot();
       if (mounted) showPrismNotice(context, ('已保存').toString());
       final savedId = (_record!['id'] ?? '').toString();
       if (widget.scriptId == 'new' && savedId.isNotEmpty) {
@@ -677,12 +1032,7 @@ class _AutomationScriptDetailPageState
     );
     final selected = target.isEmpty ? null : target.first;
     const dualInstanceScriptId = 'dual-instance-runtime-switch';
-    final targetConfig = record['targetConfig'] is Map
-        ? Map<String, dynamic>.from(record['targetConfig'] as Map)
-        : <String, dynamic>{};
-    final targetMode = selected != null
-        ? 'manual'
-        : (targetConfig['mode'] ?? 'manual').toString();
+    final targetMode = _targetMode;
     final hasStoredTarget =
         targetMode != 'manual' ||
         (_selector.text.trim().isNotEmpty && _selector.text.trim() != '{}');
@@ -691,6 +1041,29 @@ class _AutomationScriptDetailPageState
         !hasStoredTarget) {
       showPrismNotice(context, ('请先选择运行目标实例，或填写目标选择器 JSON').toString());
       return;
+    }
+    Map<String, dynamic> targetInput = {};
+    if (targetMode == 'create') {
+      if ((_templateProfileId ?? '').isEmpty) {
+        showPrismNotice(context, '按模板新建需要先选择模板实例');
+        return;
+      }
+      targetInput = {
+        'templateSelector': {'profileId': _templateProfileId},
+        if (_createNameTemplate.text.trim().isNotEmpty)
+          'createNameTemplate': _createNameTemplate.text.trim(),
+      };
+    } else if (targetMode == 'rotate') {
+      try {
+        final value = jsonDecode(_targetSelector.text);
+        if (value is! Map || value.isEmpty) {
+          throw const FormatException('至少填写一个实例条件');
+        }
+        targetInput = Map<String, dynamic>.from(value);
+      } catch (error) {
+        showPrismNotice(context, '轮询实例条件无效：$error');
+        return;
+      }
     }
     setState(() {
       _busy = 'run';
@@ -713,15 +1086,19 @@ class _AutomationScriptDetailPageState
       final result = await AppBridge.call('AutomationScriptRunWithOptions', [
         {
           'scriptId': scriptId,
-          'selectorText': selected == null
+          'selectorText': targetMode != 'manual'
+              ? ''
+              : selected == null
               ? _selector.text
               : jsonEncode(targetSelector),
           'targetMode': targetMode,
-          if (targetSelector != null) 'targetInput': targetSelector,
+          if (targetMode != 'manual') 'targetInput': targetInput,
           'paramsText': _params.text,
           'useScriptSelector':
-              selected == null &&
-              _selector.text == (record['selectorText'] ?? '{}').toString(),
+              targetMode != 'manual' ||
+              (selected == null &&
+                  _selector.text ==
+                      (record['selectorText'] ?? '{}').toString()),
           'useScriptParams': false,
         },
       ]);
@@ -837,7 +1214,7 @@ class _AutomationScriptDetailPageState
             Row(
               children: [
                 prism.IconButton(
-                  onPressed: widget.onBack,
+                  onPressed: _busy.isEmpty ? _leavePage : null,
                   icon: const Icon(Icons.arrow_back),
                 ),
                 const Expanded(
@@ -1008,31 +1385,84 @@ class _AutomationScriptDetailPageState
               decoration: const PrismInputDecoration(labelText: '说明'),
             ),
             PrismDropdownField<String>(
-              initialValue:
-                  _profiles.any(
-                    (profile) => profile['profileId'] == _targetProfileId,
-                  )
-                  ? _targetProfileId
-                  : null,
-              decoration: const PrismInputDecoration(labelText: '试运行目标实例'),
-              items: [
-                for (final profile in _profiles)
-                  PrismDropdownItem(
-                    value: profile['profileId']?.toString(),
-                    child: Text(
-                      '${profile['profileName'] ?? '未命名实例'}${profile['running'] == true ? ' · 运行中' : ''}',
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
+              initialValue: _targetMode,
+              decoration: const PrismInputDecoration(labelText: '实例来源'),
+              items: const [
+                PrismDropdownItem(value: 'manual', child: Text('手动选择实例')),
+                PrismDropdownItem(value: 'create', child: Text('按模板新建实例')),
+                PrismDropdownItem(value: 'rotate', child: Text('按条件轮询实例')),
               ],
-              onChanged: (value) => setState(() => _targetProfileId = value),
+              onChanged: (value) =>
+                  setState(() => _targetMode = value ?? 'manual'),
             ),
-            PrismTextField(
-              controller: _selector,
-              minLines: 2,
-              maxLines: 6,
-              decoration: const PrismInputDecoration(labelText: '目标选择器 JSON'),
-            ),
+            if (_targetMode == 'manual') ...[
+              PrismDropdownField<String>(
+                initialValue:
+                    _profiles.any(
+                      (profile) => profile['profileId'] == _targetProfileId,
+                    )
+                    ? _targetProfileId
+                    : null,
+                decoration: const PrismInputDecoration(labelText: '试运行目标实例'),
+                items: [
+                  for (final profile in _profiles)
+                    PrismDropdownItem(
+                      value: profile['profileId']?.toString(),
+                      child: Text(
+                        '${profile['profileName'] ?? '未命名实例'}${profile['running'] == true ? ' · 运行中' : ''}',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                ],
+                onChanged: (value) => setState(() => _targetProfileId = value),
+              ),
+              PrismTextField(
+                controller: _selector,
+                minLines: 2,
+                maxLines: 6,
+                decoration: const PrismInputDecoration(labelText: '目标选择器 JSON'),
+              ),
+            ],
+            if (_targetMode == 'create') ...[
+              PrismDropdownField<String>(
+                initialValue:
+                    _profiles.any(
+                      (profile) => profile['profileId'] == _templateProfileId,
+                    )
+                    ? _templateProfileId
+                    : null,
+                decoration: const PrismInputDecoration(labelText: '模板实例'),
+                items: [
+                  for (final profile in _profiles)
+                    PrismDropdownItem(
+                      value: profile['profileId']?.toString(),
+                      child: Text(
+                        profile['profileName']?.toString() ?? '未命名实例',
+                      ),
+                    ),
+                ],
+                onChanged: (value) =>
+                    setState(() => _templateProfileId = value),
+              ),
+              PrismTextField(
+                controller: _createNameTemplate,
+                decoration: const PrismInputDecoration(
+                  labelText: '新实例名称模板',
+                  helperText:
+                      '可留空使用默认名称，也可以写 ${r'${templateName}-${timestamp}'}。',
+                ),
+              ),
+            ],
+            if (_targetMode == 'rotate')
+              PrismTextField(
+                controller: _targetSelector,
+                minLines: 3,
+                maxLines: 8,
+                decoration: const PrismInputDecoration(
+                  labelText: '轮询实例条件 JSON',
+                  helperText: '可按启动码、实例名称、分组、关键字或标签筛选。',
+                ),
+              ),
             PrismTextField(
               controller: _params,
               minLines: 2,
