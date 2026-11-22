@@ -3,3 +3,4 @@ analyzer:
     - packages/prism_ui/test/**
     - build/**
     - web/**
+    - windows/**
