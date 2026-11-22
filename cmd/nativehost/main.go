@@ -191,6 +191,15 @@ func resolveAppRoot() string {
 	if err == nil {
 		directory := filepath.Dir(executable)
 		cleanDirectory := filepath.ToSlash(strings.ToLower(directory))
+		if strings.HasSuffix(cleanDirectory, "/build/native/release") ||
+			strings.HasSuffix(cleanDirectory, "/build/native/debug") {
+			projectRoot := filepath.Dir(filepath.Dir(filepath.Dir(directory)))
+			if _, err := os.Stat(filepath.Join(projectRoot, "go.mod")); err == nil {
+				if _, err := os.Stat(filepath.Join(projectRoot, "config.yaml")); err == nil {
+					return projectRoot
+				}
+			}
+		}
 		if strings.HasSuffix(cleanDirectory, "/build/bin") ||
 			strings.HasSuffix(cleanDirectory, "/build/native") {
 			if workingDirectory, err := os.Getwd(); err == nil {
