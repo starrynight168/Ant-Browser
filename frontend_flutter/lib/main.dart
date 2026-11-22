@@ -5,6 +5,7 @@ import 'prism_widgets.dart';
 import 'package:prism_ui/prism_ui.dart' as prism;
 
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
+import 'package:flutter/widgets.dart' show WidgetsFlutterBinding;
 import 'package:prism_ui/icons/icons.dart' as prism_icons;
 
 import 'ant_prism_theme.dart';
@@ -27,7 +28,9 @@ import 'settings_page.dart';
 import 'theme_state.dart';
 import 'wails_bridge.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await WailsBridge.initialize();
   try {
     final settings = WailsBridge.readStorage('app_settings');
     if (settings.isNotEmpty) {

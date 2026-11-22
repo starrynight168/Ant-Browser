@@ -88,6 +88,14 @@ func ShouldBlockClose(a *App, ctx context.Context) bool {
 	return true
 }
 
+func (a *App) HandleWindowCloseRequest() bool {
+	if a == nil {
+		return false
+	}
+	_, ctx := a.runtimeHostSnapshot()
+	return ShouldBlockClose(a, ctx)
+}
+
 func (a *App) stopRuntimeServices() {
 	a.stopRuntimeEvents()
 	a.waitBackgroundTasks()

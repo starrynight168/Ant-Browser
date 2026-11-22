@@ -6,25 +6,25 @@ import (
 )
 
 type DialogFilter struct {
-	DisplayName string
-	Pattern     string
+	DisplayName string `json:"displayName"`
+	Pattern     string `json:"pattern"`
 }
 
 type OpenDialogOptions struct {
-	Title   string
-	Filters []DialogFilter
+	Title   string         `json:"title"`
+	Filters []DialogFilter `json:"filters"`
 }
 
 type SaveDialogOptions struct {
-	Title           string
-	DefaultFilename string
-	Filters         []DialogFilter
+	Title           string         `json:"title"`
+	DefaultFilename string         `json:"defaultFilename"`
+	Filters         []DialogFilter `json:"filters"`
 }
 
 type MessageDialogOptions struct {
-	Type    string
-	Title   string
-	Message string
+	Type    string `json:"type"`
+	Title   string `json:"title"`
+	Message string `json:"message"`
 }
 
 func (a *App) runtimeHostSnapshot() (RuntimeHost, context.Context) {
