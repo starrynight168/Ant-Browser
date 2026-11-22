@@ -2,6 +2,8 @@ import 'prism_widgets.dart';
 
 import 'package:prism_ui/prism_ui.dart' as prism;
 
+import 'app_bridge.dart';
+
 class DocsPage extends StatefulWidget {
   const DocsPage({super.key});
   @override
@@ -36,7 +38,20 @@ class _DocsPageState extends State<DocsPage> {
       Icons.backup_outlined,
       '在“备份与恢复”设置本地目录，然后创建完整备份。\n恢复备份会修改当前本地数据，操作前请确认备份文件和实例状态。\nS3 存储需要先在 S3 设置中填写兼容服务的连接信息并测试。',
     ),
+    (
+      'SKILL 使用',
+      Icons.auto_awesome_outlined,
+      'Ant Browser 与 OpenClaw 需要安装在同一台电脑。确认 Launch Server 可访问，并安装 ant-chrome-openclaw skill。\n\n在 OpenClaw 对话中先写“使用 ant-chrome-openclaw skill”，再说明要操作的实例和目标。优先用 launchCode、profileId 或 profileName 指定实例；只有 debugReady=true 且 cdpUrl 不为空时才接管。\n\n停止浏览器接管只会断开 OpenClaw，不会关闭 Ant Browser 实例。',
+    ),
   ];
+
+  Future<void> _openProjectRoot() async {
+    try {
+      await AppBridge.call('OpenProjectRoot');
+    } catch (error) {
+      if (mounted) showPrismNotice(context, error.toString());
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -124,6 +139,20 @@ class _DocsPageState extends State<DocsPage> {
                           fontFamily: 'monospace',
                           height: 1.6,
                         ),
+                      ),
+                    ),
+                  ),
+                ],
+                if (_selected == 5) ...[
+                  const SizedBox(height: 14),
+                  PrismCard(
+                    child: PrismListTile(
+                      title: const Text('打开项目根目录'),
+                      subtitle: const Text('SKILL 安装命令默认从这个目录运行。'),
+                      trailing: prism.OutlinedButton.icon(
+                        onPressed: _openProjectRoot,
+                        icon: const Icon(Icons.folder_open_outlined),
+                        label: const Text('打开目录'),
                       ),
                     ),
                   ),

@@ -16,12 +16,26 @@ class LogsPage extends StatefulWidget {
 
 class _LogsPageState extends State<LogsPage> {
   final _searchController = TextEditingController();
+  final _fieldSearchController = TextEditingController();
+  final _durationController = TextEditingController();
+  final _timeFromController = TextEditingController();
+  final _timeToController = TextEditingController();
+  final _scrollController = ScrollController();
   List<Map<String, dynamic>> _logs = [];
   String _level = 'INFO';
   String _quickFilter = '全部';
   String _keyword = '';
+  String _fieldKeyword = '';
+  String _componentFilter = 'ALL';
+  String _methodFilter = 'ALL';
+  String _durationMin = '';
+  String _timeFrom = '';
+  String _timeTo = '';
   bool _loading = true;
   bool _clearing = false;
+  bool _refreshing = false;
+  bool _autoScroll = false;
+  bool _initialScrollDone = false;
   Timer? _timer;
 
   @override
@@ -37,10 +51,17 @@ class _LogsPageState extends State<LogsPage> {
   void dispose() {
     _timer?.cancel();
     _searchController.dispose();
+    _fieldSearchController.dispose();
+    _durationController.dispose();
+    _timeFromController.dispose();
+    _timeToController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
   Future<void> _load({bool showLoading = true}) async {
+    if (_refreshing) return;
+    _refreshing = true;
     if (showLoading && mounted) setState(() => _loading = true);
     try {
       final value = await AppBridge.call('GetAppLogs');
@@ -52,12 +73,27 @@ class _LogsPageState extends State<LogsPage> {
               .map((row) => Map<String, dynamic>.from(row))
               .toList();
         });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || !_scrollController.hasClients) return;
+          final position = _scrollController.position;
+          if (!_initialScrollDone) {
+            _initialScrollDone = true;
+            _scrollController.jumpTo(position.maxScrollExtent);
+          } else if (_autoScroll) {
+            _scrollController.animateTo(
+              position.maxScrollExtent,
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+            );
+          }
+        });
       }
     } catch (_) {
       if (mounted && showLoading) {
         showPrismNotice(context, ('读取日志失败').toString());
       }
     } finally {
+      _refreshing = false;
       if (mounted && showLoading) setState(() => _loading = false);
     }
   }
@@ -95,6 +131,51 @@ class _LogsPageState extends State<LogsPage> {
     }
   }
 
+  List<String> get _components {
+    final values = _logs
+        .map((entry) => '${entry['component'] ?? ''}')
+        .where((value) => value.isNotEmpty)
+        .toSet();
+    if (_componentFilter != 'ALL') values.add(_componentFilter);
+    final sorted = values.toList()..sort();
+    return ['ALL', ...sorted];
+  }
+
+  List<String> get _methods {
+    final values = _logs
+        .map((entry) {
+          final fields = entry['fields'];
+          return fields is Map ? '${fields['method'] ?? ''}' : '';
+        })
+        .where((value) => value.isNotEmpty)
+        .toSet();
+    if (_methodFilter != 'ALL') values.add(_methodFilter);
+    final sorted = values.toList()..sort();
+    return ['ALL', ...sorted];
+  }
+
+  DateTime? _parseTime(String value) =>
+      DateTime.tryParse(value.trim().replaceFirst(' ', 'T'));
+
+  void _resetFilters() {
+    _searchController.clear();
+    _fieldSearchController.clear();
+    _durationController.clear();
+    _timeFromController.clear();
+    _timeToController.clear();
+    setState(() {
+      _level = 'INFO';
+      _quickFilter = '全部';
+      _keyword = '';
+      _fieldKeyword = '';
+      _componentFilter = 'ALL';
+      _methodFilter = 'ALL';
+      _durationMin = '';
+      _timeFrom = '';
+      _timeTo = '';
+    });
+  }
+
   List<Map<String, dynamic>> get _filteredLogs {
     final query = _keyword.trim().toLowerCase();
     return _logs.where((entry) {
@@ -105,6 +186,7 @@ class _LogsPageState extends State<LogsPage> {
           ? Map<String, dynamic>.from(entry['fields'] as Map)
           : <String, dynamic>{};
       final method = '${fields['method'] ?? ''}';
+      final fieldQuery = _fieldKeyword.trim().toLowerCase();
       final duration =
           int.tryParse(
             '${fields['duration_ms'] ?? fields['durationMs'] ?? 0}',
@@ -115,6 +197,25 @@ class _LogsPageState extends State<LogsPage> {
       if (_quickFilter == '慢调用' && duration < 1000) return false;
       if (_quickFilter == '前端' && component != 'Frontend') return false;
       if (_quickFilter == '后端' && component == 'Frontend') return false;
+      if (_componentFilter != 'ALL' && component != _componentFilter) {
+        return false;
+      }
+      if (_methodFilter != 'ALL' && method != _methodFilter) return false;
+      final minDuration = int.tryParse(_durationMin.trim());
+      if (minDuration != null && duration < minDuration) return false;
+      if (fieldQuery.isNotEmpty &&
+          !jsonEncode(fields).toLowerCase().contains(fieldQuery)) {
+        return false;
+      }
+      final from = _parseTime(_timeFrom);
+      final to = _parseTime(_timeTo);
+      if (from != null || to != null) {
+        final logTime = _parseTime('${entry['time'] ?? ''}');
+        if (logTime == null || (from != null && logTime.isBefore(from))) {
+          return false;
+        }
+        if (to != null && logTime.isAfter(to)) return false;
+      }
       if (query.isEmpty) return true;
       return '$message $component $method ${jsonEncode(fields)}'
           .toLowerCase()
@@ -182,6 +283,46 @@ class _LogsPageState extends State<LogsPage> {
                           setState(() => _level = value ?? 'ALL'),
                     ),
                   ),
+                  SizedBox(
+                    width: 180,
+                    child: PrismDropdownField<String>(
+                      initialValue: _componentFilter,
+                      decoration: const PrismInputDecoration(
+                        labelText: '组件',
+                        isDense: true,
+                      ),
+                      items: _components
+                          .map(
+                            (value) => PrismDropdownItem(
+                              value: value,
+                              child: Text(value == 'ALL' ? '全部组件' : value),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) =>
+                          setState(() => _componentFilter = value ?? 'ALL'),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 180,
+                    child: PrismDropdownField<String>(
+                      initialValue: _methodFilter,
+                      decoration: const PrismInputDecoration(
+                        labelText: '方法',
+                        isDense: true,
+                      ),
+                      items: _methods
+                          .map(
+                            (value) => PrismDropdownItem(
+                              value: value,
+                              child: Text(value == 'ALL' ? '全部方法' : value),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) =>
+                          setState(() => _methodFilter = value ?? 'ALL'),
+                    ),
+                  ),
                   for (final filter in const ['全部', '错误', '慢调用', '前端', '后端'])
                     PrismChip(
                       label: Text(filter),
@@ -200,6 +341,65 @@ class _LogsPageState extends State<LogsPage> {
                       ),
                     ),
                   ),
+                  SizedBox(
+                    width: 220,
+                    child: PrismTextField(
+                      controller: _fieldSearchController,
+                      onChanged: (value) =>
+                          setState(() => _fieldKeyword = value),
+                      decoration: const PrismInputDecoration(
+                        hintText: '搜索日志字段',
+                        prefixIcon: Icon(Icons.data_object),
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 150,
+                    child: PrismTextField(
+                      controller: _durationController,
+                      keyboardType: TextInputType.number,
+                      onChanged: (value) =>
+                          setState(() => _durationMin = value),
+                      decoration: const PrismInputDecoration(
+                        hintText: '最短耗时（毫秒）',
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 210,
+                    child: PrismTextField(
+                      controller: _timeFromController,
+                      onChanged: (value) => setState(() => _timeFrom = value),
+                      decoration: const PrismInputDecoration(
+                        hintText: '开始时间 YYYY-MM-DD HH:mm:ss',
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 210,
+                    child: PrismTextField(
+                      controller: _timeToController,
+                      onChanged: (value) => setState(() => _timeTo = value),
+                      decoration: const PrismInputDecoration(
+                        hintText: '结束时间 YYYY-MM-DD HH:mm:ss',
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  PrismSwitchTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('自动滚动到最新'),
+                    value: _autoScroll,
+                    onChanged: (value) => setState(() => _autoScroll = value),
+                  ),
+                  prism.OutlinedButton.icon(
+                    onPressed: _resetFilters,
+                    icon: const Icon(Icons.filter_alt_off, size: 18),
+                    label: const Text('重置筛选'),
+                  ),
                 ],
               ),
             ),
@@ -215,7 +415,7 @@ class _LogsPageState extends State<LogsPage> {
                     separatorBuilder: (context, index) =>
                         const SizedBox(height: 6),
                     itemBuilder: (context, index) {
-                      final entry = filtered[filtered.length - index - 1];
+                      final entry = filtered[index];
                       final level = '${entry['level'] ?? 'INFO'}'.toUpperCase();
                       final colors = prism.Theme.of(context).colorScheme;
                       final color = switch (level) {

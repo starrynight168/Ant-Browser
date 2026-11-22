@@ -282,6 +282,9 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
   String _mode = 'token';
   bool _loading = true;
   String _busy = '';
+  bool _tokenConfigured = false;
+  bool _tokenVisible = false;
+  bool _revealingToken = false;
   List<Map<String, dynamic>> _files = [];
   Map<String, dynamic> _schedule = {};
   bool _scheduleEnabled = false;
@@ -313,6 +316,7 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
       _path.text = (value['remotePath'] ?? 'ant-chrome/backups').toString();
       _username.text = (value['username'] ?? '').toString();
       _mode = (value['authMode'] ?? 'token').toString();
+      _tokenConfigured = value['tokenConfigured'] == true;
       _rate.text = (value['uploadRateLimitMBps'] ?? 0).toString();
       final schedule = await AppBridge.call('BackupScheduledGetSettings');
       _schedule = Map<String, dynamic>.from(schedule as Map);
@@ -335,6 +339,26 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
     'uploadRateLimitMBps': _rate.text.trim(),
   };
 
+  Future<void> _toggleTokenVisibility() async {
+    if (_tokenVisible) {
+      setState(() => _tokenVisible = false);
+      return;
+    }
+    if (_token.text.isEmpty) {
+      setState(() => _revealingToken = true);
+      try {
+        _token.text = (await AppBridge.call('BackupOpenListRevealToken') ?? '')
+            .toString();
+      } catch (error) {
+        if (mounted) showPrismNotice(context, error.toString());
+        return;
+      } finally {
+        if (mounted) setState(() => _revealingToken = false);
+      }
+    }
+    if (mounted) setState(() => _tokenVisible = true);
+  }
+
   Future<void> _loadFiles() async {
     final value = await AppBridge.call('BackupOpenListList', [_payload]);
     _files = (value as List? ?? [])
@@ -354,9 +378,7 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
         await AppBridge.call('BackupOpenListSaveSettings', [_payload]);
         if (mounted) showPrismNotice(context, ('设置已保存').toString());
       } else if (action == 'upload') {
-        final result = await AppBridge.call('BackupOpenListUpload', [
-          _payload,
-        ]);
+        final result = await AppBridge.call('BackupOpenListUpload', [_payload]);
         await _loadFiles();
         if (mounted)
           showPrismNotice(
@@ -509,12 +531,35 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
                 ),
               ),
             ] else
-              PrismTextField(
-                controller: _token,
-                obscureText: true,
-                decoration: const PrismInputDecoration(
-                  labelText: 'Token（留空保留原 Token）',
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: PrismTextField(
+                      controller: _token,
+                      obscureText: !_tokenVisible,
+                      decoration: PrismInputDecoration(
+                        labelText: 'Token（留空保留原 Token）',
+                        hintText: _tokenConfigured ? '已保存，点击眼睛查看' : null,
+                      ),
+                    ),
+                  ),
+                  prism.IconButton(
+                    onPressed: _busy.isEmpty && !_revealingToken
+                        ? _toggleTokenVisibility
+                        : null,
+                    icon: _revealingToken
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: PrismProgressIndicator(size: 18),
+                          )
+                        : Icon(
+                            _tokenVisible
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                          ),
+                  ),
+                ],
               ),
             PrismTextField(
               controller: _rate,
@@ -699,9 +744,12 @@ class _S3ConfigPageState extends State<S3ConfigPage> {
   final _accessKey = TextEditingController();
   final _secret = TextEditingController();
   final _token = TextEditingController();
+  final Map<String, bool> _credentialConfigured = {};
+  final Map<String, bool> _visibleCredentials = {};
   bool _pathStyle = false;
   bool _loading = true;
   String _busy = '';
+  String _revealingCredential = '';
   List<Map<String, dynamic>> _files = [];
 
   @override
@@ -732,6 +780,10 @@ class _S3ConfigPageState extends State<S3ConfigPage> {
       _bucket.text = (value['bucket'] ?? '').toString();
       _prefix.text = (value['prefix'] ?? '').toString();
       _pathStyle = value['forcePathStyle'] == true;
+      _credentialConfigured
+        ..['accessKeyID'] = value['accessKeyIDConfigured'] == true
+        ..['secretAccessKey'] = value['secretAccessKeyConfigured'] == true
+        ..['sessionToken'] = value['sessionTokenConfigured'] == true;
       if (_bucket.text.isNotEmpty) await _loadFiles();
     } catch (error) {
       if (mounted) showPrismNotice(context, (error.toString()).toString());
@@ -749,6 +801,49 @@ class _S3ConfigPageState extends State<S3ConfigPage> {
     'secretAccessKey': _secret.text.trim(),
     'sessionToken': _token.text.trim(),
   };
+
+  Future<void> _toggleCredentialVisibility(
+    String field,
+    TextEditingController controller,
+  ) async {
+    if (_visibleCredentials[field] == true) {
+      setState(() => _visibleCredentials[field] = false);
+      return;
+    }
+    setState(() => _revealingCredential = field);
+    try {
+      if (controller.text.isEmpty) {
+        controller.text =
+            (await AppBridge.call('BackupS3RevealCredential', [field]) ?? '')
+                .toString();
+      }
+      if (mounted) setState(() => _visibleCredentials[field] = true);
+    } catch (error) {
+      if (mounted) showPrismNotice(context, error.toString());
+    } finally {
+      if (mounted) setState(() => _revealingCredential = '');
+    }
+  }
+
+  Widget _credentialVisibilityButton(
+    String field,
+    TextEditingController controller,
+  ) => prism.IconButton(
+    onPressed: _busy.isEmpty && _revealingCredential.isEmpty
+        ? () => _toggleCredentialVisibility(field, controller)
+        : null,
+    icon: _revealingCredential == field
+        ? const SizedBox(
+            width: 18,
+            height: 18,
+            child: PrismProgressIndicator(size: 18),
+          )
+        : Icon(
+            _visibleCredentials[field] == true
+                ? Icons.visibility_off_outlined
+                : Icons.visibility_outlined,
+          ),
+  );
 
   Future<void> _action(String method) async {
     setState(() => _busy = method);
@@ -824,10 +919,7 @@ class _S3ConfigPageState extends State<S3ConfigPage> {
     if (yes != true) return;
     setState(() => _busy = 'restore');
     try {
-      final result = await AppBridge.call('BackupS3Restore', [
-        _payload,
-        name,
-      ]);
+      final result = await AppBridge.call('BackupS3Restore', [_payload, name]);
       if (mounted)
         showPrismNotice(
           context,
@@ -843,10 +935,7 @@ class _S3ConfigPageState extends State<S3ConfigPage> {
   Future<void> _downloadS3(String name) async {
     setState(() => _busy = 'download');
     try {
-      final result = await AppBridge.call('BackupS3Download', [
-        _payload,
-        name,
-      ]);
+      final result = await AppBridge.call('BackupS3Download', [_payload, name]);
       if (mounted)
         showPrismNotice(
           context,
@@ -907,25 +996,56 @@ class _S3ConfigPageState extends State<S3ConfigPage> {
               controller: _prefix,
               decoration: const PrismInputDecoration(labelText: '备份目录前缀'),
             ),
-            PrismTextField(
-              controller: _accessKey,
-              decoration: const PrismInputDecoration(
-                labelText: 'Access Key ID',
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: PrismTextField(
+                    controller: _accessKey,
+                    obscureText: _visibleCredentials['accessKeyID'] != true,
+                    decoration: PrismInputDecoration(
+                      labelText: 'Access Key ID',
+                      hintText: _credentialConfigured['accessKeyID'] == true
+                          ? '已保存，点击眼睛查看'
+                          : null,
+                    ),
+                  ),
+                ),
+                _credentialVisibilityButton('accessKeyID', _accessKey),
+              ],
             ),
-            PrismTextField(
-              controller: _secret,
-              obscureText: true,
-              decoration: const PrismInputDecoration(
-                labelText: 'Secret Access Key',
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: PrismTextField(
+                    controller: _secret,
+                    obscureText: _visibleCredentials['secretAccessKey'] != true,
+                    decoration: PrismInputDecoration(
+                      labelText: 'Secret Access Key',
+                      hintText: _credentialConfigured['secretAccessKey'] == true
+                          ? '已保存，点击眼睛查看'
+                          : null,
+                    ),
+                  ),
+                ),
+                _credentialVisibilityButton('secretAccessKey', _secret),
+              ],
             ),
-            PrismTextField(
-              controller: _token,
-              obscureText: true,
-              decoration: const PrismInputDecoration(
-                labelText: 'Session Token（可选）',
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: PrismTextField(
+                    controller: _token,
+                    obscureText: _visibleCredentials['sessionToken'] != true,
+                    decoration: PrismInputDecoration(
+                      labelText: 'Session Token（可选）',
+                      hintText: _credentialConfigured['sessionToken'] == true
+                          ? '已保存，点击眼睛查看'
+                          : null,
+                    ),
+                  ),
+                ),
+                _credentialVisibilityButton('sessionToken', _token),
+              ],
             ),
             PrismSwitchTile(
               contentPadding: EdgeInsets.zero,

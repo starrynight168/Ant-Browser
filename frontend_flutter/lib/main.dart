@@ -563,9 +563,11 @@ class _BrowserListPageState extends State<BrowserListPage> {
   final Set<String> _selectedProfileIds = {};
   List<Map<String, dynamic>> _profiles = [];
   List<Map<String, dynamic>> _groups = [];
+  final Set<String> _testingProxyIds = {};
   bool _loading = true;
   String? _error;
   String? _busyProfile;
+  String _viewMode = 'list';
   String _query = '';
   String _statusFilter = 'all';
   String _tagFilter = '';
@@ -578,6 +580,8 @@ class _BrowserListPageState extends State<BrowserListPage> {
     super.initState();
     _query = widget.initialQuery;
     _searchController.text = widget.initialQuery;
+    final savedView = AppBridge.readStorage('browser:viewMode');
+    if (savedView == 'card') _viewMode = 'card';
     _reload();
   }
 
@@ -626,7 +630,20 @@ class _BrowserListPageState extends State<BrowserListPage> {
     final running = profile['running'] == true;
     setState(() => _busyProfile = id);
     try {
-      if (!running) await _warmProfileProxy(profile);
+      if (!running) {
+        final validation = await AppBridge.call('ValidateProxyConfig', [
+          (profile['proxyConfig'] ?? '').toString(),
+          (profile['proxyId'] ?? '').toString(),
+        ]);
+        if (validation is Map && validation['supported'] == false) {
+          await _showProxyStartDialog(
+            profile,
+            (validation['errorMsg'] ?? '当前代理链路不可用').toString(),
+          );
+          return;
+        }
+        await _warmProfileProxy(profile);
+      }
       await AppBridge.call(
         running ? 'BrowserInstanceStop' : 'BrowserInstanceStart',
         [id],
@@ -639,6 +656,406 @@ class _BrowserListPageState extends State<BrowserListPage> {
     } finally {
       if (mounted) setState(() => _busyProfile = null);
     }
+  }
+
+  Future<void> _showProxyStartDialog(
+    Map<String, dynamic> profile,
+    String error,
+  ) async {
+    final action = await showPrismDialog<String>(
+      context: context,
+      builder: (dialogContext) => PrismDialog(
+        title: const Text('代理链路不可用'),
+        content: Text('$error\n\n可以本次直连启动，或先修改实例代理。'),
+        actions: [
+          prism.TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('取消'),
+          ),
+          prism.OutlinedButton(
+            onPressed: () => Navigator.pop(dialogContext, 'edit'),
+            child: const Text('修改代理'),
+          ),
+          prism.FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, 'direct'),
+            child: const Text('直连启动'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (action == 'edit') await _editProfile(profile);
+    if (action == 'direct') await _startProfileDirect(profile);
+  }
+
+  Future<void> _startProfileDirect(Map<String, dynamic> profile) async {
+    final id = (profile['profileId'] ?? '').toString();
+    if (id.isEmpty) return;
+    setState(() => _busyProfile = id);
+    try {
+      await AppBridge.call('BrowserInstanceStartDirect', [id]);
+      await _reload();
+    } catch (error) {
+      if (mounted) showPrismNotice(context, '直连启动失败：$error');
+    } finally {
+      if (mounted) setState(() => _busyProfile = null);
+    }
+  }
+
+  Future<void> _testProfileProxy(Map<String, dynamic> profile) async {
+    final profileId = (profile['profileId'] ?? '').toString();
+    if (profileId.isEmpty || _testingProxyIds.contains(profileId)) return;
+    setState(() => _testingProxyIds.add(profileId));
+    try {
+      var proxyId = (profile['proxyId'] ?? '').toString();
+      if ((profile['proxyMode'] ?? '').toString() == 'dynamic') {
+        final groups = await AppBridge.call('BrowserProxyVirtualGroupList');
+        final groupName = (profile['proxyGroupName'] ?? '').toString();
+        final matches = (groups as List? ?? []).whereType<Map>().where(
+          (group) => group['groupName']?.toString() == groupName,
+        );
+        if (matches.isNotEmpty) {
+          final group = matches.first;
+          proxyId =
+              (group['selectedProxyId'] ?? group['preferredProxyId'] ?? '')
+                  .toString();
+          if (proxyId.isEmpty) {
+            final members = group['memberProxyIds'] as List? ?? [];
+            if (members.isNotEmpty) proxyId = members.first.toString();
+          }
+        }
+      }
+      final proxyConfig = (profile['proxyConfig'] ?? '').toString();
+      if (proxyId.isEmpty && proxyConfig.isEmpty) {
+        if (mounted) showPrismNotice(context, '当前实例没有可测速的代理');
+        return;
+      }
+      final result = proxyId.isNotEmpty
+          ? await AppBridge.call('BrowserProxyTestSpeed', [proxyId])
+          : await AppBridge.call('TestProxyConnectivity', [
+              profileId,
+              proxyConfig,
+            ]);
+      final values = result is Map ? Map<String, dynamic>.from(result) : {};
+      final message = values['ok'] == true
+          ? '代理可用，延迟 ${values['latencyMs'] ?? 0} ms'
+          : '代理测试失败：${values['error'] ?? '连接失败'}';
+      if (mounted) showPrismNotice(context, message);
+    } catch (error) {
+      if (mounted) showPrismNotice(context, '代理测试失败：$error');
+    } finally {
+      if (mounted) setState(() => _testingProxyIds.remove(profileId));
+    }
+  }
+
+  Future<void> _pickProfileProxy(Map<String, dynamic> profile) async {
+    final profileId = (profile['profileId'] ?? '').toString();
+    if (profileId.isEmpty) return;
+    try {
+      final responses = await Future.wait([
+        AppBridge.call('BrowserProxyList'),
+        AppBridge.call('BrowserProxyVirtualGroupList'),
+      ]);
+      final proxies = (responses[0] as List? ?? [])
+          .whereType<Map>()
+          .map((proxy) => Map<String, dynamic>.from(proxy))
+          .toList();
+      final direct = proxies.any(
+        (proxy) => proxy['proxyConfig'] == 'direct://',
+      );
+      if (!direct) {
+        proxies.insert(0, {
+          'proxyId': '',
+          'proxyName': '直连',
+          'proxyConfig': 'direct://',
+          '_kind': 'direct',
+        });
+      }
+      final virtualGroups = (responses[1] as List? ?? [])
+          .whereType<Map>()
+          .map((group) => Map<String, dynamic>.from(group))
+          .toList();
+      final search = TextEditingController();
+      final selection = await showPrismDialog<Map<String, dynamic>>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (context, setDialog) {
+            final query = search.text.trim().toLowerCase();
+            final filteredProxies = proxies.where((proxy) {
+              final text =
+                  '${proxy['proxyName'] ?? ''} ${proxy['proxyId'] ?? ''} ${proxy['groupName'] ?? ''} ${proxy['proxyConfig'] ?? ''}'
+                      .toLowerCase();
+              return query.isEmpty || text.contains(query);
+            });
+            final filteredGroups = virtualGroups.where((group) {
+              final text =
+                  '${group['groupName'] ?? ''} ${group['groupId'] ?? ''}'
+                      .toLowerCase();
+              return query.isEmpty || text.contains(query);
+            });
+            return PrismDialog(
+              title: const Text('切换代理'),
+              content: SizedBox(
+                width: 520,
+                height: 440,
+                child: Column(
+                  children: [
+                    PrismTextField(
+                      controller: search,
+                      decoration: const PrismInputDecoration(
+                        labelText: '搜索代理或分组',
+                      ),
+                      onChanged: (_) => setDialog(() {}),
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: ListView(
+                        children: [
+                          for (final proxy in filteredProxies)
+                            PrismListTile(
+                              leading: const Icon(Icons.public),
+                              title: Text(
+                                (proxy['proxyName'] ?? proxy['proxyId'] ?? '直连')
+                                    .toString(),
+                              ),
+                              subtitle: Text(
+                                (proxy['groupName'] ??
+                                        proxy['proxyConfig'] ??
+                                        '')
+                                    .toString(),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              onTap: () => Navigator.pop(dialogContext, proxy),
+                            ),
+                          for (final group in filteredGroups)
+                            PrismListTile(
+                              leading: const Icon(Icons.hub_outlined),
+                              title: Text('虚拟分组 · ${group['groupName'] ?? ''}'),
+                              subtitle: const Text('按分组策略选择代理'),
+                              onTap: () => Navigator.pop(dialogContext, {
+                                ...group,
+                                '_kind': 'virtual',
+                              }),
+                            ),
+                          if (!filteredProxies.any((_) => true) &&
+                              !filteredGroups.any((_) => true))
+                            const Padding(
+                              padding: EdgeInsets.all(24),
+                              child: Center(child: Text('没有匹配的代理')),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                prism.TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('取消'),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+      search.dispose();
+      if (selection == null || !mounted) return;
+      final kind = (selection['_kind'] ?? '').toString();
+      final isVirtual = kind == 'virtual';
+      final proxyConfig = (selection['proxyConfig'] ?? '').toString();
+      final proxyId = (selection['proxyId'] ?? '').toString();
+      final input = <String, dynamic>{
+        'profileName': (profile['profileName'] ?? '').toString(),
+        'userDataDir': (profile['userDataDir'] ?? '').toString(),
+        'coreId': (profile['coreId'] ?? '').toString(),
+        'restoreLastSession': profile['restoreLastSession'] ?? '',
+        'fingerprintArgs': (profile['fingerprintArgs'] as List? ?? [])
+            .map((item) => item.toString())
+            .toList(),
+        'proxyMode': isVirtual ? 'dynamic' : 'fixed',
+        'proxyId': isVirtual ? '' : proxyId,
+        'proxyConfig': isVirtual
+            ? ''
+            : proxyId.isEmpty
+            ? proxyConfig
+            : '',
+        'proxyGroupName': isVirtual
+            ? (selection['groupName'] ?? '').toString()
+            : '',
+        'memoryLimitMb': profile['memoryLimitMb'] ?? 0,
+        'launchArgs': (profile['launchArgs'] as List? ?? [])
+            .map((item) => item.toString())
+            .toList(),
+        'tags': (profile['tags'] as List? ?? [])
+            .map((item) => item.toString())
+            .toList(),
+        'keywords': (profile['keywords'] as List? ?? [])
+            .map((item) => item.toString())
+            .toList(),
+        'groupId': (profile['groupId'] ?? '').toString(),
+      };
+      await AppBridge.call('BrowserProfileUpdate', [profileId, input]);
+      await _reload();
+      if (mounted) showPrismNotice(context, '代理已切换');
+    } catch (error) {
+      if (mounted) showPrismNotice(context, '切换代理失败：$error');
+    }
+  }
+
+  String _profileProxyLabel(Map<String, dynamic> profile) {
+    final mode = (profile['proxyMode'] ?? '').toString();
+    if (mode == 'dynamic') {
+      return '动态分组 · ${(profile['proxyGroupName'] ?? '未选择').toString()}';
+    }
+    if (mode == 'local') return '本地代理配置';
+    final config = (profile['proxyConfig'] ?? '').toString();
+    if (config == 'direct://' || config.isEmpty) return '直连';
+    return (profile['proxyName'] ?? profile['proxyId'] ?? '代理').toString();
+  }
+
+  void _toggleViewMode() {
+    setState(() => _viewMode = _viewMode == 'list' ? 'card' : 'list');
+    AppBridge.writeStorage('browser:viewMode', _viewMode);
+  }
+
+  Widget _profileGridCard(Map<String, dynamic> profile) {
+    final id = (profile['profileId'] ?? '').toString();
+    final name = (profile['profileName'] ?? '未命名实例').toString();
+    final running = profile['running'] == true;
+    final tags = (profile['tags'] as List? ?? [])
+        .map((tag) => tag.toString())
+        .where((tag) => tag.isNotEmpty)
+        .toList();
+    final busy = _busyProfile == id;
+    return PrismCard(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: prism.Theme.of(context).colorScheme.outlineVariant,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                prism.Checkbox(
+                  value: _selectedProfileIds.contains(id),
+                  onChanged: (selected) => setState(() {
+                    if (selected == true) {
+                      _selectedProfileIds.add(id);
+                    } else {
+                      _selectedProfileIds.remove(id);
+                    }
+                  }),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      Text(
+                        id,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: prism.Theme.of(context)
+                              .colorScheme
+                              .onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                PrismPopupMenuButton<String>(
+                  tooltip: '更多操作',
+                  onSelected: (action) {
+                    if (action == 'detail') widget.onOpenDetails?.call(id);
+                    if (action == 'restart') _restartProfile(profile);
+                    if (action == 'edit') _editProfile(profile);
+                    if (action == 'copy') _copyProfile(profile);
+                    if (action == 'code') _editLaunchCode(profile);
+                    if (action == 'export') _exportProfiles([id]);
+                    if (action == 'delete') _deleteProfile(profile);
+                    if (action == 'change-proxy') _pickProfileProxy(profile);
+                    if (action == 'test-proxy') _testProfileProxy(profile);
+                  },
+                  itemBuilder: (_) => [
+                    const PrismMenuItem(value: 'detail', child: Text('查看详情')),
+                    const PrismMenuItem(
+                      value: 'change-proxy',
+                      child: Text('切换代理'),
+                    ),
+                    PrismMenuItem(
+                      value: 'test-proxy',
+                      child: Text(
+                        _testingProxyIds.contains(id) ? '代理测试中…' : '测试代理',
+                      ),
+                    ),
+                    const PrismMenuItem(value: 'restart', child: Text('重启实例')),
+                    const PrismMenuItem(value: 'edit', child: Text('编辑实例')),
+                    const PrismMenuItem(value: 'copy', child: Text('复制配置')),
+                    const PrismMenuItem(value: 'code', child: Text('管理启动码')),
+                    const PrismMenuItem(value: 'export', child: Text('导出实例')),
+                    const PrismMenuItem(value: 'delete', child: Text('移入回收站')),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '代理：${_profileProxyLabel(profile)}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                color: prism.Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (tags.isNotEmpty)
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: [
+                  for (final tag in tags.take(4))
+                    PrismChip(
+                      label: Text(tag, style: const TextStyle(fontSize: 11)),
+                    ),
+                ],
+              ),
+            const Spacer(),
+            Row(
+              children: [
+                _RunningStatus(running: running),
+                const Spacer(),
+                PrismTonalButton.icon(
+                  onPressed: busy ? null : () => _toggleProfile(profile),
+                  icon: busy
+                      ? const SizedBox.square(
+                          dimension: 15,
+                          child: PrismProgressIndicator(),
+                        )
+                      : Icon(running ? Icons.stop : Icons.play_arrow, size: 18),
+                  child: Text(running ? '关闭' : '启动'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _warmProfileProxy(Map<String, dynamic> profile) async {
@@ -810,9 +1227,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
                                     groupId,
                                   ]);
                               }
-                              final groups = await AppBridge.call(
-                                'ListGroups',
-                              );
+                              final groups = await AppBridge.call('ListGroups');
                               _groups = (groups as List? ?? [])
                                   .whereType<Map>()
                                   .map((row) => Map<String, dynamic>.from(row))
@@ -2224,6 +2639,14 @@ class _BrowserListPageState extends State<BrowserListPage> {
                   ),
                 ),
               ),
+              prism.IconButton(
+                tooltip: _viewMode == 'card' ? '切换列表视图' : '切换卡片视图',
+                onPressed: _toggleViewMode,
+                icon: Icon(
+                  _viewMode == 'card' ? Icons.view_list : Icons.grid_view,
+                ),
+              ),
+              const SizedBox(width: 4),
               prism.OutlinedButton.icon(
                 onPressed: _loading ? null : _reload,
                 icon: const Icon(Icons.refresh, size: 18),
@@ -2434,6 +2857,20 @@ class _BrowserListPageState extends State<BrowserListPage> {
                 ? _ErrorPanel(message: _error!, onRetry: _reload)
                 : visible.isEmpty
                 ? _EmptyProfiles(hasProfiles: _profiles.isNotEmpty)
+                : _viewMode == 'card'
+                ? GridView.builder(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    gridDelegate:
+                        const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 480,
+                          mainAxisExtent: 220,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                        ),
+                    itemCount: visible.length,
+                    itemBuilder: (context, index) =>
+                        _profileGridCard(visible[index]),
+                  )
                 : ListView.separated(
                     itemCount: visible.length,
                     separatorBuilder: (context, index) =>
@@ -2444,6 +2881,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
                       final id = profile['profileId']?.toString() ?? '';
                       final name = profile['profileName']?.toString().trim();
                       final busy = _busyProfile == id;
+                      final proxyLabel = _profileProxyLabel(profile);
                       final tags =
                           (profile['tags'] as List?)
                               ?.map((tag) => tag.toString())
@@ -2520,6 +2958,18 @@ class _BrowserListPageState extends State<BrowserListPage> {
                                             .onSurfaceVariant,
                                       ),
                                     ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      '代理：$proxyLabel',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: prism.Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -2574,14 +3024,30 @@ class _BrowserListPageState extends State<BrowserListPage> {
                                     widget.onOpenDetails?.call(id);
                                   if (action == 'restart')
                                     _restartProfile(profile);
+                                  if (action == 'change-proxy')
+                                    _pickProfileProxy(profile);
+                                  if (action == 'test-proxy')
+                                    _testProfileProxy(profile);
                                   if (action == 'export') _exportProfiles([id]);
                                   if (action == 'code')
                                     _editLaunchCode(profile);
                                 },
-                                itemBuilder: (_) => const [
+                                itemBuilder: (_) => [
                                   PrismMenuItem(
                                     value: 'detail',
                                     child: Text('查看详情'),
+                                  ),
+                                  PrismMenuItem(
+                                    value: 'change-proxy',
+                                    child: Text('切换代理'),
+                                  ),
+                                  PrismMenuItem(
+                                    value: 'test-proxy',
+                                    child: Text(
+                                      _testingProxyIds.contains(id)
+                                          ? '代理测试中…'
+                                          : '测试代理',
+                                    ),
                                   ),
                                   PrismMenuItem(
                                     value: 'restart',
