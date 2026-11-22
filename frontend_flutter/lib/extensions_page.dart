@@ -4,7 +4,7 @@ import 'prism_widgets.dart';
 
 import 'package:prism_ui/prism_ui.dart' as prism;
 
-import 'wails_bridge.dart';
+import 'app_bridge.dart';
 
 class ExtensionsPage extends StatefulWidget {
   const ExtensionsPage({super.key});
@@ -39,13 +39,13 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
   Future<void> _refresh() async {
     setState(() => _loading = true);
     try {
-      final value = await WailsBridge.call('BrowserExtensionList');
+      final value = await AppBridge.call('BrowserExtensionList');
       _items = (value as List? ?? [])
           .whereType<Map>()
           .map((e) => Map<String, dynamic>.from(e))
           .toList();
       try {
-        final proxies = await WailsBridge.call('BrowserProxyList');
+        final proxies = await AppBridge.call('BrowserProxyList');
         _proxies = (proxies as List? ?? [])
             .whereType<Map>()
             .map((e) => Map<String, dynamic>.from(e))
@@ -85,7 +85,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
     }
     setState(() => _busy = 'lookup');
     try {
-      final result = await WailsBridge.call('BrowserExtensionLookupWithProxy', [
+      final result = await AppBridge.call('BrowserExtensionLookupWithProxy', [
         {
           'query': query,
           'useProxy': _useProxy,
@@ -109,7 +109,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
       return;
     }
     await _run('install', () async {
-      await WailsBridge.call('BrowserExtensionInstallWithProxy', [
+      await AppBridge.call('BrowserExtensionInstallWithProxy', [
         {
           'query': id,
           'useProxy': _useProxy,
@@ -138,8 +138,8 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
     }
     try {
       final values = await Future.wait([
-        WailsBridge.call('BrowserExtensionManualInstallGuide', [target]),
-        WailsBridge.call('BrowserExtensionListManualDownloadFiles'),
+        AppBridge.call('BrowserExtensionManualInstallGuide', [target]),
+        AppBridge.call('BrowserExtensionListManualDownloadFiles'),
       ]);
       if (!mounted || values[0] is! Map) return;
       final guide = Map<String, dynamic>.from(values[0] as Map);
@@ -167,7 +167,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                     alignment: Alignment.centerLeft,
                     child: prism.TextButton.icon(
                       onPressed: () async {
-                        await WailsBridge.call(
+                        await AppBridge.call(
                           'BrowserExtensionOpenManualDownloadDir',
                         );
                       },
@@ -193,7 +193,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                   trailing: prism.TextButton(
                                     onPressed: () async {
                                       try {
-                                        await WailsBridge.call(
+                                        await AppBridge.call(
                                           'BrowserExtensionInstallManualDownloadFile',
                                           [file['fileName']],
                                         );
@@ -222,7 +222,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
               prism.TextButton(
                 onPressed: () async {
                   try {
-                    final value = await WailsBridge.call(
+                    final value = await AppBridge.call(
                       'BrowserExtensionListManualDownloadFiles',
                     );
                     files = (value as List? ?? [])
@@ -258,14 +258,14 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
     if (extensionId.isEmpty) return;
     setState(() => _busy = 'profiles:$extensionId');
     try {
-      final profileResult = await WailsBridge.call('BrowserProfileList');
+      final profileResult = await AppBridge.call('BrowserProfileList');
       final profiles = (profileResult as List? ?? [])
           .whereType<Map>()
           .map((row) => Map<String, dynamic>.from(row))
           .toList();
       final settingsResult = await Future.wait(
         profiles.map(
-          (profile) => WailsBridge.call('BrowserProfileExtensionGet', [
+          (profile) => AppBridge.call('BrowserProfileExtensionGet', [
             profile['profileId'],
           ]),
         ),
@@ -348,7 +348,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
         } else {
           ids.remove(extensionId);
         }
-        await WailsBridge.call('BrowserProfileExtensionSave', [
+        await AppBridge.call('BrowserProfileExtensionSave', [
           profileId,
           ids.toList(),
           true,
@@ -387,13 +387,13 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                   _openManualInstall();
                 } else if (mode == 'download-dir') {
                   _run(mode, () async {
-                    await WailsBridge.call(
+                    await AppBridge.call(
                       'BrowserExtensionOpenManualDownloadDir',
                     );
                   });
                 } else {
                   _run(mode, () async {
-                    await WailsBridge.call(
+                    await AppBridge.call(
                       mode == 'file'
                           ? 'BrowserExtensionInstallLocalFile'
                           : 'BrowserExtensionInstallLocalDirectory',
@@ -574,7 +574,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
               onPressed: busy
                   ? null
                   : () => _run(id, () async {
-                      await WailsBridge.call(
+                      await AppBridge.call(
                         'BrowserExtensionInstallWithProxy',
                         [
                           {
@@ -592,7 +592,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
               onPressed: busy
                   ? null
                   : () => _run(id, () async {
-                      await WailsBridge.call(
+                      await AppBridge.call(
                         'BrowserExtensionSetDefaultInstall',
                         [id, item['defaultInstall'] != true],
                       );
@@ -613,7 +613,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
               onChanged: busy
                   ? null
                   : (value) => _run(id, () async {
-                      await WailsBridge.call('BrowserExtensionSetEnabled', [
+                      await AppBridge.call('BrowserExtensionSetEnabled', [
                         id,
                         value,
                       ]);
@@ -644,7 +644,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                       );
                       if (confirm == true)
                         _run(id, () async {
-                          await WailsBridge.call('BrowserExtensionDelete', [
+                          await AppBridge.call('BrowserExtensionDelete', [
                             id,
                           ]);
                         });

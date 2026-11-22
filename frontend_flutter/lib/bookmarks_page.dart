@@ -2,7 +2,7 @@ import 'prism_widgets.dart';
 
 import 'package:prism_ui/prism_ui.dart' as prism;
 
-import 'wails_bridge.dart';
+import 'app_bridge.dart';
 
 class BookmarksPage extends StatefulWidget {
   const BookmarksPage({super.key});
@@ -30,7 +30,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final result = await WailsBridge.call('BookmarkList');
+      final result = await AppBridge.call('BookmarkList');
       if (!mounted) return;
       setState(() {
         _items = (result is List ? result : const [])
@@ -64,8 +64,8 @@ class _BookmarksPageState extends State<BookmarksPage> {
     }
     setState(() => _saving = true);
     try {
-      await WailsBridge.call('BookmarkSave', [_items]);
-      final sync = await WailsBridge.call('BookmarkSyncToProfiles');
+      await AppBridge.call('BookmarkSave', [_items]);
+      final sync = await AppBridge.call('BookmarkSyncToProfiles');
       _message(_syncMessage(sync, prefix: '书签已保存'));
     } catch (error) {
       _message('保存失败：$error');
@@ -77,7 +77,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
   Future<void> _reset() async {
     if (!await _confirm('恢复默认书签', '自定义书签将被默认书签替换。')) return;
     try {
-      await WailsBridge.call('BookmarkReset');
+      await AppBridge.call('BookmarkReset');
       await _load();
       _message('已恢复默认书签');
     } catch (error) {
@@ -89,7 +89,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
     if (!await _confirm('同步到现有实例', '把当前书签同步到已停止的浏览器实例。')) return;
     setState(() => _syncing = true);
     try {
-      final result = await WailsBridge.call('BookmarkSyncToProfiles');
+      final result = await AppBridge.call('BookmarkSyncToProfiles');
       _message(_syncMessage(result, prefix: '书签同步完成'));
     } catch (error) {
       _message('同步失败：$error');

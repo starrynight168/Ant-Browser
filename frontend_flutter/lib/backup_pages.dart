@@ -2,7 +2,7 @@ import 'prism_widgets.dart';
 
 import 'package:prism_ui/prism_ui.dart' as prism;
 
-import 'wails_bridge.dart';
+import 'app_bridge.dart';
 
 class BackupPage extends StatefulWidget {
   const BackupPage({
@@ -31,9 +31,9 @@ class _BackupPageState extends State<BackupPage> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final settings = await WailsBridge.call('BackupGetLocalSettings');
+      final settings = await AppBridge.call('BackupGetLocalSettings');
       _directory = (settings as Map?)?['localDirectory']?.toString() ?? '';
-      final result = await WailsBridge.call('BackupListLocalBackups', [
+      final result = await AppBridge.call('BackupListLocalBackups', [
         _directory,
       ]);
       _backups = (result as List? ?? [])
@@ -66,12 +66,12 @@ class _BackupPageState extends State<BackupPage> {
 
   Future<void> _chooseDirectory() async {
     await _run('directory', () async {
-      final selected = await WailsBridge.call('BackupSelectLocalDirectory');
+      final selected = await AppBridge.call('BackupSelectLocalDirectory');
       final selectedMap = selected as Map?;
       if (selectedMap?['cancelled'] == true) return null;
       _directory = selectedMap?['localDirectory']?.toString() ?? '';
       if (_directory.isNotEmpty)
-        await WailsBridge.call('BackupSaveLocalDirectory', [_directory]);
+        await AppBridge.call('BackupSaveLocalDirectory', [_directory]);
       return null;
     });
   }
@@ -98,7 +98,7 @@ class _BackupPageState extends State<BackupPage> {
     if (accepted == true)
       await _run(
         'restore',
-        () => WailsBridge.call('BackupRestoreLocalPackage', [backup['path']]),
+        () => AppBridge.call('BackupRestoreLocalPackage', [backup['path']]),
       );
   }
 
@@ -122,7 +122,7 @@ class _BackupPageState extends State<BackupPage> {
       ),
     );
     if (yes == true)
-      await _run('import', () => WailsBridge.call('BackupImportPackage'));
+      await _run('import', () => AppBridge.call('BackupImportPackage'));
   }
 
   @override
@@ -187,7 +187,7 @@ class _BackupPageState extends State<BackupPage> {
                       onPressed: _busy.isEmpty && _directory.isNotEmpty
                           ? () => _run(
                               'backup',
-                              () => WailsBridge.call('BackupCreatePackage', [
+                              () => AppBridge.call('BackupCreatePackage', [
                                 {'local': 'true'},
                               ]),
                             )
@@ -233,7 +233,7 @@ class _BackupPageState extends State<BackupPage> {
                               tooltip: '打开文件位置',
                               onPressed: () => _run(
                                 'open',
-                                () => WailsBridge.call('OpenBackupPath', [
+                                () => AppBridge.call('OpenBackupPath', [
                                   backup['path'],
                                 ]),
                               ),
@@ -307,14 +307,14 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
   Future<void> _load() async {
     try {
       final value = Map<String, dynamic>.from(
-        await WailsBridge.call('BackupOpenListGetSettings') as Map,
+        await AppBridge.call('BackupOpenListGetSettings') as Map,
       );
       _url.text = (value['baseURL'] ?? '').toString();
       _path.text = (value['remotePath'] ?? 'ant-chrome/backups').toString();
       _username.text = (value['username'] ?? '').toString();
       _mode = (value['authMode'] ?? 'token').toString();
       _rate.text = (value['uploadRateLimitMBps'] ?? 0).toString();
-      final schedule = await WailsBridge.call('BackupScheduledGetSettings');
+      final schedule = await AppBridge.call('BackupScheduledGetSettings');
       _schedule = Map<String, dynamic>.from(schedule as Map);
       _scheduleEnabled = _schedule['enabled'] == true;
       _scheduleTime = (_schedule['dailyTime'] ?? '03:00').toString();
@@ -336,7 +336,7 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
   };
 
   Future<void> _loadFiles() async {
-    final value = await WailsBridge.call('BackupOpenListList', [_payload]);
+    final value = await AppBridge.call('BackupOpenListList', [_payload]);
     _files = (value as List? ?? [])
         .whereType<Map>()
         .map((row) => Map<String, dynamic>.from(row))
@@ -348,13 +348,13 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
     setState(() => _busy = action);
     try {
       if (action == 'test') {
-        await WailsBridge.call('BackupOpenListTest', [_payload]);
+        await AppBridge.call('BackupOpenListTest', [_payload]);
         if (mounted) showPrismNotice(context, ('连接成功').toString());
       } else if (action == 'save') {
-        await WailsBridge.call('BackupOpenListSaveSettings', [_payload]);
+        await AppBridge.call('BackupOpenListSaveSettings', [_payload]);
         if (mounted) showPrismNotice(context, ('设置已保存').toString());
       } else if (action == 'upload') {
-        final result = await WailsBridge.call('BackupOpenListUpload', [
+        final result = await AppBridge.call('BackupOpenListUpload', [
           _payload,
         ]);
         await _loadFiles();
@@ -376,7 +376,7 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
   Future<void> _saveSchedule() async {
     setState(() => _busy = 'schedule');
     try {
-      final result = await WailsBridge.call('BackupScheduledSaveSettings', [
+      final result = await AppBridge.call('BackupScheduledSaveSettings', [
         {'enabled': _scheduleEnabled.toString(), 'dailyTime': _scheduleTime},
       ]);
       _schedule = Map<String, dynamic>.from(result as Map);
@@ -414,7 +414,7 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
     if (yes != true) return;
     setState(() => _busy = 'restore');
     try {
-      final result = await WailsBridge.call('BackupOpenListRestore', [
+      final result = await AppBridge.call('BackupOpenListRestore', [
         _payload,
         fileName,
       ]);
@@ -433,7 +433,7 @@ class _OpenListConfigPageState extends State<OpenListConfigPage> {
   Future<void> _download(String fileName) async {
     setState(() => _busy = 'download');
     try {
-      final result = await WailsBridge.call('BackupOpenListDownload', [
+      final result = await AppBridge.call('BackupOpenListDownload', [
         _payload,
         fileName,
       ]);
@@ -725,7 +725,7 @@ class _S3ConfigPageState extends State<S3ConfigPage> {
   Future<void> _load() async {
     try {
       final value = Map<String, dynamic>.from(
-        await WailsBridge.call('BackupS3GetSettings') as Map,
+        await AppBridge.call('BackupS3GetSettings') as Map,
       );
       _endpoint.text = (value['endpoint'] ?? '').toString();
       _region.text = (value['region'] ?? 'us-east-1').toString();
@@ -754,10 +754,10 @@ class _S3ConfigPageState extends State<S3ConfigPage> {
     setState(() => _busy = method);
     try {
       if (method == 'BackupS3Test') {
-        await WailsBridge.call(method, [_payload]);
+        await AppBridge.call(method, [_payload]);
         if (mounted) showPrismNotice(context, ('连接成功').toString());
       } else {
-        await WailsBridge.call('BackupS3SaveSettings', [_payload]);
+        await AppBridge.call('BackupS3SaveSettings', [_payload]);
         await _loadFiles();
         if (mounted) showPrismNotice(context, ('设置已保存').toString());
       }
@@ -769,7 +769,7 @@ class _S3ConfigPageState extends State<S3ConfigPage> {
   }
 
   Future<void> _loadFiles() async {
-    final value = await WailsBridge.call('BackupS3List', [_payload]);
+    final value = await AppBridge.call('BackupS3List', [_payload]);
     _files = (value as List? ?? [])
         .whereType<Map>()
         .map((row) => Map<String, dynamic>.from(row))
@@ -788,7 +788,7 @@ class _S3ConfigPageState extends State<S3ConfigPage> {
   Future<void> _upload() async {
     setState(() => _busy = 'upload');
     try {
-      final result = await WailsBridge.call('BackupS3Upload', [_payload]);
+      final result = await AppBridge.call('BackupS3Upload', [_payload]);
       await _loadFiles();
       if (mounted)
         showPrismNotice(
@@ -824,7 +824,7 @@ class _S3ConfigPageState extends State<S3ConfigPage> {
     if (yes != true) return;
     setState(() => _busy = 'restore');
     try {
-      final result = await WailsBridge.call('BackupS3Restore', [
+      final result = await AppBridge.call('BackupS3Restore', [
         _payload,
         name,
       ]);
@@ -843,7 +843,7 @@ class _S3ConfigPageState extends State<S3ConfigPage> {
   Future<void> _downloadS3(String name) async {
     setState(() => _busy = 'download');
     try {
-      final result = await WailsBridge.call('BackupS3Download', [
+      final result = await AppBridge.call('BackupS3Download', [
         _payload,
         name,
       ]);

@@ -4,7 +4,7 @@ import 'prism_widgets.dart';
 
 import 'package:prism_ui/prism_ui.dart' as prism;
 
-import 'wails_bridge.dart';
+import 'app_bridge.dart';
 
 class BrowserProfileToolsPage extends StatefulWidget {
   const BrowserProfileToolsPage({
@@ -51,7 +51,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
   Future<void> _reload() async {
     if (mounted) setState(() => _loading = true);
     try {
-      final profiles = await WailsBridge.call('BrowserProfileList');
+      final profiles = await AppBridge.call('BrowserProfileList');
       final rows = (profiles as List? ?? [])
           .whereType<Map>()
           .map((row) => Map<String, dynamic>.from(row))
@@ -69,7 +69,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
   }
 
   Future<void> _loadSnapshots() async {
-    final value = await WailsBridge.call('BrowserSnapshotList', [
+    final value = await AppBridge.call('BrowserSnapshotList', [
       widget.profileId,
     ]);
     _snapshots = (value as List? ?? [])
@@ -79,7 +79,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
   }
 
   Future<void> _loadTabs() async {
-    final value = await WailsBridge.call('BrowserInstanceGetTabs', [
+    final value = await AppBridge.call('BrowserInstanceGetTabs', [
       widget.profileId,
     ]);
     _tabs = (value as List? ?? [])
@@ -92,7 +92,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
   Future<void> _loadCookies() async {
     setState(() => _busy = 'cookies');
     try {
-      final value = await WailsBridge.call('BrowserGetCookies', [
+      final value = await AppBridge.call('BrowserGetCookies', [
         widget.profileId,
       ]);
       _cookies = (value as List? ?? [])
@@ -128,7 +128,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
 
   Future<void> _toggle() => _perform(
     'instance',
-    () => WailsBridge.call(
+    () => AppBridge.call(
       _running ? 'BrowserInstanceStop' : 'BrowserInstanceStart',
       [widget.profileId],
     ),
@@ -136,7 +136,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
 
   Future<void> _restart() => _perform(
     'instance',
-    () => WailsBridge.call('BrowserInstanceRestart', [widget.profileId]),
+    () => AppBridge.call('BrowserInstanceRestart', [widget.profileId]),
   );
 
   Future<void> _openUserDataDir() async {
@@ -145,7 +145,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
       _message('该实例没有用户数据目录');
       return;
     }
-    await _perform('folder', () => WailsBridge.call('OpenUserDataDir', [path]));
+    await _perform('folder', () => AppBridge.call('OpenUserDataDir', [path]));
   }
 
   Future<void> _openUrl() async {
@@ -154,7 +154,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
     await _perform(
       'url',
       () =>
-          WailsBridge.call('BrowserInstanceOpenUrl', [widget.profileId, value]),
+          AppBridge.call('BrowserInstanceOpenUrl', [widget.profileId, value]),
     );
   }
 
@@ -187,7 +187,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
     await _perform(
       'snapshot',
       () =>
-          WailsBridge.call('BrowserSnapshotCreate', [widget.profileId, value]),
+          AppBridge.call('BrowserSnapshotCreate', [widget.profileId, value]),
     );
   }
 
@@ -213,7 +213,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
     if (yes != true) return;
     await _perform(
       'snapshot',
-      () => WailsBridge.call('BrowserSnapshotRestore', [
+      () => AppBridge.call('BrowserSnapshotRestore', [
         widget.profileId,
         snapshot['snapshotId'],
       ]),
@@ -242,7 +242,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
     if (yes != true) return;
     await _perform(
       'snapshot',
-      () => WailsBridge.call('BrowserSnapshotDelete', [
+      () => AppBridge.call('BrowserSnapshotDelete', [
         widget.profileId,
         snapshot['snapshotId'],
       ]),
@@ -252,7 +252,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
   Future<void> _exportCookies() async {
     setState(() => _busy = 'cookies');
     try {
-      _cookieExport = (await WailsBridge.call('BrowserExportCookies', [
+      _cookieExport = (await AppBridge.call('BrowserExportCookies', [
         widget.profileId,
       ])).toString();
       _cookieExportController.text = _cookieExport;
@@ -304,7 +304,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
       }
       await _perform(
         'cookies',
-        () => WailsBridge.call('BrowserSetCookies', [
+        () => AppBridge.call('BrowserSetCookies', [
           widget.profileId,
           decoded
               .map((item) => Map<String, dynamic>.from(item as Map))
@@ -338,7 +338,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
     if (yes != true) return;
     await _perform(
       'cookies',
-      () => WailsBridge.call('BrowserClearCookies', [widget.profileId]),
+      () => AppBridge.call('BrowserClearCookies', [widget.profileId]),
     );
     if (mounted) setState(() => _cookies = []);
   }

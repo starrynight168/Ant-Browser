@@ -1,4 +1,4 @@
-class WailsBridge {
+class AppBridge {
   static Future<void> initialize() async {}
 
   static Future<dynamic> call(String method, [List<Object?> arguments = const []]) async {

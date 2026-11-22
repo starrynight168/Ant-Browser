@@ -4,7 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 
-class WailsBridge {
+class AppBridge {
   static const _channel = MethodChannel('ant_browser/platform');
   static final HttpClient _http = HttpClient()
     ..connectionTimeout = const Duration(seconds: 5);
@@ -23,7 +23,7 @@ class WailsBridge {
     _channel.setMethodCallHandler((call) async {
       if (call.method == 'windowCloseRequested') {
         try {
-          final shouldBlock = await WailsBridge.call('HandleWindowCloseRequest');
+          final shouldBlock = await AppBridge.call('HandleWindowCloseRequest');
           if (shouldBlock != true) {
             await _channel.invokeMethod<void>('window.close');
           }

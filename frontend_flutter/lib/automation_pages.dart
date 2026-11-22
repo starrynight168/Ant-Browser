@@ -4,7 +4,7 @@ import 'prism_widgets.dart';
 
 import 'package:prism_ui/prism_ui.dart' as prism;
 
-import 'wails_bridge.dart';
+import 'app_bridge.dart';
 
 class AutomationPage extends StatefulWidget {
   const AutomationPage({
@@ -35,8 +35,8 @@ class _AutomationPageState extends State<AutomationPage> {
     setState(() => _loading = true);
     try {
       final result = await Future.wait([
-        WailsBridge.call('AutomationScriptList'),
-        WailsBridge.call('AutomationScriptRunList', [100]),
+        AppBridge.call('AutomationScriptList'),
+        AppBridge.call('AutomationScriptRunList', [100]),
       ]);
       _scripts = (result[0] as List? ?? [])
           .whereType<Map>()
@@ -60,9 +60,9 @@ class _AutomationPageState extends State<AutomationPage> {
     setState(() => _busy = mode);
     try {
       if (mode == 'library') {
-        await WailsBridge.call('AutomationScriptImportLocalLibrary');
+        await AppBridge.call('AutomationScriptImportLocalLibrary');
       } else {
-        await WailsBridge.call(
+        await AppBridge.call(
           mode == 'directory'
               ? 'AutomationScriptImportLocalDirectory'
               : 'AutomationScriptImportLocalFile',
@@ -130,7 +130,7 @@ class _AutomationPageState extends State<AutomationPage> {
     if (source.isEmpty || (mode == 'git' && selectedValues.length < 3)) return;
     setState(() => _busy = mode);
     try {
-      await WailsBridge.call(
+      await AppBridge.call(
         mode == 'git'
             ? 'AutomationScriptImportGit'
             : 'AutomationScriptImportRemote',
@@ -170,7 +170,7 @@ class _AutomationPageState extends State<AutomationPage> {
     if (confirmed != true) return;
     setState(() => _busy = id);
     try {
-      await WailsBridge.call('AutomationScriptDelete', [id]);
+      await AppBridge.call('AutomationScriptDelete', [id]);
       await _refresh();
     } catch (error) {
       if (mounted) {
@@ -188,7 +188,7 @@ class _AutomationPageState extends State<AutomationPage> {
         'directory' => 'AutomationScriptExportDirectory',
         _ => 'AutomationScriptExportZip',
       };
-      final result = await WailsBridge.call(method, [id]);
+      final result = await AppBridge.call(method, [id]);
       final message = result is Map ? result['message'] : null;
       if (mounted && message != null) {
         showPrismNotice(context, (message.toString()).toString());
@@ -205,7 +205,7 @@ class _AutomationPageState extends State<AutomationPage> {
     if (ids.isEmpty) return;
     setState(() => _busy = 'export');
     try {
-      final result = await WailsBridge.call('AutomationScriptExportBatchZip', [
+      final result = await AppBridge.call('AutomationScriptExportBatchZip', [
         ids,
       ]);
       final value = result is Map ? result['message'] : null;
@@ -511,7 +511,7 @@ class _AutomationScriptDetailPageState
       };
     } else {
       try {
-        final value = await WailsBridge.call('AutomationScriptGet', [
+        final value = await AppBridge.call('AutomationScriptGet', [
           widget.scriptId,
         ]);
         _record = Map<String, dynamic>.from(value as Map);
@@ -539,7 +539,7 @@ class _AutomationScriptDetailPageState
           .convert(publicApi['variables'] ?? []);
     }
     try {
-      final profiles = await WailsBridge.call('BrowserProfileList');
+      final profiles = await AppBridge.call('BrowserProfileList');
       _profiles = (profiles as List? ?? [])
           .whereType<Map>()
           .map((row) => Map<String, dynamic>.from(row))
@@ -649,7 +649,7 @@ class _AutomationScriptDetailPageState
           'variables': apiVariables,
         },
       };
-      final result = await WailsBridge.call('AutomationScriptSave', [next]);
+      final result = await AppBridge.call('AutomationScriptSave', [next]);
       _record = Map<String, dynamic>.from(result as Map);
       final savedPublicApi = _record!['publicAPI'];
       if (savedPublicApi is Map) {
@@ -701,7 +701,7 @@ class _AutomationScriptDetailPageState
       if (selected != null &&
           selected['running'] != true &&
           launchCode.isNotEmpty) {
-        await WailsBridge.call('BrowserInstanceStartByCode', [launchCode]);
+        await AppBridge.call('BrowserInstanceStartByCode', [launchCode]);
       }
       final targetSelector = selected == null
           ? null
@@ -710,7 +710,7 @@ class _AutomationScriptDetailPageState
               'profileName': selected['profileName'],
               if (launchCode.isNotEmpty) 'code': launchCode,
             };
-      final result = await WailsBridge.call('AutomationScriptRunWithOptions', [
+      final result = await AppBridge.call('AutomationScriptRunWithOptions', [
         {
           'scriptId': scriptId,
           'selectorText': selected == null
@@ -777,7 +777,7 @@ class _AutomationScriptDetailPageState
       _runOutput = '正在测试对外 API…';
     });
     try {
-      final info = await WailsBridge.call('GetLaunchServerInfo');
+      final info = await AppBridge.call('GetLaunchServerInfo');
       final baseUrl = info is Map
           ? (info['baseUrl'] ?? '').toString().replaceAll(RegExp(r'/+$'), '')
           : '';
@@ -785,7 +785,7 @@ class _AutomationScriptDetailPageState
       if (baseUrl.isEmpty || path.isEmpty) {
         throw StateError('请确认 Launch Server 已启动，并填写接口路径');
       }
-      final result = await WailsBridge.call('AutomationScriptInvokePublicAPI', [
+      final result = await AppBridge.call('AutomationScriptInvokePublicAPI', [
         {
           'url': '$baseUrl/api/automation/hooks/$path',
           'method': 'POST',
@@ -857,7 +857,7 @@ class _AutomationScriptDetailPageState
                           'directory' => 'AutomationScriptExportDirectory',
                           _ => 'AutomationScriptExportZip',
                         };
-                        final result = await WailsBridge.call(method, [
+                        final result = await AppBridge.call(method, [
                           widget.scriptId,
                         ]);
                         if (mounted &&
@@ -896,14 +896,14 @@ class _AutomationScriptDetailPageState
                         ),
                       );
                       if (yes == true) {
-                        await WailsBridge.call('AutomationScriptDelete', [
+                        await AppBridge.call('AutomationScriptDelete', [
                           widget.scriptId,
                         ]);
                         widget.onBack();
                       }
                     } else if (action == 'refresh') {
                       try {
-                        final refreshed = await WailsBridge.call(
+                        final refreshed = await AppBridge.call(
                           'AutomationScriptRefresh',
                           [widget.scriptId],
                         );

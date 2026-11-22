@@ -5,7 +5,7 @@ import 'prism_widgets.dart';
 import 'package:prism_ui/prism_ui.dart' as prism;
 import 'package:yaml/yaml.dart';
 
-import 'wails_bridge.dart';
+import 'app_bridge.dart';
 
 dynamic _plainYaml(dynamic value) {
   if (value is YamlMap) {
@@ -91,7 +91,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
   Future<void> _refresh() async {
     setState(() => _loading = true);
     try {
-      final result = await WailsBridge.call('BrowserProxyList');
+      final result = await AppBridge.call('BrowserProxyList');
       _proxies = (result as List? ?? [])
           .whereType<Map>()
           .map((row) => Map<String, dynamic>.from(row))
@@ -104,7 +104,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
   }
 
   Future<void> _save(List<Map<String, dynamic>> next) async {
-    await WailsBridge.call('SaveBrowserProxies', [next]);
+    await AppBridge.call('SaveBrowserProxies', [next]);
     await _refresh();
   }
 
@@ -214,7 +214,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
     final id = (proxy['proxyId'] ?? '').toString();
     setState(() => _busy = id);
     try {
-      final result = await WailsBridge.call('BrowserProxyTestSpeed', [id]);
+      final result = await AppBridge.call('BrowserProxyTestSpeed', [id]);
       final row = Map<String, dynamic>.from(result as Map);
       final message = row['ok'] == true
           ? '连接成功，延迟 ${row['latencyMs'] ?? 0} ms'
@@ -231,7 +231,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
     final id = (proxy['proxyId'] ?? '').toString();
     setState(() => _busy = id);
     try {
-      final result = await WailsBridge.call('BrowserProxyCheckIPHealth', [id]);
+      final result = await AppBridge.call('BrowserProxyCheckIPHealth', [id]);
       final row = result is Map ? Map<String, dynamic>.from(result) : {};
       final message = row['ok'] == true
           ? 'IP 检查完成：${row['ip'] ?? '未返回 IP'} · ${row['country'] ?? row['region'] ?? ''}'
@@ -250,7 +250,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
 
   Future<void> _editCheckSettings() async {
     try {
-      final raw = await WailsBridge.call('GetProxyCheckSettings');
+      final raw = await AppBridge.call('GetProxyCheckSettings');
       if (raw is! Map) return;
       final settings = Map<String, dynamic>.from(raw);
       final bridgeTimeout = TextEditingController(
@@ -378,7 +378,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
       healthTarget.dispose();
       targets.dispose();
       if (result == null) return;
-      await WailsBridge.call('SaveProxyCheckSettings', [result]);
+      await AppBridge.call('SaveProxyCheckSettings', [result]);
       if (mounted) {
         showPrismNotice(context, ('代理检测设置已保存').toString());
       }
@@ -478,7 +478,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
             : 0;
         final importUrl = url.text.trim();
         final importPrefix = prefix.text.trim();
-        final fetch = await WailsBridge.call(
+        final fetch = await AppBridge.call(
           fetchProxyId.isEmpty
               ? 'BrowserProxyFetchClashByURL'
               : 'BrowserProxyFetchClashByURLWithProxy',
@@ -586,12 +586,12 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
           ...imported,
           ...missing,
         ];
-        await WailsBridge.call('SaveBrowserProxies', [next]);
+        await AppBridge.call('SaveBrowserProxies', [next]);
         final ignoredNames = nodes
             .where((node) => !selectedIndices.contains(node['index']))
             .map((node) => node['name'].toString())
             .toList();
-        await WailsBridge.call('BrowserProxySetSourceIgnoredNames', [
+        await AppBridge.call('BrowserProxySetSourceIgnoredNames', [
           sourceId,
           ignoredNames,
         ]);
@@ -849,7 +849,7 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final value = await WailsBridge.call('BrowserProxyList');
+      final value = await AppBridge.call('BrowserProxyList');
       _proxies = (value as List? ?? [])
           .whereType<Map>()
           .map((row) => Map<String, dynamic>.from(row))
@@ -866,7 +866,7 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
   }
 
   Future<void> _loadRecords() async {
-    final result = await WailsBridge.call('BrowserProxyAlignRecords', [
+    final result = await AppBridge.call('BrowserProxyAlignRecords', [
       _sourceId,
     ]);
     _records = (result as List? ?? [])
@@ -880,7 +880,7 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
   ) async {
     final url = (source['sourceUrl'] ?? '').toString();
     final fetchProxyId = (source['sourceFetchProxyId'] ?? '').toString();
-    final fetched = await WailsBridge.call(
+    final fetched = await AppBridge.call(
       fetchProxyId.isEmpty
           ? 'BrowserProxyFetchClashByURL'
           : 'BrowserProxyFetchClashByURLWithProxy',
@@ -903,13 +903,13 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
         .toSet();
     setState(() => _busy = id);
     try {
-      final result = await WailsBridge.call('BrowserProxyRefreshSource', [
+      final result = await AppBridge.call('BrowserProxyRefreshSource', [
         id,
         source['sourceFetchProxyId'] ?? '',
       ]);
       final value = Map<String, dynamic>.from(result as Map);
       if (manualPairs.isNotEmpty) {
-        final current = await WailsBridge.call('BrowserProxyList');
+        final current = await AppBridge.call('BrowserProxyList');
         final next = (current as List? ?? [])
             .whereType<Map>()
             .map((row) => Map<String, dynamic>.from(row))
@@ -950,7 +950,7 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
             'sourceLastRefreshError': '',
           };
         }
-        await WailsBridge.call('SaveBrowserProxies', [next]);
+        await AppBridge.call('SaveBrowserProxies', [next]);
         value['manualMatched'] = manualPairs.length;
       }
       final alignmentSummary = manualPairs.isEmpty
@@ -1312,9 +1312,9 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
     setState(() => _loading = true);
     try {
       final values = await Future.wait([
-        WailsBridge.call('BrowserProxyVirtualGroupList'),
-        WailsBridge.call('BrowserProxyList'),
-        WailsBridge.call('BrowserProxyVirtualGroupHealthList'),
+        AppBridge.call('BrowserProxyVirtualGroupList'),
+        AppBridge.call('BrowserProxyList'),
+        AppBridge.call('BrowserProxyVirtualGroupHealthList'),
       ]);
       _groups = (values[0] as List? ?? [])
           .whereType<Map>()
@@ -1420,7 +1420,7 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
         'strategy': strategy,
         'memberProxyIds': selected.toList(),
       };
-      await WailsBridge.call('SaveBrowserProxyVirtualGroup', [value]);
+      await AppBridge.call('SaveBrowserProxyVirtualGroup', [value]);
       await _refresh();
     }
     name.dispose();
@@ -1430,7 +1430,7 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
     final id = (group['groupId'] ?? '').toString();
     setState(() => _busy = id);
     try {
-      await WailsBridge.call('BrowserProxyVirtualGroupProbe', [id]);
+      await AppBridge.call('BrowserProxyVirtualGroupProbe', [id]);
       await _refresh();
     } catch (error) {
       if (mounted) showPrismNotice(context, (error.toString()).toString());
@@ -1459,7 +1459,7 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
       ),
     );
     if (yes == true) {
-      await WailsBridge.call('DeleteBrowserProxyVirtualGroup', [
+      await AppBridge.call('DeleteBrowserProxyVirtualGroup', [
         group['groupId'],
       ]);
       await _refresh();

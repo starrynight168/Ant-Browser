@@ -2,7 +2,7 @@ import 'prism_widgets.dart';
 
 import 'package:prism_ui/prism_ui.dart' as prism;
 
-import 'wails_bridge.dart';
+import 'app_bridge.dart';
 
 class TagsPage extends StatefulWidget {
   const TagsPage({super.key});
@@ -29,7 +29,7 @@ class _TagsPageState extends State<TagsPage> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final result = await WailsBridge.call('BrowserProfileList');
+      final result = await AppBridge.call('BrowserProfileList');
       final profiles = (result is List ? result : const [])
           .whereType<Map>()
           .map((item) => Map<String, dynamic>.from(item))
@@ -170,7 +170,7 @@ class _TagsPageState extends State<TagsPage> {
           _pendingTags.add(newName);
         });
       } else {
-        await WailsBridge.call('BrowserRenameTag', [oldName, newName]);
+        await AppBridge.call('BrowserRenameTag', [oldName, newName]);
         await _load();
       }
       if (_selectedTag == oldName) setState(() => _selectedTag = newName);
@@ -244,7 +244,7 @@ class _TagsPageState extends State<TagsPage> {
   ) async {
     setState(() => _saving = true);
     try {
-      await WailsBridge.call(method, args);
+      await AppBridge.call(method, args);
       _message('$success（${_selectedIds.length} 个实例）');
       await _load();
     } catch (error) {

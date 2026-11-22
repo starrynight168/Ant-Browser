@@ -2,7 +2,7 @@ import 'prism_widgets.dart';
 
 import 'package:prism_ui/prism_ui.dart' as prism;
 
-import 'wails_bridge.dart';
+import 'app_bridge.dart';
 
 class CoresPage extends StatefulWidget {
   const CoresPage({super.key});
@@ -23,7 +23,7 @@ class _CoresPageState extends State<CoresPage> {
   @override
   void initState() {
     super.initState();
-    _removeDownloadListener = WailsBridge.onEvent('download:progress', (
+    _removeDownloadListener = AppBridge.onEvent('download:progress', (
       payload,
     ) {
       if (!mounted || payload is! Map) return;
@@ -37,7 +37,7 @@ class _CoresPageState extends State<CoresPage> {
         });
       }
     });
-    _removeImportListener = WailsBridge.onEvent('core-import:progress', (
+    _removeImportListener = AppBridge.onEvent('core-import:progress', (
       payload,
     ) {
       if (!mounted || payload is! Map) return;
@@ -57,9 +57,9 @@ class _CoresPageState extends State<CoresPage> {
     setState(() => _loading = true);
     try {
       final values = await Future.wait([
-        WailsBridge.call('BrowserCoreList'),
-        WailsBridge.call('BrowserCoreExtendedInfo'),
-        WailsBridge.call('GetBrowserSettings'),
+        AppBridge.call('BrowserCoreList'),
+        AppBridge.call('BrowserCoreExtendedInfo'),
+        AppBridge.call('GetBrowserSettings'),
       ]);
       final cores = (values[0] is List ? values[0] as List : const [])
           .whereType<Map>()
@@ -73,7 +73,7 @@ class _CoresPageState extends State<CoresPage> {
       final checks = await Future.wait(
         cores.map((core) async {
           try {
-            return await WailsBridge.call('BrowserCoreValidate', [
+            return await AppBridge.call('BrowserCoreValidate', [
               '${core['corePath'] ?? ''}',
             ]);
           } catch (error) {
@@ -108,7 +108,7 @@ class _CoresPageState extends State<CoresPage> {
   Future<void> _scan() async {
     setState(() => _busy = true);
     try {
-      await WailsBridge.call('BrowserCoreScan');
+      await AppBridge.call('BrowserCoreScan');
       await _load();
       _message('内核扫描完成');
     } catch (error) {
@@ -289,7 +289,7 @@ class _CoresPageState extends State<CoresPage> {
     concurrent.dispose();
     if (result == null) return;
     try {
-      await WailsBridge.call('SaveBrowserSettings', [result]);
+      await AppBridge.call('SaveBrowserSettings', [result]);
       await _load();
       _message('浏览器全局设置已保存');
     } catch (error) {
@@ -300,7 +300,7 @@ class _CoresPageState extends State<CoresPage> {
   Future<void> _import() async {
     setState(() => _busy = true);
     try {
-      final result = await WailsBridge.call('BrowserCoreImportLocal');
+      final result = await AppBridge.call('BrowserCoreImportLocal');
       await _load();
       if (result != null) _message('内核已导入');
     } catch (error) {
@@ -338,7 +338,7 @@ class _CoresPageState extends State<CoresPage> {
                 child: prism.TextButton.icon(
                   onPressed: () async {
                     try {
-                      final validation = await WailsBridge.call(
+                      final validation = await AppBridge.call(
                         'BrowserCoreValidate',
                         [path.text.trim()],
                       );
@@ -385,7 +385,7 @@ class _CoresPageState extends State<CoresPage> {
     }
     setState(() => _busy = true);
     try {
-      await WailsBridge.call('BrowserCoreSave', [
+      await AppBridge.call('BrowserCoreSave', [
         {
           'coreId': '${core?['coreId'] ?? ''}',
           'coreName': result['name'],
@@ -405,7 +405,7 @@ class _CoresPageState extends State<CoresPage> {
   Future<void> _setDefault(String id) async {
     setState(() => _busy = true);
     try {
-      await WailsBridge.call('BrowserCoreSetDefault', [id]);
+      await AppBridge.call('BrowserCoreSetDefault', [id]);
       await _load();
       _message('默认内核已更新');
     } catch (error) {
@@ -437,7 +437,7 @@ class _CoresPageState extends State<CoresPage> {
     if (confirmed != true) return;
     setState(() => _busy = true);
     try {
-      await WailsBridge.call('BrowserCoreDelete', ['${core['coreId'] ?? ''}']);
+      await AppBridge.call('BrowserCoreDelete', ['${core['coreId'] ?? ''}']);
       await _load();
       _message('内核已删除');
     } catch (error) {
@@ -500,7 +500,7 @@ class _CoresPageState extends State<CoresPage> {
       };
     });
     try {
-      await WailsBridge.call('BrowserCoreRedownload', [
+      await AppBridge.call('BrowserCoreRedownload', [
         core['coreId'],
         ...values,
       ]);
@@ -574,7 +574,7 @@ class _CoresPageState extends State<CoresPage> {
       };
     });
     try {
-      await WailsBridge.call('BrowserCoreDownload', values);
+      await AppBridge.call('BrowserCoreDownload', values);
     } catch (error) {
       _message('下载失败：$error');
       if (mounted) setState(() => _downloadProgress = null);
@@ -755,7 +755,7 @@ class _CoresPageState extends State<CoresPage> {
                                 tooltip: '打开所在位置',
                                 onPressed: () async {
                                   try {
-                                    await WailsBridge.call('OpenCorePath', [
+                                    await AppBridge.call('OpenCorePath', [
                                       '${core['corePath'] ?? ''}',
                                     ]);
                                   } catch (error) {

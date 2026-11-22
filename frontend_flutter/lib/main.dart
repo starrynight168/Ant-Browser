@@ -26,13 +26,13 @@ import 'proxy_pages.dart';
 import 'tags_page.dart';
 import 'settings_page.dart';
 import 'theme_state.dart';
-import 'wails_bridge.dart';
+import 'app_bridge.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await WailsBridge.initialize();
+  await AppBridge.initialize();
   try {
-    final settings = WailsBridge.readStorage('app_settings');
+    final settings = AppBridge.readStorage('app_settings');
     if (settings.isNotEmpty) {
       final value = (jsonDecode(settings) as Map)['theme'];
       if (value is String) setAppThemeMode(value);
@@ -181,7 +181,7 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
     super.initState();
     _notificationStore = NotificationStore()
       ..addListener(_refreshForNotifications);
-    _removeCloseListener = WailsBridge.onEvent('app:request-close', (_) {
+    _removeCloseListener = AppBridge.onEvent('app:request-close', (_) {
       _showCloseDialog();
     });
   }
@@ -221,7 +221,7 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
     _closeDialogOpen = true;
     String? action;
     try {
-      final platform = await WailsBridge.platform();
+      final platform = await AppBridge.platform();
       if (!mounted) return;
       action = await Navigator.of(context, rootNavigator: false).push<String>(
         PageRouteBuilder<String>(
@@ -267,23 +267,23 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
     }
     if (!mounted || action == null) return;
     if (action == 'minimize') {
-      if ((await WailsBridge.platform()).toLowerCase() == 'windows') {
-        WailsBridge.hideWindow();
+      if ((await AppBridge.platform()).toLowerCase() == 'windows') {
+        AppBridge.hideWindow();
       } else {
-        WailsBridge.minimiseWindow();
+        AppBridge.minimiseWindow();
       }
       return;
     }
     if (action == 'quit-app') {
-      await WailsBridge.call('QuitAppOnly');
+      await AppBridge.call('QuitAppOnly');
       return;
     }
     if (action == 'quit-all') {
-      WailsBridge.hideWindow();
+      AppBridge.hideWindow();
       try {
-        await WailsBridge.call('ForceQuit');
+        await AppBridge.call('ForceQuit');
       } catch (_) {
-        WailsBridge.quit();
+        AppBridge.quit();
       }
     }
   }
@@ -593,7 +593,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
       _error = null;
     });
     try {
-      final result = await WailsBridge.call('BrowserProfileList');
+      final result = await AppBridge.call('BrowserProfileList');
       final rows = result is List ? result : const [];
       if (!mounted) return;
       setState(() {
@@ -603,7 +603,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
             .toList();
       });
       try {
-        final groups = await WailsBridge.call('ListGroups');
+        final groups = await AppBridge.call('ListGroups');
         if (mounted) {
           setState(() {
             _groups = (groups as List? ?? [])
@@ -627,7 +627,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
     setState(() => _busyProfile = id);
     try {
       if (!running) await _warmProfileProxy(profile);
-      await WailsBridge.call(
+      await AppBridge.call(
         running ? 'BrowserInstanceStop' : 'BrowserInstanceStart',
         [id],
       );
@@ -646,7 +646,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
     final proxyConfig = (profile['proxyConfig'] ?? '').toString();
     if (proxyId.isEmpty && proxyConfig.isEmpty) return;
     try {
-      await WailsBridge.call('BrowserProxyWarmupBridgeWithConfig', [
+      await AppBridge.call('BrowserProxyWarmupBridgeWithConfig', [
         proxyId,
         proxyConfig,
       ]);
@@ -680,7 +680,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
     if (id.isEmpty) return;
     setState(() => _busyProfile = id);
     try {
-      await WailsBridge.call('BrowserInstanceRestart', [id]);
+      await AppBridge.call('BrowserInstanceRestart', [id]);
       await _reload();
     } catch (error) {
       if (mounted) {
@@ -718,7 +718,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
                       tooltip: '新建分组',
                       onPressed: () async {
                         if (name.text.trim().isEmpty) return;
-                        await WailsBridge.call('CreateGroup', [
+                        await AppBridge.call('CreateGroup', [
                           {
                             'groupName': name.text.trim(),
                             'parentId': '',
@@ -726,7 +726,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
                           },
                         ]);
                         name.clear();
-                        final groups = await WailsBridge.call('ListGroups');
+                        final groups = await AppBridge.call('ListGroups');
                         _groups = (groups as List? ?? [])
                             .whereType<Map>()
                             .map((row) => Map<String, dynamic>.from(row))
@@ -775,7 +775,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
                                   ),
                                 );
                                 if (next != null && next.isNotEmpty) {
-                                  await WailsBridge.call('UpdateGroup', [
+                                  await AppBridge.call('UpdateGroup', [
                                     groupId,
                                     {
                                       'groupName': next,
@@ -806,11 +806,11 @@ class _BrowserListPageState extends State<BrowserListPage> {
                                   ),
                                 );
                                 if (yes == true)
-                                  await WailsBridge.call('DeleteGroup', [
+                                  await AppBridge.call('DeleteGroup', [
                                     groupId,
                                   ]);
                               }
-                              final groups = await WailsBridge.call(
+                              final groups = await AppBridge.call(
                                 'ListGroups',
                               );
                               _groups = (groups as List? ?? [])
@@ -898,10 +898,10 @@ class _BrowserListPageState extends State<BrowserListPage> {
     );
     try {
       final result = await Future.wait([
-        WailsBridge.call('BrowserCoreList'),
-        WailsBridge.call('BrowserProxyList'),
-        WailsBridge.call('BrowserProxyVirtualGroupList'),
-        WailsBridge.call('GetBrowserSettings'),
+        AppBridge.call('BrowserCoreList'),
+        AppBridge.call('BrowserProxyList'),
+        AppBridge.call('BrowserProxyVirtualGroupList'),
+        AppBridge.call('GetBrowserSettings'),
       ]).timeout(const Duration(seconds: 5));
       cores = (result[0] as List? ?? [])
           .whereType<Map>()
@@ -1141,7 +1141,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
                         : () async {
                             setDialog(() => resolvingLocation = true);
                             try {
-                              final value = await WailsBridge.call(
+                              final value = await AppBridge.call(
                                 'BrowserProxyResolveLocation',
                                 [proxyId],
                               );
@@ -1200,7 +1200,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
                     prism.TextButton.icon(
                       onPressed: () => _showJsonResult(
                         '指纹版本适配矩阵',
-                        WailsBridge.call('BrowserProfileFingerprintMatrix', [
+                        AppBridge.call('BrowserProfileFingerprintMatrix', [
                           profile?['profileId'] ?? '',
                           coreId ?? '',
                           fingerprintArgs.text
@@ -1217,7 +1217,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
                       prism.TextButton.icon(
                         onPressed: () => _showJsonResult(
                           '指纹自测结果',
-                          WailsBridge.call('BrowserProfileFingerprintCheck', [
+                          AppBridge.call('BrowserProfileFingerprintCheck', [
                             profile['profileId'],
                           ]),
                         ),
@@ -1227,7 +1227,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
                       prism.TextButton.icon(
                         onPressed: () => _showJsonResult(
                           '指纹检测页面',
-                          WailsBridge.call(
+                          AppBridge.call(
                             'BrowserInstanceOpenFingerprintCheck',
                             [profile['profileId']],
                           ),
@@ -1319,7 +1319,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
           final proxyIdToValidate = proxyMode == 'fixed'
               ? fixedProxyId.toString()
               : '';
-          final validation = await WailsBridge.call('ValidateProxyConfig', [
+          final validation = await AppBridge.call('ValidateProxyConfig', [
             config,
             proxyIdToValidate,
           ]);
@@ -1327,7 +1327,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
             throw StateError((validation['errorMsg'] ?? '代理配置无效').toString());
           }
         }
-        await WailsBridge.call(
+        await AppBridge.call(
           profile == null ? 'BrowserProfileCreate' : 'BrowserProfileUpdate',
           profile == null ? [input] : [profile['profileId'], input],
         );
@@ -1500,7 +1500,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
     );
     if (result != null && controller.text.trim().isNotEmpty) {
       try {
-        await WailsBridge.call('BrowserProfileCopyWithOptions', [
+        await AppBridge.call('BrowserProfileCopyWithOptions', [
           profile['profileId'],
           controller.text.trim(),
           result,
@@ -1520,7 +1520,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
       text: (profile['launchCode'] ?? '').toString(),
     );
     try {
-      final value = await WailsBridge.call('BrowserProfileGetCode', [id]);
+      final value = await AppBridge.call('BrowserProfileGetCode', [id]);
       if (value is String && value.isNotEmpty) code.text = value;
     } catch (_) {}
     final nextCode = await showPrismDialog<String>(
@@ -1540,7 +1540,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
             prism.TextButton(
               onPressed: () async {
                 try {
-                  final value = await WailsBridge.call(
+                  final value = await AppBridge.call(
                     'BrowserProfileRegenerateCode',
                     [id],
                   );
@@ -1570,7 +1570,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
       return;
     }
     try {
-      await WailsBridge.call('BrowserProfileSetCode', [id, nextCode]);
+      await AppBridge.call('BrowserProfileSetCode', [id, nextCode]);
       await _reload();
       if (mounted) {
         showPrismNotice(context, ('启动码已保存').toString());
@@ -1605,7 +1605,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
     );
     if (yes == true) {
       try {
-        await WailsBridge.call('BrowserProfileDelete', [profile['profileId']]);
+        await AppBridge.call('BrowserProfileDelete', [profile['profileId']]);
         await _reload();
       } catch (error) {
         if (mounted) showPrismNotice(context, (error.toString()).toString());
@@ -1615,7 +1615,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
 
   Future<void> _importProfiles() async {
     try {
-      final previewResult = await WailsBridge.call(
+      final previewResult = await AppBridge.call(
         'BrowserProfilePackagePrepareImport',
       );
       if (previewResult is! Map) return;
@@ -1756,7 +1756,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
         if (value == null) return;
         password = value;
       }
-      final result = await WailsBridge.call(
+      final result = await AppBridge.call(
         'BrowserProfilePackageImportWithOptions',
         [
           preview['zipPath'],
@@ -1900,7 +1900,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
     password.dispose();
     if (exportPassword == null) return;
     try {
-      final result = await WailsBridge.call(
+      final result = await AppBridge.call(
         'BrowserProfilePackageExportWithOptions',
         [
           ids,
@@ -1953,7 +1953,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
     if (confirmed != true) return;
     try {
       for (final id in ids) {
-        await WailsBridge.call('BrowserProfileDelete', [id]);
+        await AppBridge.call('BrowserProfileDelete', [id]);
       }
       setState(() => _selectedProfileIds.clear());
       await _reload();
@@ -1976,7 +1976,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
       for (final profile in rows) {
         final id = (profile['profileId'] ?? '').toString();
         if (start) await _warmProfileProxy(profile);
-        await WailsBridge.call(
+        await AppBridge.call(
           start ? 'BrowserInstanceStart' : 'BrowserInstanceStop',
           [id],
         );
@@ -1994,7 +1994,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
   Future<void> _showTrash() async {
     List<Map<String, dynamic>> rows = [];
     try {
-      final result = await WailsBridge.call('BrowserProfileTrashList');
+      final result = await AppBridge.call('BrowserProfileTrashList');
       rows = (result as List? ?? [])
           .whereType<Map>()
           .map((row) => Map<String, dynamic>.from(row))
@@ -2029,7 +2029,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
                                 tooltip: '恢复',
                                 onPressed: () async {
                                   try {
-                                    await WailsBridge.call(
+                                    await AppBridge.call(
                                       'BrowserProfileRestore',
                                       [row['profileId']],
                                     );
@@ -2071,7 +2071,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
                                   );
                                   if (yes != true) return;
                                   try {
-                                    await WailsBridge.call(
+                                    await AppBridge.call(
                                       'BrowserProfilePermanentlyDelete',
                                       [row['profileId']],
                                     );
@@ -2120,8 +2120,8 @@ class _BrowserListPageState extends State<BrowserListPage> {
                     ),
                   );
                   if (yes == true) {
-                    await WailsBridge.call('BrowserProfileTrashCleanup');
-                    final refreshed = await WailsBridge.call(
+                    await AppBridge.call('BrowserProfileTrashCleanup');
+                    final refreshed = await AppBridge.call(
                       'BrowserProfileTrashList',
                     );
                     rows = (refreshed as List? ?? [])

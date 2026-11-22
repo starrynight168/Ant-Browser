@@ -5,11 +5,11 @@ import 'prism_widgets.dart';
 import 'package:prism_ui/prism_ui.dart' as prism;
 
 import 'theme_state.dart';
-import 'wails_bridge.dart';
+import 'app_bridge.dart';
 
 const _defaultAppSettings = <String, dynamic>{
   'appName': 'Ant Browser',
-  'appDescription': '基于 Wails + Flutter 的桌面应用',
+  'appDescription': '基于 Flutter 与 Go 的桌面应用',
   'theme': 'light',
   'primaryColor': '#3B82F6',
   'language': 'zh-CN',
@@ -62,16 +62,16 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final raw = WailsBridge.readStorage('app_settings');
+      final raw = AppBridge.readStorage('app_settings');
       final stored = raw.isEmpty ? null : jsonDecode(raw);
       final settings = <String, dynamic>{
         ..._defaultAppSettings,
         if (stored is Map) ...Map<String, dynamic>.from(stored),
       };
       final results = await Future.wait([
-        WailsBridge.call('GetAutomationState'),
-        WailsBridge.call('GetLaunchServerInfo'),
-        WailsBridge.call('GetLogLevel'),
+        AppBridge.call('GetAutomationState'),
+        AppBridge.call('GetLaunchServerInfo'),
+        AppBridge.call('GetLogLevel'),
       ]);
       final automation = _asMap(results[0]);
       final launchServer = _asMap(results[1]);
@@ -115,8 +115,8 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
-      WailsBridge.writeStorage('app_settings', jsonEncode(_settings));
-      await WailsBridge.call('SetLogLevel', [
+      AppBridge.writeStorage('app_settings', jsonEncode(_settings));
+      await AppBridge.call('SetLogLevel', [
         '${_settings['logLevel'] ?? 'info'}',
       ]);
       setAppThemeMode('${_settings['theme'] ?? 'light'}');
@@ -150,8 +150,8 @@ class _SettingsPageState extends State<SettingsPage> {
     if (confirm != true) return;
     setState(() => _saving = true);
     try {
-      await WailsBridge.call('ResetManagedSettings');
-      WailsBridge.removeStorage('app_settings');
+      await AppBridge.call('ResetManagedSettings');
+      AppBridge.removeStorage('app_settings');
       setState(
         () => _settings = Map<String, dynamic>.from(_defaultAppSettings),
       );
@@ -168,7 +168,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _saveAutomation(bool enabled, bool headless) async {
     setState(() => _busy = 'automation');
     try {
-      final result = await WailsBridge.call('SaveAutomationSettings', [
+      final result = await AppBridge.call('SaveAutomationSettings', [
         enabled,
         headless,
       ]);
@@ -184,7 +184,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _saveRuntime() async {
     setState(() => _busy = 'runtime');
     try {
-      final result = await WailsBridge.call('SaveAutomationRuntimeSettings', [
+      final result = await AppBridge.call('SaveAutomationRuntimeSettings', [
         _nodeSource,
         _systemNodePathController.text.trim(),
       ]);
@@ -200,7 +200,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _installRuntime() async {
     setState(() => _busy = 'install');
     try {
-      final result = await WailsBridge.call('InstallAutomationRuntime');
+      final result = await AppBridge.call('InstallAutomationRuntime');
       if (mounted) setState(() => _automation = _asMap(result));
       _message('已提交自动化运行时安装');
     } catch (error) {
@@ -213,7 +213,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _checkRuntime() async {
     setState(() => _busy = 'check');
     try {
-      final result = await WailsBridge.call('AutomationRuntimeSelfCheck');
+      final result = await AppBridge.call('AutomationRuntimeSelfCheck');
       if (mounted) setState(() => _runtimeCheck = _asMap(result));
     } catch (error) {
       if (mounted)
@@ -226,7 +226,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _probeNode() async {
     setState(() => _busy = 'probe');
     try {
-      final result = await WailsBridge.call('AutomationProbeSystemNode', [
+      final result = await AppBridge.call('AutomationProbeSystemNode', [
         _systemNodePathController.text.trim(),
       ]);
       if (mounted) setState(() => _nodeProbe = _asMap(result));
@@ -246,7 +246,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
     setState(() => _busy = 'launch');
     try {
-      final result = await WailsBridge.call('SaveLaunchServerSettings', [port]);
+      final result = await AppBridge.call('SaveLaunchServerSettings', [port]);
       if (mounted) setState(() => _launchServer = _asMap(result));
       _message('启动接口设置已保存');
     } catch (error) {
@@ -259,7 +259,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _toggleTypeScript(bool enabled) async {
     setState(() => _busy = 'package');
     try {
-      final result = await WailsBridge.call(
+      final result = await AppBridge.call(
         'SaveAutomationScriptPackageSettings',
         [enabled],
       );

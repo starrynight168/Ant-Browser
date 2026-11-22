@@ -5,7 +5,7 @@ import 'prism_widgets.dart';
 
 import 'package:prism_ui/prism_ui.dart' as prism;
 
-import 'wails_bridge.dart';
+import 'app_bridge.dart';
 
 class LogsPage extends StatefulWidget {
   const LogsPage({super.key});
@@ -43,7 +43,7 @@ class _LogsPageState extends State<LogsPage> {
   Future<void> _load({bool showLoading = true}) async {
     if (showLoading && mounted) setState(() => _loading = true);
     try {
-      final value = await WailsBridge.call('GetAppLogs');
+      final value = await AppBridge.call('GetAppLogs');
       final rows = value is List ? value : const [];
       if (mounted) {
         setState(() {
@@ -84,7 +84,7 @@ class _LogsPageState extends State<LogsPage> {
     if (confirmed != true) return;
     setState(() => _clearing = true);
     try {
-      await WailsBridge.call('ClearAppLogs');
+      await AppBridge.call('ClearAppLogs');
       await _load(showLoading: false);
     } catch (error) {
       if (mounted) {

@@ -34,7 +34,7 @@ external void _storageSet(JSString key, JSString value);
 @JS('antWailsBridge.storageRemove')
 external void _storageRemove(JSString key);
 
-class WailsBridge {
+class AppBridge {
   static Future<void> initialize() async {}
 
   static Future<dynamic> call(String method, [List<Object?> arguments = const []]) async {

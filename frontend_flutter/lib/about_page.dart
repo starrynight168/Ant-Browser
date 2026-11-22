@@ -2,7 +2,7 @@ import 'prism_widgets.dart';
 
 import 'package:prism_ui/prism_ui.dart' as prism;
 
-import 'wails_bridge.dart';
+import 'app_bridge.dart';
 
 class AboutPage extends StatefulWidget {
   const AboutPage({super.key});
@@ -24,7 +24,7 @@ class _AboutPageState extends State<AboutPage> {
 
   Future<void> _loadVersion() async {
     try {
-      final config = await WailsBridge.call('GetAppConfig');
+      final config = await AppBridge.call('GetAppConfig');
       if (mounted)
         setState(
           () =>
@@ -39,7 +39,7 @@ class _AboutPageState extends State<AboutPage> {
     if (_checking) return;
     setState(() => _checking = true);
     try {
-      final result = await WailsBridge.call('CheckForUpdates');
+      final result = await AppBridge.call('CheckForUpdates');
       if (mounted) {
         setState(
           () => _updateResult = result is Map
@@ -165,7 +165,7 @@ class _AboutPageState extends State<AboutPage> {
           const SizedBox(height: 18),
           prism.OutlinedButton.icon(
             onPressed: () =>
-                WailsBridge.openExternal('https://github.com/black-ant'),
+                AppBridge.openExternal('https://github.com/black-ant'),
             icon: const Icon(Icons.code, size: 18),
             label: const Text('GitHub'),
           ),
@@ -211,7 +211,7 @@ class _AboutPageState extends State<AboutPage> {
             children: [
               'Flutter',
               'Go',
-              'Wails',
+              '原生桌面',
             ].map((item) => _SkillChip(label: item)).toList(),
           ),
           const SizedBox(height: 22),
@@ -251,7 +251,7 @@ class _AboutPageState extends State<AboutPage> {
             if (result?['releaseUrl']?.toString().isNotEmpty == true)
               prism.TextButton.icon(
                 onPressed: () =>
-                    WailsBridge.openExternal(result!['releaseUrl'].toString()),
+                    AppBridge.openExternal(result!['releaseUrl'].toString()),
                 icon: const Icon(Icons.open_in_new, size: 16),
                 label: const Text('打开下载页面'),
               ),

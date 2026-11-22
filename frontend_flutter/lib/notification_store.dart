@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
-import 'wails_bridge.dart';
+import 'app_bridge.dart';
 
 class NotificationStore extends ChangeNotifier {
   static const _storageKey = 'ant-browser-notifications';
@@ -22,7 +22,7 @@ class NotificationStore extends ChangeNotifier {
 
   void _restore() {
     try {
-      final raw = WailsBridge.readStorage(_storageKey);
+      final raw = AppBridge.readStorage(_storageKey);
       if (raw.isEmpty) return;
       final decoded = jsonDecode(raw);
       final state = decoded is Map ? decoded['state'] : null;
@@ -38,7 +38,7 @@ class NotificationStore extends ChangeNotifier {
 
   void _listen(String event, void Function(Map<String, dynamic>) onEvent) {
     _removeListeners.add(
-      WailsBridge.onEvent(event, (payload) {
+      AppBridge.onEvent(event, (payload) {
         if (payload is Map) onEvent(Map<String, dynamic>.from(payload));
       }),
     );
@@ -149,7 +149,7 @@ class NotificationStore extends ChangeNotifier {
 
   bool _historyEnabled() {
     try {
-      final raw = WailsBridge.readStorage('app_settings');
+      final raw = AppBridge.readStorage('app_settings');
       if (raw.isEmpty) return true;
       final settings = jsonDecode(raw);
       return settings is! Map || settings['enableNotifications'] != false;
@@ -182,7 +182,7 @@ class NotificationStore extends ChangeNotifier {
 
   void _save() {
     try {
-      WailsBridge.writeStorage(
+      AppBridge.writeStorage(
         _storageKey,
         jsonEncode({
           'state': {'notifications': notifications},
