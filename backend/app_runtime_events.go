@@ -11,6 +11,10 @@ import (
 type RuntimeHost interface {
 	EmitRuntimeEvent(string, ...interface{})
 	QuitApplication()
+	OpenFileDialog(context.Context, OpenDialogOptions) (string, error)
+	OpenDirectoryDialog(context.Context, OpenDialogOptions) (string, error)
+	SaveFileDialog(context.Context, SaveDialogOptions) (string, error)
+	MessageDialog(context.Context, MessageDialogOptions) (string, error)
 }
 
 func SetRuntimeHost(a *App, host RuntimeHost) {

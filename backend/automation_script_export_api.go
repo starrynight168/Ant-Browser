@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"ant-chrome/backend/internal/automation"
-
-	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 func (a *App) AutomationScriptExport(scriptID string) (map[string]any, error) {
@@ -30,10 +28,10 @@ func (a *App) AutomationScriptExport(scriptID string) (map[string]any, error) {
 		return nil, err
 	}
 
-	savePath, err := wailsruntime.SaveFileDialog(a.ctx, wailsruntime.SaveDialogOptions{
+	savePath, err := a.saveFileDialog(SaveDialogOptions{
 		Title:           "导出脚本模板",
 		DefaultFilename: buildAutomationScriptTemplateFilename(bundle.Record.Name),
-		Filters: []wailsruntime.FileFilter{
+		Filters: []DialogFilter{
 			{DisplayName: "JSON 模板 (*.json)", Pattern: "*.json"},
 		},
 	})
@@ -74,10 +72,10 @@ func (a *App) AutomationScriptExportZip(scriptID string) (map[string]any, error)
 		return nil, err
 	}
 
-	savePath, err := wailsruntime.SaveFileDialog(a.ctx, wailsruntime.SaveDialogOptions{
+	savePath, err := a.saveFileDialog(SaveDialogOptions{
 		Title:           "导出脚本 ZIP",
 		DefaultFilename: buildAutomationScriptPackageZipFilename(bundle.Record.Name),
-		Filters: []wailsruntime.FileFilter{
+		Filters: []DialogFilter{
 			{DisplayName: "ZIP 脚本包 (*.zip)", Pattern: "*.zip"},
 		},
 	})
@@ -139,10 +137,10 @@ func (a *App) AutomationScriptExportBatchZip(scriptIDs []string) (map[string]any
 		bundles = append(bundles, bundle)
 	}
 
-	savePath, err := wailsruntime.SaveFileDialog(a.ctx, wailsruntime.SaveDialogOptions{
+	savePath, err := a.saveFileDialog(SaveDialogOptions{
 		Title:           "导出脚本 ZIP",
 		DefaultFilename: buildAutomationScriptBatchZipFilename(len(bundles)),
-		Filters: []wailsruntime.FileFilter{
+		Filters: []DialogFilter{
 			{DisplayName: "ZIP 脚本包 (*.zip)", Pattern: "*.zip"},
 		},
 	})
@@ -184,7 +182,7 @@ func (a *App) AutomationScriptExportDirectory(scriptID string) (map[string]any, 
 		return nil, err
 	}
 
-	baseDir, err := wailsruntime.OpenDirectoryDialog(a.ctx, wailsruntime.OpenDialogOptions{
+	baseDir, err := a.openDirectoryDialog(OpenDialogOptions{
 		Title: "选择导出目录",
 	})
 	if err != nil {

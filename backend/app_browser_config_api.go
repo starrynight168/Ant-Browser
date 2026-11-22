@@ -9,8 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 func (a *App) GetBrowserSettings() BrowserSettings {
@@ -136,9 +134,9 @@ func (a *App) BrowserCoreImportLocal() (*BrowserCore, error) {
 		return nil, fmt.Errorf("browser manager is nil")
 	}
 
-	selectedPath, err := wailsruntime.OpenFileDialog(a.ctx, wailsruntime.OpenDialogOptions{
+	selectedPath, err := a.openFileDialog(OpenDialogOptions{
 		Title: "选择 Chrome 内核归档文件",
-		Filters: []wailsruntime.FileFilter{
+		Filters: []DialogFilter{
 			{DisplayName: "Chrome 内核归档 (" + browser.SupportedCoreArchiveDescription() + ")", Pattern: browser.SupportedCoreArchivePattern()},
 			{DisplayName: "所有文件 (*.*)", Pattern: "*.*"},
 		},
@@ -258,7 +256,7 @@ func (a *App) BrowserCoreImportLocalDirectory() (*BrowserCore, error) {
 		return nil, fmt.Errorf("browser manager is nil")
 	}
 
-	selectedDir, err := wailsruntime.OpenDirectoryDialog(a.ctx, wailsruntime.OpenDialogOptions{
+	selectedDir, err := a.openDirectoryDialog(OpenDialogOptions{
 		Title: "选择已解压的 Chrome 内核目录",
 	})
 	if err != nil {

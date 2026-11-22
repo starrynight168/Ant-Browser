@@ -8,8 +8,6 @@ import (
 	"strings"
 
 	"ant-chrome/backend/internal/automation"
-
-	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type AutomationScriptImportIssue struct {
@@ -36,9 +34,9 @@ func (a *App) AutomationScriptImportLocalFile() (*automation.ScriptRecord, error
 		return nil, fmt.Errorf("应用上下文未初始化")
 	}
 
-	path, err := wailsruntime.OpenFileDialog(a.ctx, wailsruntime.OpenDialogOptions{
+	path, err := a.openFileDialog(OpenDialogOptions{
 		Title: "选择脚本文件",
-		Filters: []wailsruntime.FileFilter{
+		Filters: []DialogFilter{
 			{DisplayName: "脚本文件 (*.zip;*.json;*.js;*.cjs;*.mjs;*.ts;*.cts;*.mts)", Pattern: "*.zip;*.json;*.js;*.cjs;*.mjs;*.ts;*.cts;*.mts"},
 			{DisplayName: "所有文件 (*.*)", Pattern: "*.*"},
 		},
@@ -62,7 +60,7 @@ func (a *App) AutomationScriptImportLocalDirectory() (*automation.ScriptRecord, 
 		return nil, fmt.Errorf("应用上下文未初始化")
 	}
 
-	path, err := wailsruntime.OpenDirectoryDialog(a.ctx, wailsruntime.OpenDialogOptions{
+	path, err := a.openDirectoryDialog(OpenDialogOptions{
 		Title: "选择脚本目录",
 	})
 	if err != nil {
@@ -84,7 +82,7 @@ func (a *App) AutomationScriptImportLocalLibrary() (*AutomationScriptBatchImport
 		return nil, fmt.Errorf("应用上下文未初始化")
 	}
 
-	path, err := wailsruntime.OpenDirectoryDialog(a.ctx, wailsruntime.OpenDialogOptions{
+	path, err := a.openDirectoryDialog(OpenDialogOptions{
 		Title: "选择脚本库目录",
 	})
 	if err != nil {

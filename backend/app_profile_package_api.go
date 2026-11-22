@@ -15,7 +15,6 @@ import (
 	"ant-chrome/backend/internal/browser"
 
 	"github.com/google/uuid"
-	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 const profilePackageFormat = "ant-chrome-profile-package"
@@ -229,9 +228,9 @@ func (a *App) BrowserProfilePackageImport() (ProfilePackageImportResult, error) 
 	if a.ctx == nil {
 		return ProfilePackageImportResult{}, fmt.Errorf("应用上下文未初始化")
 	}
-	zipPath, err := wailsruntime.OpenFileDialog(a.ctx, wailsruntime.OpenDialogOptions{
+	zipPath, err := a.openFileDialog(OpenDialogOptions{
 		Title: "导入实例",
-		Filters: []wailsruntime.FileFilter{
+		Filters: []DialogFilter{
 			{DisplayName: "ZIP 文件 (*.zip)", Pattern: "*.zip"},
 		},
 	})
@@ -252,9 +251,9 @@ func (a *App) BrowserProfilePackagePrepareImport() (ProfilePackageImportPreview,
 	if a.ctx == nil {
 		return ProfilePackageImportPreview{}, fmt.Errorf("应用上下文未初始化")
 	}
-	zipPath, err := wailsruntime.OpenFileDialog(a.ctx, wailsruntime.OpenDialogOptions{
+	zipPath, err := a.openFileDialog(OpenDialogOptions{
 		Title: "导入实例",
-		Filters: []wailsruntime.FileFilter{
+		Filters: []DialogFilter{
 			{DisplayName: "ZIP 文件 (*.zip)", Pattern: "*.zip"},
 		},
 	})

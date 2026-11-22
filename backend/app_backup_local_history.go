@@ -9,8 +9,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-
-	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 const backupMetadataReadLimit = 64 * 1024 * 1024
@@ -53,7 +51,7 @@ func (a *App) BackupSelectLocalDirectory() (BackupSelectLocalDirectoryResult, er
 	if a == nil || a.ctx == nil {
 		return BackupSelectLocalDirectoryResult{}, fmt.Errorf("应用上下文未初始化")
 	}
-	selected, err := wailsruntime.OpenDirectoryDialog(a.ctx, wailsruntime.OpenDialogOptions{
+	selected, err := a.openDirectoryDialog(OpenDialogOptions{
 		Title: "选择本地备份目录",
 	})
 	if err != nil {
@@ -157,10 +155,10 @@ func (a *App) backupResolveLocalPackagePath(defaultName, title string) (string, 
 		return path, false, err
 	}
 
-	savePath, err := wailsruntime.SaveFileDialog(a.ctx, wailsruntime.SaveDialogOptions{
+	savePath, err := a.saveFileDialog(SaveDialogOptions{
 		Title:           title,
 		DefaultFilename: defaultName,
-		Filters: []wailsruntime.FileFilter{
+		Filters: []DialogFilter{
 			{DisplayName: "ZIP 文件 (*.zip)", Pattern: "*.zip"},
 		},
 	})

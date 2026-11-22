@@ -56,6 +56,45 @@ func (h wailsRuntimeHost) QuitApplication() {
 	runtime.Quit(h.ctx)
 }
 
+func (h wailsRuntimeHost) OpenFileDialog(ctx context.Context, options backend.OpenDialogOptions) (string, error) {
+	filters := make([]runtime.FileFilter, 0, len(options.Filters))
+	for _, filter := range options.Filters {
+		filters = append(filters, runtime.FileFilter{DisplayName: filter.DisplayName, Pattern: filter.Pattern})
+	}
+	return runtime.OpenFileDialog(h.dialogContext(ctx), runtime.OpenDialogOptions{Title: options.Title, Filters: filters})
+}
+
+func (h wailsRuntimeHost) OpenDirectoryDialog(ctx context.Context, options backend.OpenDialogOptions) (string, error) {
+	return runtime.OpenDirectoryDialog(h.dialogContext(ctx), runtime.OpenDialogOptions{Title: options.Title})
+}
+
+func (h wailsRuntimeHost) SaveFileDialog(ctx context.Context, options backend.SaveDialogOptions) (string, error) {
+	filters := make([]runtime.FileFilter, 0, len(options.Filters))
+	for _, filter := range options.Filters {
+		filters = append(filters, runtime.FileFilter{DisplayName: filter.DisplayName, Pattern: filter.Pattern})
+	}
+	return runtime.SaveFileDialog(h.dialogContext(ctx), runtime.SaveDialogOptions{
+		Title:           options.Title,
+		DefaultFilename: options.DefaultFilename,
+		Filters:         filters,
+	})
+}
+
+func (h wailsRuntimeHost) MessageDialog(ctx context.Context, options backend.MessageDialogOptions) (string, error) {
+	return runtime.MessageDialog(h.dialogContext(ctx), runtime.MessageDialogOptions{
+		Type:    options.Type,
+		Title:   options.Title,
+		Message: options.Message,
+	})
+}
+
+func (h wailsRuntimeHost) dialogContext(ctx context.Context) context.Context {
+	if ctx != nil {
+		return ctx
+	}
+	return h.ctx
+}
+
 type wailsBuildConfig struct {
 	Info struct {
 		ProductVersion string `json:"productVersion"`

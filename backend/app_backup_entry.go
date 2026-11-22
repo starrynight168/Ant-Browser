@@ -10,8 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // BackupExportPackage 导出全量配置与数据到 ZIP。
@@ -86,9 +84,9 @@ func (a *App) BackupImportPackage() (map[string]interface{}, error) {
 	}
 	a.backupEmitImportProgress("starting", 0, "等待选择 ZIP 配置文件...")
 
-	zipPath, err := wailsruntime.OpenFileDialog(a.ctx, wailsruntime.OpenDialogOptions{
+	zipPath, err := a.openFileDialog(OpenDialogOptions{
 		Title: "导入全局备份",
-		Filters: []wailsruntime.FileFilter{
+		Filters: []DialogFilter{
 			{DisplayName: "ZIP 文件 (*.zip)", Pattern: "*.zip"},
 		},
 	})

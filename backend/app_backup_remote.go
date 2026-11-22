@@ -12,8 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type backupRemoteUploadTarget struct {
@@ -245,10 +243,10 @@ func (a *App) backupDownloadRemoteFile(client channels.Client, label string, tim
 			return nil, err
 		}
 	} else {
-		savePath, err = wailsruntime.SaveFileDialog(a.ctx, wailsruntime.SaveDialogOptions{
+		savePath, err = a.saveFileDialog(SaveDialogOptions{
 			Title:           fmt.Sprintf(`下载%s备份`, label),
 			DefaultFilename: defaultName,
-			Filters: []wailsruntime.FileFilter{
+			Filters: []DialogFilter{
 				{DisplayName: `ZIP 文件 (*.zip)`, Pattern: `*.zip`},
 			},
 		})

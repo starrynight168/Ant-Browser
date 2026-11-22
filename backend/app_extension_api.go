@@ -13,8 +13,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type BrowserExtension = browser.Extension
@@ -92,7 +90,7 @@ func (a *App) builtinConflictDialogHandler() browser.BuiltinConflictHandler {
 		return nil
 	}
 	return func(conflict browser.Extension) bool {
-		selection, err := wailsruntime.MessageDialog(a.ctx, wailsruntime.MessageDialogOptions{
+		selection, err := a.messageDialog(MessageDialogOptions{
 			Type:    "question",
 			Title:   "替换内置插件",
 			Message: fmt.Sprintf("已存在内置插件「%s」v%s。是否用本次安装替换它？\n\n替换后实例绑定会迁移到新版本，内置版本不再随应用启动登记。", conflict.Name, conflict.Version),
@@ -258,9 +256,9 @@ func (a *App) BrowserExtensionInstallLocalFile() (BrowserExtension, error) {
 	if a.browserMgr == nil {
 		return BrowserExtension{}, fmt.Errorf("浏览器管理器未初始化")
 	}
-	path, err := wailsruntime.OpenFileDialog(a.ctx, wailsruntime.OpenDialogOptions{
+	path, err := a.openFileDialog(OpenDialogOptions{
 		Title: "选择 Chrome 插件包",
-		Filters: []wailsruntime.FileFilter{
+		Filters: []DialogFilter{
 			{DisplayName: "Chrome 插件包 (*.crx;*.zip)", Pattern: "*.crx;*.zip"},
 		},
 	})
@@ -283,7 +281,7 @@ func (a *App) BrowserExtensionInstallLocalDirectory() (BrowserExtension, error) 
 	if a.browserMgr == nil {
 		return BrowserExtension{}, fmt.Errorf("浏览器管理器未初始化")
 	}
-	path, err := wailsruntime.OpenDirectoryDialog(a.ctx, wailsruntime.OpenDialogOptions{Title: "选择已解压插件目录"})
+	path, err := a.openDirectoryDialog(OpenDialogOptions{Title: "选择已解压插件目录"})
 	if err != nil {
 		return BrowserExtension{}, fmt.Errorf("打开目录选择框失败: %w", err)
 	}
