@@ -1441,6 +1441,7 @@ class PrismMetricTile extends StatelessWidget {
     this.onPressed,
     this.staggerIndex,
     this.staggerDelay = Duration.zero,
+    this.showSubtitle = false,
   });
 
   final String label;
@@ -1451,11 +1452,13 @@ class PrismMetricTile extends StatelessWidget {
   final VoidCallback? onPressed;
   final int? staggerIndex;
   final Duration staggerDelay;
+  final bool showSubtitle;
 
   @override
   Widget build(BuildContext context) {
     final colors = prism.Theme.of(context).colorScheme;
     final palette = PrismToneColors.of(context, tone);
+    final hasSubtitle = subtitle != null && subtitle!.isNotEmpty;
     final textColumn = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -1466,26 +1469,26 @@ class PrismMetricTile extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: prism.AppTextStyle.caption1
               .of(context)
-              .copyWith(color: colors.onSurfaceVariant, height: 1.25),
+              .copyWith(color: colors.onSurfaceVariant, height: 1.2),
         ),
-        const SizedBox(height: 3),
+        const SizedBox(height: 2),
         Text(
           value,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: prism.AppTextStyle.headline
               .of(context, emphasized: true)
-              .copyWith(height: 1.25),
+              .copyWith(height: 1.2),
         ),
-        if (subtitle != null && subtitle!.isNotEmpty) ...[
-          const SizedBox(height: 3),
+        if (showSubtitle && hasSubtitle) ...[
+          const SizedBox(height: 2),
           Text(
             subtitle!,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: prism.AppTextStyle.caption2
                 .of(context)
-                .copyWith(color: colors.onSurfaceVariant, height: 1.25),
+                .copyWith(color: colors.onSurfaceVariant, height: 1.2),
           ),
         ],
       ],
@@ -1496,24 +1499,24 @@ class PrismMetricTile extends StatelessWidget {
             color: palette.bg,
             shape: prism.AppShape.md,
             child: SizedBox.square(
-              dimension: 38,
+              dimension: 36,
               child: Center(
                 child: prism_icons.GlyphIcon(
                   glyph!,
-                  size: 19,
+                  size: 18,
                   color: palette.fg,
                 ),
               ),
             ),
           );
 
-    final card = PrismHoverGlow(
+    final baseCard = PrismHoverGlow(
       radius: prism.AppCorner.xl,
       child: prism.Card(
         radius: prism.AppCorner.xl,
         onPressed: onPressed,
         inert: onPressed == null,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         child: LayoutBuilder(
           builder: (context, constraints) {
             final bounded = constraints.hasBoundedWidth;
@@ -1543,6 +1546,9 @@ class PrismMetricTile extends StatelessWidget {
         ),
       ),
     );
+    final card = !showSubtitle && hasSubtitle
+        ? prism.Tooltip(message: subtitle!, child: baseCard)
+        : baseCard;
     final result = onPressed == null
         ? card
         : PrismHoverMotion(hoverScale: 1.02, pressScale: 0.98, child: card);
