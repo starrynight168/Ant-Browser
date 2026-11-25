@@ -1610,16 +1610,13 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
   Widget build(BuildContext context) {
     final colors = prism.Theme.of(context).colorScheme;
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(24, 6, 24, 24),
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                '插件包管理',
-                style: prism.AppTextStyle.title2.of(context, emphasized: true),
-              ),
-            ),
+        PrismPageContextBar(
+          glyph: AntGlyphs.extension,
+          title: '插件包管理',
+          subtitle: '查询安装 Chrome 商店插件，管理本地插件与实例分配。',
+          actions: [
             prism.TonalButtonGroup(
               size: prism.TonalButtonSize.section,
               children: [
@@ -1642,7 +1639,6 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                 ),
               ],
             ),
-            const SizedBox(width: 6),
             PrismPopupMenuButton<String>(
               tooltip: '导入插件',
               icon: const PrismGlyph(AntGlyphs.add, size: 18),

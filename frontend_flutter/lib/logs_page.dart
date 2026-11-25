@@ -257,38 +257,37 @@ class _LogsPageState extends State<LogsPage> {
     final colors = prism.Theme.of(context).colorScheme;
     final filtered = _filteredLogs;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(28, 22, 28, 24),
+      padding: const EdgeInsets.fromLTRB(24, 6, 24, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
+          PrismPageContextBar(
+            glyph: AntGlyphs.logs,
+            title: '日志查看',
+            subtitle: '应用运行日志与前端操作埋点，共 ${_logs.length} 条。',
+            actions: [
               PrismBadge(
-                label: '${filtered.length} / ${_logs.length} 条日志',
+                label: '筛选到 ${filtered.length} 条',
                 tone: PrismTone.neutral,
-                glyph: AntGlyphs.logs,
               ),
-              const Spacer(),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
+              prism.TonalButtonGroup(
+                size: prism.TonalButtonSize.section,
                 children: [
-                  prism.OutlinedButton.icon(
+                  prism.IconButton(
+                    tooltip: '刷新',
                     onPressed: _loading ? null : _load,
-                    icon: const PrismGlyph(AntGlyphs.refresh, size: 17),
-                    label: const Text('刷新'),
+                    icon: const PrismGlyph(AntGlyphs.refresh, size: 18),
                   ),
-                  prism.OutlinedButton.icon(
+                  prism.IconButton(
+                    tooltip: '清空日志',
                     onPressed: _clearing || _logs.isEmpty ? null : _clear,
-                    icon: const PrismGlyph(AntGlyphs.delete, size: 17),
-                    label: const Text('清空'),
+                    icon: const PrismGlyph(AntGlyphs.delete, size: 18),
                   ),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 4),
           PrismSectionCard(
             padding: const EdgeInsets.all(14),
             child: Wrap(

@@ -205,14 +205,11 @@ class _AboutPageState extends State<AboutPage> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(28),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1120),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _authorCard(),
+      padding: const EdgeInsets.fromLTRB(24, 6, 24, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _authorCard(),
               const SizedBox(height: 16),
               LayoutBuilder(
                 builder: (context, constraints) {
@@ -241,9 +238,7 @@ class _AboutPageState extends State<AboutPage> {
               _skillsCard(),
               const SizedBox(height: 16),
               _projectCard(),
-            ],
-          ),
-        ),
+        ],
       ),
     );
   }

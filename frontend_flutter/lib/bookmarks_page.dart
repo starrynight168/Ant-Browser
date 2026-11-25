@@ -304,27 +304,19 @@ class _BookmarksPageState extends State<BookmarksPage> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = prism.Theme.of(context).colorScheme;
     final protectedEntries = _protectedEntries;
     final regularEntries = _regularEntries;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(28, 22, 28, 24),
+      padding: const EdgeInsets.fromLTRB(24, 6, 24, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            '管理默认书签，并同步到浏览器实例。',
-            style: prism.AppTextStyle.footnote
-                .of(context)
-                .copyWith(color: colors.onSurfaceVariant),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
+          PrismPageContextBar(
+            glyph: AntGlyphs.bookmark,
+            title: '默认书签',
+            subtitle: '管理默认书签，保存后自动同步到浏览器实例。',
+            actions: [
               prism.OutlinedButton.icon(
                 onPressed: _syncing ? null : _sync,
                 icon: const PrismGlyph(AntGlyphs.sync, size: 17),
@@ -342,7 +334,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 4),
           Expanded(
             child: _loading
                 ? const Center(child: PrismProgressIndicator())

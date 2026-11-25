@@ -1848,16 +1848,11 @@ class _BackupPageState extends State<BackupPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '管理本地与云端（OpenList / S3）备份包及定时任务',
-                  style: prism.AppTextStyle.footnote
-                      .of(context)
-                      .copyWith(color: colors.onSurfaceVariant),
-                ),
-              ),
+          PrismPageContextBar(
+            glyph: AntGlyphs.archive,
+            title: '备份与恢复',
+            subtitle: '管理本地与云端（OpenList / S3）备份包及定时任务。',
+            actions: [
               prism.TonalButtonGroup(
                 size: prism.TonalButtonSize.section,
                 children: [
@@ -1883,13 +1878,11 @@ class _BackupPageState extends State<BackupPage>
                   ),
                 ],
               ),
-              const SizedBox(width: 10),
               prism.OutlinedButton.icon(
                 onPressed: _busy.isEmpty ? _importBackup : null,
                 icon: const PrismGlyph(AntGlyphs.restore, size: 15),
                 label: const Text('导入备份'),
               ),
-              const SizedBox(width: 8),
               prism.FilledButton.icon(
                 onPressed: _busy.isEmpty ? _createBackup : null,
                 icon: const PrismGlyph(AntGlyphs.archive, size: 15),
@@ -1897,7 +1890,7 @@ class _BackupPageState extends State<BackupPage>
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 4),
           PrismSectionCard(
             title: '本地备份目录',
             glyph: AntGlyphs.folder,
@@ -2236,7 +2229,7 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: PrismProgressIndicator());
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(24, 6, 24, 24),
       children: [
         Row(
           children: [
@@ -2247,19 +2240,21 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
             ),
             const SizedBox(width: 4),
             Expanded(
-              child: Text(
-                'OpenList 备份设置',
-                style: prism.AppTextStyle.title2.of(context, emphasized: true),
+              child: PrismPageContextBar(
+                glyph: AntGlyphs.cloud,
+                title: 'OpenList 备份设置',
+                subtitle: '配置 OpenList 远程备份通道的连接、上传与恢复。',
+                actions: [
+                  prism.OutlinedButton(
+                    onPressed: _busy.isEmpty ? () => _action('test') : null,
+                    child: Text(_busy == 'test' ? '测试中…' : '测试连接'),
+                  ),
+                  prism.FilledButton(
+                    onPressed: _busy.isEmpty ? () => _action('save') : null,
+                    child: const Text('保存'),
+                  ),
+                ],
               ),
-            ),
-            prism.OutlinedButton(
-              onPressed: _busy.isEmpty ? () => _action('test') : null,
-              child: Text(_busy == 'test' ? '测试中…' : '测试连接'),
-            ),
-            const SizedBox(width: 8),
-            prism.FilledButton(
-              onPressed: _busy.isEmpty ? () => _action('save') : null,
-              child: const Text('保存'),
             ),
           ],
         ),
@@ -2737,7 +2732,7 @@ class _S3ConfigPageState extends State<S3ConfigPage>
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: PrismProgressIndicator());
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(24, 6, 24, 24),
       children: [
         Row(
           children: [
@@ -2748,19 +2743,23 @@ class _S3ConfigPageState extends State<S3ConfigPage>
             ),
             const SizedBox(width: 4),
             Expanded(
-              child: Text(
-                'S3 备份设置',
-                style: prism.AppTextStyle.title2.of(context, emphasized: true),
+              child: PrismPageContextBar(
+                glyph: AntGlyphs.cloudUpload,
+                title: 'S3 备份设置',
+                subtitle: '配置 S3 兼容对象存储备份通道的连接、上传与恢复。',
+                actions: [
+                  prism.OutlinedButton(
+                    onPressed: _busy.isEmpty
+                        ? () => _action('BackupS3Test')
+                        : null,
+                    child: Text(_busy == 'BackupS3Test' ? '测试中…' : '测试连接'),
+                  ),
+                  prism.FilledButton(
+                    onPressed: _busy.isEmpty ? () => _action('save') : null,
+                    child: const Text('保存'),
+                  ),
+                ],
               ),
-            ),
-            prism.OutlinedButton(
-              onPressed: _busy.isEmpty ? () => _action('BackupS3Test') : null,
-              child: Text(_busy == 'BackupS3Test' ? '测试中…' : '测试连接'),
-            ),
-            const SizedBox(width: 8),
-            prism.FilledButton(
-              onPressed: _busy.isEmpty ? () => _action('save') : null,
-              child: const Text('保存'),
             ),
           ],
         ),

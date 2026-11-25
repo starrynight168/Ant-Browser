@@ -196,6 +196,80 @@ class PrismBanner extends StatelessWidget {
   }
 }
 
+/// 页面顶部上下文栏（settings_page 样板）：
+/// 左侧 Surface 图标块 + 标题 + 副标题，右侧为页面操作按钮组。
+/// 页面主体配合 `EdgeInsets.fromLTRB(24, 6, 24, 24)` 外边距使用，
+/// 标题不再重复渲染页面大标题（外壳 _PageHeader 已展示）。
+class PrismPageContextBar extends StatelessWidget {
+  const PrismPageContextBar({
+    super.key,
+    required this.glyph,
+    required this.title,
+    required this.subtitle,
+    this.actions = const [],
+  });
+
+  final prism_icons.Glyph glyph;
+  final String title;
+  final String subtitle;
+  final List<Widget> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        children: [
+          prism.Surface(
+            color: colors.primaryContainer,
+            shape: prism.AppShape.md,
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: prism_icons.GlyphIcon(
+                glyph,
+                size: 20,
+                color: colors.onPrimaryContainer,
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: prism.AppTextStyle.title3.of(context, emphasized: true),
+                ),
+                Text(
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: prism.AppTextStyle.footnote
+                      .of(context)
+                      .copyWith(color: colors.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+          if (actions.isNotEmpty) ...[
+            const SizedBox(width: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: actions,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class PrismSectionCard extends StatelessWidget {
   const PrismSectionCard({
     super.key,

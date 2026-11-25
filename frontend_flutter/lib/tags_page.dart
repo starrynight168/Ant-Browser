@@ -293,7 +293,7 @@ class _TagsPageState extends State<TagsPage> {
     final profiles = _visibleProfiles;
 
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(24, 6, 24, 24),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

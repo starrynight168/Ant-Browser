@@ -670,7 +670,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
         .toList();
 
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(24, 6, 24, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -683,73 +683,56 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
               ),
               const SizedBox(width: 6),
               Expanded(
-                child: Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        (profile['profileName'] ?? '实例详情').toString(),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: prism.AppTextStyle.title2.of(
-                          context,
-                          emphasized: true,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
+                child: PrismPageContextBar(
+                  glyph: AntGlyphs.browser,
+                  title: (profile['profileName'] ?? '实例详情').toString(),
+                  subtitle:
+                      '实例编号 ${profile['profileId'] ?? ''} · 启动码 ${profile['launchCode'] ?? '未分配'}',
+                  actions: [
                     PrismBadge(
                       label: statusInfo.label,
                       tone: statusInfo.tone,
                       dot: statusInfo.dot,
+                    ),
+                    PrismTonalButton.icon(
+                      onPressed: _busy.isEmpty ? _toggle : null,
+                      icon: PrismGlyph(
+                        _running ? AntGlyphs.stop : AntGlyphs.play,
+                        size: 16,
+                      ),
+                      child: Text(
+                        _busy == 'instance'
+                            ? '处理中…'
+                            : _running
+                            ? '关闭实例'
+                            : '启动实例',
+                      ),
+                    ),
+                    prism.TonalButtonGroup(
+                      size: prism.TonalButtonSize.section,
+                      children: [
+                        prism.IconButton(
+                          tooltip: '打开数据目录',
+                          onPressed: _busy.isEmpty ? _openUserDataDir : null,
+                          icon: const PrismGlyph(AntGlyphs.folder, size: 18),
+                        ),
+                        prism.IconButton(
+                          tooltip: '重启实例',
+                          onPressed: _busy.isEmpty ? _restart : null,
+                          icon: const PrismGlyph(AntGlyphs.restart, size: 18),
+                        ),
+                        prism.IconButton(
+                          tooltip: '刷新状态',
+                          onPressed: _busy.isEmpty ? () => _reload() : null,
+                          icon: const PrismGlyph(AntGlyphs.refresh, size: 18),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              PrismTonalButton.icon(
-                onPressed: _busy.isEmpty ? _toggle : null,
-                icon: PrismGlyph(
-                  _running ? AntGlyphs.stop : AntGlyphs.play,
-                  size: 16,
-                ),
-                child: Text(
-                  _busy == 'instance'
-                      ? '处理中…'
-                      : _running
-                      ? '关闭实例'
-                      : '启动实例',
-                ),
-              ),
-              prism.TonalButtonGroup(
-                size: prism.TonalButtonSize.section,
-                children: [
-                  prism.IconButton(
-                    tooltip: '打开数据目录',
-                    onPressed: _busy.isEmpty ? _openUserDataDir : null,
-                    icon: const PrismGlyph(AntGlyphs.folder, size: 18),
-                  ),
-                  prism.IconButton(
-                    tooltip: '重启实例',
-                    onPressed: _busy.isEmpty ? _restart : null,
-                    icon: const PrismGlyph(AntGlyphs.restart, size: 18),
-                  ),
-                  prism.IconButton(
-                    tooltip: '刷新状态',
-                    onPressed: _busy.isEmpty ? () => _reload() : null,
-                    icon: const PrismGlyph(AntGlyphs.refresh, size: 18),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
           prism.SegmentedControl<int>(
             segments: const [(0, '概览与标签页'), (1, '数据快照'), (2, 'Cookie')],
             value: _selectedDetailTab,

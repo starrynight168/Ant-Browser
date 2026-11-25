@@ -3541,23 +3541,35 @@ socks5://user:password@proxy.example.com:1080''',
         !_dismissedMieruBanner;
 
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(24, 6, 24, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
+          PrismPageContextBar(
+            glyph: AntGlyphs.globe,
+            title: '代理池配置',
+            subtitle: '管理代理节点、订阅来源与连通性检测。',
+            actions: [
               SizedBox(
-                width: 320,
+                width: 300,
                 child: PrismSearchBar(
                   controller: _searchController,
                   onChanged: (value) => setState(() => _query = value),
                   hintText: '搜索代理名称、地址或分组',
                 ),
               ),
+              prism.FilledButton.icon(
+                onPressed: () => _edit(),
+                icon: const PrismGlyph(AntGlyphs.add, size: 16),
+                label: const Text('添加代理'),
+              ),
+            ],
+          ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
               _buildCoreStatusBadge(),
               prism.TonalButtonGroup(
                 size: prism.TonalButtonSize.section,
@@ -3722,11 +3734,6 @@ socks5://user:password@proxy.example.com:1080''',
                     _showUsageGuide();
                   }
                 },
-              ),
-              prism.FilledButton.icon(
-                onPressed: () => _edit(),
-                icon: const PrismGlyph(AntGlyphs.add, size: 16),
-                label: const Text('添加代理'),
               ),
             ],
           ),
@@ -5621,7 +5628,7 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
         .firstOrNull;
     final theme = prism.Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(24, 6, 24, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -5634,19 +5641,21 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
               ),
               const SizedBox(width: 6),
               Expanded(
-                child: Text(
-                  '订阅源管理与对齐记录',
-                  style: prism.AppTextStyle.title2.of(context),
+                child: PrismPageContextBar(
+                  glyph: AntGlyphs.compare,
+                  title: '订阅源管理与对齐记录',
+                  subtitle: '刷新订阅前后对比节点变化，手动维护新旧节点对应关系。',
+                  actions: [
+                    prism.IconButton(
+                      tooltip: '刷新记录',
+                      onPressed: _load,
+                      icon: const PrismGlyph(AntGlyphs.refresh, size: 18),
+                    ),
+                  ],
                 ),
-              ),
-              prism.IconButton(
-                tooltip: '刷新记录',
-                onPressed: _load,
-                icon: const PrismGlyph(AntGlyphs.refresh, size: 18),
               ),
             ],
           ),
-          const SizedBox(height: 12),
           if (_sources.isNotEmpty)
             Wrap(
               spacing: 8,
@@ -5690,32 +5699,37 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
                     },
                   ),
                 ),
-                prism.OutlinedButton.icon(
-                  onPressed: source == null || _busy.isNotEmpty
-                      ? null
-                      : () => _openManualAlign(source),
-                  icon: const PrismGlyph(AntGlyphs.compare, size: 16),
-                  label: const Text('手动匹配'),
-                ),
-                prism.IconButton(
-                  tooltip: '编辑当前订阅源设置',
-                  onPressed: source == null || _busy.isNotEmpty
-                      ? null
-                      : () => _editSourceSettings(source),
-                  icon: const PrismGlyph(AntGlyphs.settings, size: 18),
-                ),
-                prism.IconButton(
-                  tooltip: '刷新全部订阅源',
-                  onPressed: _busy.isNotEmpty || _sources.isEmpty
-                      ? null
-                      : _refreshAllSources,
-                  icon: _busy == 'all'
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: PrismProgressIndicator(size: 18),
-                        )
-                      : const PrismGlyph(AntGlyphs.sync, size: 18),
+                prism.TonalButtonGroup(
+                  size: prism.TonalButtonSize.section,
+                  children: [
+                    prism.IconButton(
+                      tooltip: '手动匹配',
+                      onPressed: source == null || _busy.isNotEmpty
+                          ? null
+                          : () => _openManualAlign(source),
+                      icon: const PrismGlyph(AntGlyphs.compare, size: 18),
+                    ),
+                    prism.IconButton(
+                      tooltip: '编辑当前订阅源设置',
+                      onPressed: source == null || _busy.isNotEmpty
+                          ? null
+                          : () => _editSourceSettings(source),
+                      icon: const PrismGlyph(AntGlyphs.settings, size: 18),
+                    ),
+                    prism.IconButton(
+                      tooltip: '刷新全部订阅源',
+                      onPressed: _busy.isNotEmpty || _sources.isEmpty
+                          ? null
+                          : _refreshAllSources,
+                      icon: _busy == 'all'
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: PrismProgressIndicator(size: 18),
+                            )
+                          : const PrismGlyph(AntGlyphs.sync, size: 18),
+                    ),
+                  ],
                 ),
                 prism.FilledButton.icon(
                   onPressed: source == null || _busy.isNotEmpty
@@ -6600,40 +6614,41 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
     final backAction =
         widget.onBack ?? (canPop ? () => Navigator.of(context).maybePop() : null);
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(24, 6, 24, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
               if (backAction != null) ...[
-                prism.OutlinedButton.icon(
+                prism.IconButton(
+                  tooltip: '返回代理池',
                   onPressed: backAction,
-                  icon: const PrismGlyph(AntGlyphs.arrowBack, size: 16),
-                  label: const Text('返回代理池'),
+                  icon: const PrismGlyph(AntGlyphs.arrowBack, size: 18),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 6),
               ],
               Expanded(
-                child: Text(
-                  '代理虚拟分组',
-                  style: prism.AppTextStyle.title2.of(context),
+                child: PrismPageContextBar(
+                  glyph: AntGlyphs.hub,
+                  title: '代理虚拟分组',
+                  subtitle: '将多个代理节点组合为分组，支持轮询调度、健康探测与故障转移。',
+                  actions: [
+                    prism.IconButton(
+                      tooltip: '刷新',
+                      onPressed: _refresh,
+                      icon: const PrismGlyph(AntGlyphs.refresh, size: 18),
+                    ),
+                    prism.FilledButton.icon(
+                      onPressed: () => _edit(),
+                      icon: const PrismGlyph(AntGlyphs.add, size: 16),
+                      label: const Text('新建分组'),
+                    ),
+                  ],
                 ),
-              ),
-              prism.IconButton(
-                tooltip: '刷新',
-                onPressed: _refresh,
-                icon: const PrismGlyph(AntGlyphs.refresh, size: 18),
-              ),
-              const SizedBox(width: 8),
-              prism.FilledButton.icon(
-                onPressed: () => _edit(),
-                icon: const PrismGlyph(AntGlyphs.add, size: 16),
-                label: const Text('新建分组'),
               ),
             ],
           ),
-          const SizedBox(height: 12),
           Expanded(
             child: _loading
                 ? const Center(child: PrismProgressIndicator())

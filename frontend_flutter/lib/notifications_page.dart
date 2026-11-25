@@ -77,47 +77,35 @@ class _NotificationsPageState extends State<NotificationsPage> {
         };
 
         return Padding(
-          padding: const EdgeInsets.fromLTRB(28, 22, 28, 24),
+          padding: const EdgeInsets.fromLTRB(24, 6, 24, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                children: [
-                  Text(
-                    '通知中心',
-                    style: prism.AppTextStyle.headline.of(context),
-                  ),
-                  if (unread > 0) ...[
-                    const SizedBox(width: 10),
+              PrismPageContextBar(
+                glyph: AntGlyphs.bell,
+                title: '通知中心',
+                subtitle: '实例崩溃、代理桥接与备份任务的运行通知。',
+                actions: [
+                  if (unread > 0)
                     PrismBadge(
                       label: '$unread 条未读',
                       tone: PrismTone.primary,
                       dot: true,
                     ),
-                  ],
-                  const Spacer(),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      if (unread > 0)
-                        prism.TextButton.icon(
-                          onPressed: widget.store.markAllRead,
-                          icon: const PrismGlyph(AntGlyphs.doneAll, size: 17),
-                          label: const Text('全部标为已读'),
-                        ),
-                      if (all.isNotEmpty)
-                        prism.OutlinedButton.icon(
-                          onPressed: _clear,
-                          icon: const PrismGlyph(AntGlyphs.delete, size: 17),
-                          label: const Text('清空通知'),
-                        ),
-                    ],
-                  ),
+                  if (unread > 0)
+                    prism.TextButton.icon(
+                      onPressed: widget.store.markAllRead,
+                      icon: const PrismGlyph(AntGlyphs.doneAll, size: 17),
+                      label: const Text('全部标为已读'),
+                    ),
+                  if (all.isNotEmpty)
+                    prism.TextButton.icon(
+                      onPressed: _clear,
+                      icon: const PrismGlyph(AntGlyphs.delete, size: 17),
+                      label: const Text('清空通知'),
+                    ),
                 ],
               ),
-              const SizedBox(height: 12),
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 520),
                 child: prism.SegmentedControl<String>(

@@ -1178,33 +1178,15 @@ class _CoresPageState extends State<CoresPage> {
   Widget build(BuildContext context) {
     final colors = prism.Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(28, 22, 28, 24),
+      padding: const EdgeInsets.fromLTRB(24, 6, 24, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '浏览器内核管理',
-                      style: prism.AppTextStyle.title2.of(
-                        context,
-                        emphasized: true,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '共 ${_cores.length} 个内核',
-                      style: prism.AppTextStyle.footnote
-                          .of(context)
-                          .copyWith(color: colors.onSurfaceVariant),
-                    ),
-                  ],
-                ),
-              ),
+          PrismPageContextBar(
+            glyph: AntGlyphs.cpu,
+            title: '浏览器内核管理',
+            subtitle: '共 ${_cores.length} 个内核 · 下载、导入与默认内核设置。',
+            actions: [
               prism.TonalButtonGroup(
                 size: prism.TonalButtonSize.section,
                 children: [
@@ -1225,7 +1207,6 @@ class _CoresPageState extends State<CoresPage> {
                   ),
                 ],
               ),
-              const SizedBox(width: 10),
               prism.FilledButton.icon(
                 onPressed: _busy ? null : () => _openDownloadModal(),
                 icon: const PrismGlyph(AntGlyphs.download, size: 16),

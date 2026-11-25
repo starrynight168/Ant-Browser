@@ -2066,20 +2066,15 @@ class _AutomationPageState extends State<AutomationPage> {
   Widget build(BuildContext context) {
     final colors = prism.Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(24, 6, 24, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            '自动化脚本',
-            style: prism.AppTextStyle.title2.of(context, emphasized: true),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
+          PrismPageContextBar(
+            glyph: AntGlyphs.robot,
+            title: '自动化脚本',
+            subtitle: '管理脚本与接口模式，运行并跟踪调用记录。',
+            actions: [
               prism.FilledButton.icon(
                 onPressed: _busy.isEmpty ? widget.onCreate : null,
                 icon: const PrismGlyph(AntGlyphs.add, size: 16),
@@ -2124,7 +2119,6 @@ class _AutomationPageState extends State<AutomationPage> {
               ),
             ],
           ),
-          const SizedBox(height: 14),
           Expanded(
             child: _loading
                 ? const Center(child: PrismProgressIndicator())
@@ -3224,7 +3218,7 @@ class _AutomationScriptDetailPageState
         (_record?['id'] ?? widget.scriptId) != 'new';
 
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(24, 6, 24, 24),
       children: [
         Row(
           children: [
@@ -3235,165 +3229,154 @@ class _AutomationScriptDetailPageState
             ),
             const SizedBox(width: 6),
             Expanded(
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Text(
-                    widget.scriptId == 'new' ? '新建脚本' : '脚本详情',
-                    style: prism.AppTextStyle.title2.of(
-                      context,
-                      emphasized: true,
+              child: PrismPageContextBar(
+                glyph: widget.scriptId == 'new'
+                    ? AntGlyphs.add
+                    : AntGlyphs.code,
+                title: widget.scriptId == 'new' ? '新建脚本' : '脚本详情',
+                subtitle: sourceLabel.isEmpty
+                    ? '脚本与对外 API 配置，更新于 $updatedAt'
+                    : '来源：$sourceLabel · 更新于 $updatedAt',
+                actions: [
+                  if (_isDirty)
+                    const PrismBadge(
+                      label: '未保存',
+                      tone: PrismTone.warning,
+                      dot: true,
                     ),
-                  ),
-                  PrismBadge(
-                    label: _isDirty ? '未保存' : '已保存',
-                    tone: _isDirty ? PrismTone.warning : PrismTone.success,
-                    dot: true,
-                  ),
                   PrismBadge(
                     label: _statusLabel(_status),
                     tone: _statusTone(_status),
                   ),
-                  if (updatedAt != '-')
-                    Text(
-                      '更新于 $updatedAt',
-                      style: prism.AppTextStyle.caption1
-                          .of(context)
-                          .copyWith(color: colors.onSurfaceVariant),
+                  PrismPopupMenuButton<String>(
+                    tooltip: '更多操作',
+                    enabled: _busy.isEmpty && widget.scriptId != 'new',
+                    icon: const PrismGlyph(AntGlyphs.more, size: 18),
+                    onSelected: (action) async {
+                      if (action.startsWith('export-')) {
+                        try {
+                          final format = action.substring(
+                            'export-'.length,
+                          );
+                          final method = switch (format) {
+                            'json' => 'AutomationScriptExport',
+                            'directory' => 'AutomationScriptExportDirectory',
+                            _ => 'AutomationScriptExportZip',
+                          };
+                          final result = await AppBridge.call(method, [
+                            widget.scriptId,
+                          ]);
+                          if (mounted &&
+                              result is Map &&
+                              result['message'] != null) {
+                            showPrismNotice(
+                              context,
+                              result['message'].toString(),
+                            );
+                          }
+                        } catch (error) {
+                          if (mounted) {
+                            showPrismNotice(context, error.toString());
+                          }
+                        }
+                      } else if (action == 'delete') {
+                        final yes = await showPrismDialog<bool>(
+                          context: context,
+                          useRootNavigator: false,
+                          builder: (context) => PrismDialog(
+                            title: const Text('删除脚本？'),
+                            destructive: true,
+                            content: Text('将删除“${_name.text}”及其本地文件。'),
+                            actions: [
+                              prism.TextButton(
+                                onPressed: () =>
+                                    Navigator.pop(context, false),
+                                child: const Text('取消'),
+                              ),
+                              prism.FilledButton(
+                                onPressed: () =>
+                                    Navigator.pop(context, true),
+                                child: const Text('删除'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (yes == true) {
+                          try {
+                            await AppBridge.call('AutomationScriptDelete', [
+                              widget.scriptId,
+                            ]);
+                            widget.onBack();
+                          } catch (error) {
+                            if (mounted) {
+                              showPrismNotice(context, '删除脚本失败：$error');
+                            }
+                          }
+                        }
+                      } else if (action == 'refresh') {
+                        try {
+                          final refreshed = await AppBridge.call(
+                            'AutomationScriptRefresh',
+                            [widget.scriptId],
+                          );
+                          _record = Map<String, dynamic>.from(
+                            refreshed as Map,
+                          );
+                          _hydrateFromRecord(_record!);
+                          _savedDraftSnapshot = _draftSnapshot();
+                          if (mounted) {
+                            setState(() {});
+                            showPrismNotice(context, '已按来源重新导入');
+                          }
+                        } catch (error) {
+                          if (mounted) {
+                            showPrismNotice(context, error.toString());
+                          }
+                        }
+                      }
+                    },
+                    itemBuilder: (_) => [
+                      const PrismMenuItem(
+                        value: 'export-json',
+                        child: Text('导出 JSON 模板'),
+                      ),
+                      const PrismMenuItem(
+                        value: 'export-directory',
+                        child: Text('导出目录'),
+                      ),
+                      const PrismMenuItem(
+                        value: 'export-zip',
+                        child: Text('导出 ZIP'),
+                      ),
+                      PrismMenuItem(
+                        value: 'refresh',
+                        enabled: refreshable,
+                        child: Text(
+                          refreshable
+                              ? '按来源重新导入'
+                              : '按来源重新导入（当前来源不支持）',
+                        ),
+                      ),
+                      const PrismMenuItem(
+                        value: 'delete',
+                        danger: true,
+                        child: Text('删除脚本'),
+                      ),
+                    ],
+                  ),
+                  if (!_isLaunchApi)
+                    prism.OutlinedButton.icon(
+                      onPressed: canRun ? _openRunModal : null,
+                      icon: const PrismGlyph(AntGlyphs.play, size: 15),
+                      label: const Text('运行脚本'),
                     ),
+                  prism.FilledButton.icon(
+                    onPressed: _busy.isEmpty ? _save : null,
+                    icon: const PrismGlyph(AntGlyphs.save, size: 15),
+                    label: Text(_busy == 'save' ? '保存中…' : '保存'),
+                  ),
                 ],
               ),
-            ),
-          ],
-        ),
-        if (sourceLabel.isNotEmpty) ...[
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            children: [
-              PrismBadge(
-                label: '来源：$sourceLabel',
-                glyph: AntGlyphs.link,
-                tone: PrismTone.info,
-              ),
-            ],
-          ),
-        ],
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            PrismPopupMenuButton<String>(
-              enabled: _busy.isEmpty && widget.scriptId != 'new',
-              onSelected: (action) async {
-                if (action.startsWith('export-')) {
-                  try {
-                    final format = action.substring('export-'.length);
-                    final method = switch (format) {
-                      'json' => 'AutomationScriptExport',
-                      'directory' => 'AutomationScriptExportDirectory',
-                      _ => 'AutomationScriptExportZip',
-                    };
-                    final result = await AppBridge.call(method, [
-                      widget.scriptId,
-                    ]);
-                    if (mounted &&
-                        result is Map &&
-                        result['message'] != null) {
-                      showPrismNotice(context, result['message'].toString());
-                    }
-                  } catch (error) {
-                    if (mounted) showPrismNotice(context, error.toString());
-                  }
-                } else if (action == 'delete') {
-                  final yes = await showPrismDialog<bool>(
-                    context: context,
-                    useRootNavigator: false,
-                    builder: (context) => PrismDialog(
-                      title: const Text('删除脚本？'),
-                      destructive: true,
-                      content: Text('将删除“${_name.text}”及其本地文件。'),
-                      actions: [
-                        prism.TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('取消'),
-                        ),
-                        prism.FilledButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('删除'),
-                        ),
-                      ],
-                    ),
-                  );
-                  if (yes == true) {
-                    try {
-                      await AppBridge.call('AutomationScriptDelete', [
-                        widget.scriptId,
-                      ]);
-                      widget.onBack();
-                    } catch (error) {
-                      if (mounted) {
-                        showPrismNotice(context, '删除脚本失败：$error');
-                      }
-                    }
-                  }
-                } else if (action == 'refresh') {
-                  try {
-                    final refreshed = await AppBridge.call(
-                      'AutomationScriptRefresh',
-                      [widget.scriptId],
-                    );
-                    _record = Map<String, dynamic>.from(refreshed as Map);
-                    _hydrateFromRecord(_record!);
-                    _savedDraftSnapshot = _draftSnapshot();
-                    if (mounted) {
-                      setState(() {});
-                      showPrismNotice(context, '已按来源重新导入');
-                    }
-                  } catch (error) {
-                    if (mounted) showPrismNotice(context, error.toString());
-                  }
-                }
-              },
-              itemBuilder: (_) => [
-                const PrismMenuItem(
-                  value: 'export-json',
-                  child: Text('导出 JSON 模板'),
-                ),
-                const PrismMenuItem(
-                  value: 'export-directory',
-                  child: Text('导出目录'),
-                ),
-                const PrismMenuItem(value: 'export-zip', child: Text('导出 ZIP')),
-                PrismMenuItem(
-                  value: 'refresh',
-                  enabled: refreshable,
-                  child: Text(
-                    refreshable ? '按来源重新导入' : '按来源重新导入（当前来源不支持）',
-                  ),
-                ),
-                const PrismMenuItem(
-                  value: 'delete',
-                  danger: true,
-                  child: Text('删除脚本'),
-                ),
-              ],
-            ),
-            if (!_isLaunchApi)
-              prism.OutlinedButton.icon(
-                onPressed: canRun ? _openRunModal : null,
-                icon: const PrismGlyph(AntGlyphs.play, size: 15),
-                label: const Text('运行脚本'),
-              ),
-            prism.FilledButton.icon(
-              onPressed: _busy.isEmpty ? _save : null,
-              icon: const PrismGlyph(AntGlyphs.save, size: 15),
-              label: Text(_busy == 'save' ? '保存中…' : '保存'),
             ),
           ],
         ),
