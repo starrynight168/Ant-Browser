@@ -464,16 +464,21 @@ class _TagsPageState extends State<TagsPage> {
                                   _selectedIds.clear();
                                 }),
                               ),
-                              for (final tag in tags)
+                              PrismSectionDividerHeader(
+                                label: '标签分组',
+                                trailing: '${tags.length}',
+                              ),
+                              for (var i = 0; i < tags.length; i++)
                                 _TagButton(
-                                  label: tag,
-                                  count: counts[tag] ?? 0,
-                                  selected: _selectedTag == tag,
+                                  label: tags[i],
+                                  count: counts[tags[i]] ?? 0,
+                                  selected: _selectedTag == tags[i],
+                                  showDivider: i < tags.length - 1,
                                   onTap: () => setState(() {
-                                    _selectedTag = tag;
+                                    _selectedTag = tags[i];
                                     _selectedIds.clear();
                                   }),
-                                  onRename: () => _renameTag(tag),
+                                  onRename: () => _renameTag(tags[i]),
                                 ),
                               if (tags.isEmpty)
                                 Padding(
@@ -874,6 +879,7 @@ class _TagButton extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.onRename,
+    this.showDivider = false,
   });
 
   final String label;
@@ -881,51 +887,32 @@ class _TagButton extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
   final VoidCallback? onRename;
+  final bool showDivider;
 
   @override
   Widget build(BuildContext context) {
-    final colors = prism.Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: prism.Surface(
-        color: selected ? colors.secondaryContainer : const Color(0x00000000),
-        shape: prism.AppShape.full,
-        child: Row(
-          children: [
-            Expanded(
-              child: prism.TextButton(
-                onPressed: onTap,
-                style: prism.ButtonStyle.from(
-                  foregroundColor: selected
-                      ? colors.onSecondaryContainer
-                      : colors.onSurfaceVariant,
-                  minimumSize: const Size(0, 42),
-                ),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
+    return PrismNavItem(
+      label: label,
+      glyph: AntGlyphs.tag,
+      selected: selected,
+      showDivider: showDivider,
+      onTap: onTap,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          PrismBadge(
+            label: '$count',
+            tone: selected ? PrismTone.primary : PrismTone.neutral,
+          ),
+          if (onRename != null) ...[
+            const SizedBox(width: 2),
+            prism.IconButton(
+              tooltip: '重命名',
+              onPressed: onRename,
+              icon: const PrismGlyph(AntGlyphs.edit, size: 14),
             ),
-            Text(
-              '$count',
-              style: prism.AppTextStyle.caption2
-                  .of(context)
-                  .copyWith(color: colors.onSurfaceVariant),
-            ),
-            if (onRename != null)
-              prism.IconButton(
-                tooltip: '重命名',
-                onPressed: onRename,
-                icon: const PrismGlyph(AntGlyphs.edit, size: 15),
-              ),
-            const SizedBox(width: 6),
           ],
-        ),
+        ],
       ),
     );
   }

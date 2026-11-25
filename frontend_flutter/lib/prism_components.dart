@@ -1099,6 +1099,188 @@ class PrismGroupedCard extends StatelessWidget {
   }
 }
 
+/// iOS 分组小标题，带可选项数标注与底部分割线。
+class PrismSectionDividerHeader extends StatelessWidget {
+  const PrismSectionDividerHeader({
+    super.key,
+    required this.label,
+    this.trailing,
+    this.padding = const EdgeInsets.fromLTRB(10, 12, 10, 6),
+  });
+
+  final String label;
+  final String? trailing;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
+    return Padding(
+      padding: padding,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: prism.AppTextStyle.caption1
+                      .of(context, emphasized: true)
+                      .copyWith(color: colors.onSurfaceVariant),
+                ),
+              ),
+              if (trailing != null && trailing!.isNotEmpty)
+                Text(
+                  trailing!,
+                  style: prism.AppTextStyle.caption2
+                      .of(context)
+                      .copyWith(color: colors.onSurfaceVariant),
+                ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          const prism.Divider(height: 1),
+        ],
+      ),
+    );
+  }
+}
+
+/// iOS 风格目录导航项：左侧主题胶囊选中条、内缩下划线分隔线、原生 SelectionBadge 与渐进微动效。
+class PrismNavItem extends StatelessWidget {
+  const PrismNavItem({
+    super.key,
+    required this.label,
+    required this.glyph,
+    required this.selected,
+    required this.onTap,
+    this.trailing,
+    this.showDivider = false,
+    this.showSelectionBadge = false,
+  });
+
+  final String label;
+  final prism_icons.Glyph glyph;
+  final bool selected;
+  final VoidCallback onTap;
+  final Widget? trailing;
+  final bool showDivider;
+  final bool showSelectionBadge;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
+    final motionSpec = PrismMotionSpec.current;
+    final indicatorDuration = motionSpec.enabled
+        ? const Duration(milliseconds: 220)
+        : Duration.zero;
+    final rowStyle = selected
+        ? prism.AppTextStyle.subheadline
+              .of(context, emphasized: true)
+              .copyWith(color: colors.onPrimaryContainer)
+        : prism.AppTextStyle.subheadline
+              .of(context)
+              .copyWith(color: colors.onSurface);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        PrismHoverMotion(
+          hoverScale: 1.015,
+          pressScale: 0.985,
+          child: prism.PressRegion(
+            onTap: onTap,
+            shape: prism.AppShape.md,
+            fill: selected ? colors.primaryContainer : null,
+            mouseCursor: SystemMouseCursors.click,
+            child: Stack(
+              alignment: AlignmentDirectional.centerStart,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 9, 10, 9),
+                  child: Row(
+                    children: [
+                      PrismGlyph(
+                        glyph,
+                        size: 17,
+                        color: selected
+                            ? colors.onPrimaryContainer
+                            : colors.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: rowStyle,
+                        ),
+                      ),
+                      if (trailing != null) ...[
+                        const SizedBox(width: 8),
+                        trailing!,
+                      ] else if (showSelectionBadge) ...[
+                        const SizedBox(width: 8),
+                        if (selected)
+                          const prism.SelectionBadge(size: 18, tonal: true)
+                        else
+                          PrismGlyph(
+                            AntGlyphs.chevronForward,
+                            size: 14,
+                            color: colors.onSurfaceVariant.withValues(
+                              alpha: 0.45,
+                            ),
+                          ),
+                      ],
+                    ],
+                  ),
+                ),
+                PositionedDirectional(
+                  start: 3,
+                  top: 0,
+                  bottom: 0,
+                  child: Center(
+                    child: AnimatedOpacity(
+                      opacity: selected ? 1.0 : 0.0,
+                      duration: indicatorDuration,
+                      curve: motionSpec.springCurve,
+                      child: AnimatedScale(
+                        scale: selected ? 1.0 : 0.4,
+                        duration: indicatorDuration,
+                        curve: motionSpec.springCurve,
+                        child: SizedBox(
+                          width: 3,
+                          height: 18,
+                          child: DecoratedBox(
+                            decoration: ShapeDecoration(
+                              color: colors.primary,
+                              shape: prism.AppShape.full,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (showDivider && !selected)
+          const Padding(
+            padding: EdgeInsets.only(left: 40, right: 10),
+            child: prism.Divider(height: 1),
+          ),
+      ],
+    );
+  }
+}
+
 class PrismMetricTile extends StatelessWidget {
   const PrismMetricTile({
     super.key,

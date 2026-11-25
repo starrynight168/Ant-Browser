@@ -298,49 +298,26 @@ class _DocsPageState extends State<DocsPage> {
                                   padding: const EdgeInsets.all(10),
                                   children: [
                                     for (final group in filteredGroups) ...[
-                                      Padding(
-                                        padding: const EdgeInsets.fromLTRB(
-                                          10,
-                                          10,
-                                          10,
-                                          4,
-                                        ),
-                                        child: Text(
-                                          group.label,
-                                          style: prism.AppTextStyle.caption1
-                                              .of(context, emphasized: true)
-                                              .copyWith(
-                                                color: colors.onSurfaceVariant,
-                                              ),
-                                        ),
+                                      PrismSectionDividerHeader(
+                                        label: group.label,
+                                        trailing: '${group.items.length}',
                                       ),
-                                      for (final item in group.items)
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            bottom: 2,
-                                          ),
-                                          child: PrismHoverMotion(
-                                            hoverScale: 1.015,
-                                            pressScale: 0.985,
-                                            child: PrismListTile(
-                                              selected: item.id == _selected,
-                                              selectedTileColor:
-                                                  colors.primaryContainer,
-                                              selectedColor:
-                                                  colors.onPrimaryContainer,
-                                              shape: prism.AppShape.md,
-                                              leading: PrismGlyph(
-                                                group.glyph,
-                                                size: 17,
-                                                color: item.id == _selected
-                                                    ? colors.onPrimaryContainer
-                                                    : colors.onSurfaceVariant,
-                                              ),
-                                              title: Text(item.label),
-                                              onTap: () => setState(
-                                                () => _selected = item.id,
-                                              ),
-                                            ),
+                                      for (
+                                        var i = 0;
+                                        i < group.items.length;
+                                        i++
+                                      )
+                                        PrismNavItem(
+                                          label: group.items[i].label,
+                                          glyph: group.glyph,
+                                          selected:
+                                              group.items[i].id == _selected,
+                                          showDivider:
+                                              i < group.items.length - 1,
+                                          showSelectionBadge: true,
+                                          onTap: () => setState(
+                                            () =>
+                                                _selected = group.items[i].id,
                                           ),
                                         ),
                                     ],
@@ -395,7 +372,26 @@ class _DocsPageState extends State<DocsPage> {
                                       .of(context)
                                       .copyWith(color: colors.onSurfaceVariant),
                                 ),
-                                const SizedBox(height: 18),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    SizedBox(
+                                      width: 36,
+                                      height: 3,
+                                      child: DecoratedBox(
+                                        decoration: ShapeDecoration(
+                                          color: colors.primary,
+                                          shape: prism.AppShape.full,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const Expanded(
+                                      child: prism.Divider(height: 1),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
                                 _DocsMarkdown(source: renderedSource),
                                 if (section.id == 'tutorial-skill') ...[
                                   const SizedBox(height: 14),
