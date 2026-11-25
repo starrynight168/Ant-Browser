@@ -235,9 +235,11 @@ class _SidebarOverlay extends StatelessWidget {
 
 class _SidebarColors {
   _SidebarColors(ColorScheme scheme)
-    : selectedFill = scheme.onSurface.withValues(alpha: 0.08),
+    : selectedFill = scheme.primaryContainer,
       label = scheme.onSurface,
+      selectedLabel = scheme.onPrimaryContainer,
       icon = scheme.onSurfaceVariant,
+      selectedIcon = scheme.onPrimaryContainer,
       indicator = scheme.primary,
       overlay = WidgetStateProperty.fromMap({
         WidgetState.pressed: scheme.onSurface.withValues(alpha: 0.06),
@@ -248,7 +250,9 @@ class _SidebarColors {
 
   final Color selectedFill;
   final Color label;
+  final Color selectedLabel;
   final Color icon;
+  final Color selectedIcon;
   final Color indicator;
   final WidgetStateProperty<Color> overlay;
 }
@@ -287,6 +291,10 @@ class _SidebarPane extends StatelessWidget {
     final labelStyle = AppTextStyle.subheadline
         .of(context)
         .copyWith(color: colors.label);
+    final selectedLabelStyle = labelStyle.copyWith(
+      color: colors.selectedLabel,
+      fontWeight: FontWeight.w600,
+    );
     final labelWidth = rowWidth - iconInset - _iconSize - _labelGap * 2;
     String rowTooltip(String label) =>
         expanded &&
@@ -341,7 +349,9 @@ class _SidebarPane extends StatelessWidget {
                               selected: index == selectedIndex,
                               width: rowWidth,
                               iconInset: iconInset,
-                              style: labelStyle,
+                              style: index == selectedIndex
+                                  ? selectedLabelStyle
+                                  : labelStyle,
                               labelOpacity: labelOpacity,
                             ),
                           ),
@@ -406,12 +416,15 @@ class _SidebarButton extends StatelessWidget {
             shape: _itemShape,
             fill: selected == true ? colors.selectedFill : null,
             overlay: colors.overlay,
-            mouseCursor: SystemMouseCursors.basic,
+            mouseCursor: SystemMouseCursors.click,
             child: Tooltip(
               message: tooltip,
               excludeFromSemantics: !tooltipIsLabel,
               child: IconTheme.merge(
-                data: IconThemeData(size: _iconSize, color: colors.icon),
+                data: IconThemeData(
+                  size: _iconSize,
+                  color: selected == true ? colors.selectedIcon : colors.icon,
+                ),
                 child: SizedBox(height: height, child: child),
               ),
             ),
@@ -523,9 +536,15 @@ class _SelectionIndicatorState extends State<_SelectionIndicator>
   @override
   void didUpdateWidget(covariant _SelectionIndicator oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final duration = context.motionDuration(_indicatorDuration);
+    _controller.duration = duration;
     if (oldWidget.index != widget.index) {
       _from = oldWidget.index;
-      _controller.forward(from: 0);
+      if (duration == Duration.zero) {
+        _controller.value = 1;
+      } else {
+        _controller.forward(from: 0);
+      }
     }
   }
 

@@ -35,6 +35,7 @@ class DocsPage extends StatefulWidget {
 class _DocsPageState extends State<DocsPage> {
   String _selected = 'tutorial-basic';
   Map<String, dynamic> _launchServerInfo = {};
+  final _searchController = TextEditingController();
 
   static const _groups = <_DocsGroup>[
     _DocsGroup('使用教程', AntGlyphs.book, [
@@ -76,6 +77,12 @@ class _DocsPageState extends State<DocsPage> {
   void initState() {
     super.initState();
     _loadLaunchServerInfo();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadLaunchServerInfo() async {
@@ -123,6 +130,10 @@ class _DocsPageState extends State<DocsPage> {
     final currentIndex = _allItems.indexWhere((item) => item.id == _selected);
     final safeIndex = currentIndex < 0 ? 0 : currentIndex;
     final section = _allItems[safeIndex];
+    final activeGroup = _groups.firstWhere(
+      (group) => group.items.any((item) => item.id == section.id),
+      orElse: () => _groups.first,
+    );
     final prevItem = safeIndex > 0 ? _allItems[safeIndex - 1] : null;
     final nextItem =
         safeIndex < _allItems.length - 1 ? _allItems[safeIndex + 1] : null;
@@ -133,145 +144,338 @@ class _DocsPageState extends State<DocsPage> {
     ].where((content) => content.isNotEmpty).join('\n\n');
     final renderedSource = _substituteLaunchConfig(rawSource);
 
-    return Row(
-      children: [
-        SizedBox(
-          width: 236,
-          child: ListView(
-            padding: const EdgeInsets.all(12),
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Text(
-                  '文档目录',
-                  style: prism.AppTextStyle.subheadline
-                      .of(context, emphasized: true)
-                      .copyWith(color: colors.onSurfaceVariant),
+    final serverReady = _launchServerInfo['ready'] == true;
+    final baseUrl = '${_launchServerInfo['baseUrl'] ?? ''}'.trim();
+    final query = _searchController.text.trim().toLowerCase();
+    final filteredGroups = query.isEmpty
+        ? _groups
+        : [
+            for (final group in _groups)
+              if (group.items.any(
+                (item) =>
+                    item.label.toLowerCase().contains(query) ||
+                    item.summary.toLowerCase().contains(query),
+              ))
+                _DocsGroup(
+                  group.label,
+                  group.glyph,
+                  group.items
+                      .where(
+                        (item) =>
+                            item.label.toLowerCase().contains(query) ||
+                            item.summary.toLowerCase().contains(query),
+                      )
+                      .toList(),
                 ),
-              ),
-              for (final group in _groups) ...[
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 14, 12, 6),
-                  child: Text(
-                    group.label,
-                    style: prism.AppTextStyle.footnote
-                        .of(context, emphasized: true)
-                        .copyWith(color: colors.onSurfaceVariant),
+          ];
+
+    final kpiTiles = [
+      PrismMetricTile(
+        label: '文档章节',
+        value: '${_allItems.length}',
+        subtitle: '${_groups.length} 个主题分类',
+        glyph: AntGlyphs.book,
+        tone: PrismTone.primary,
+        staggerIndex: 0,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+      PrismMetricTile(
+        label: '当前分类',
+        value: activeGroup.label,
+        subtitle: section.label,
+        glyph: activeGroup.glyph,
+        tone: PrismTone.info,
+        staggerIndex: 1,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+      PrismMetricTile(
+        label: '启动服务',
+        value: serverReady ? '已就绪' : '未就绪',
+        subtitle: baseUrl.isNotEmpty ? baseUrl : 'Launch Server',
+        glyph: AntGlyphs.api,
+        tone: serverReady ? PrismTone.success : PrismTone.warning,
+        onPressed: () => setState(() => _selected = 'api-demo'),
+        staggerIndex: 2,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+      PrismMetricTile(
+        label: '交互演示',
+        value: 'API 调试',
+        subtitle: '点击直达在线演示',
+        glyph: AntGlyphs.bolt,
+        tone: PrismTone.neutral,
+        onPressed: () => setState(() => _selected = 'api-demo'),
+        staggerIndex: 3,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth >= 760) {
+                return Row(
+                  children: [
+                    for (var i = 0; i < kpiTiles.length; i++) ...[
+                      if (i > 0) const SizedBox(width: 12),
+                      Expanded(child: kpiTiles[i]),
+                    ],
+                  ],
+                );
+              }
+              return Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(child: kpiTiles[0]),
+                      const SizedBox(width: 10),
+                      Expanded(child: kpiTiles[1]),
+                    ],
                   ),
-                ),
-                for (final item in group.items)
-                  PrismListTile(
-                    selected: item.id == _selected,
-                    selectedTileColor: colors.secondaryContainer,
-                    selectedColor: colors.onSecondaryContainer,
-                    shape: prism.AppShape.full,
-                    leading: PrismGlyph(
-                      group.glyph,
-                      size: 17,
-                      color: item.id == _selected
-                          ? colors.onSecondaryContainer
-                          : colors.onSurfaceVariant,
-                    ),
-                    title: Text(item.label),
-                    onTap: () => setState(() => _selected = item.id),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(child: kpiTiles[2]),
+                      const SizedBox(width: 10),
+                      Expanded(child: kpiTiles[3]),
+                    ],
                   ),
-              ],
-            ],
+                ],
+              );
+            },
           ),
-        ),
-        SizedBox(
-          width: 1,
-          child: ColoredBox(color: colors.outlineVariant),
-        ),
-        Expanded(
-          child: prism.PageTransitionSwitcher(
-            duration: PrismMotionSpec.current.pageDuration,
-            transitionBuilder: PrismSlideThroughTransition.builder,
-            child: ListView(
-              key: ValueKey(_selected),
-              padding: const EdgeInsets.fromLTRB(30, 24, 30, 36),
+          const SizedBox(height: 12),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(
-                  children: [
-                    PrismGlyph(AntGlyphs.book, size: 22, color: colors.primary),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        section.label,
-                        style: prism.AppTextStyle.pageTitle.of(context),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  section.summary,
-                  style: prism.AppTextStyle.body
-                      .of(context)
-                      .copyWith(color: colors.onSurfaceVariant),
-                ),
-                const SizedBox(height: 18),
-                _DocsMarkdown(source: renderedSource),
-                if (section.id == 'tutorial-skill') ...[
-                  const SizedBox(height: 14),
-                  PrismSectionCard(
+                SizedBox(
+                  width: 248,
+                  child: PrismHoverCard(
+                    staggerIndex: 4,
+                    staggerDelay: const Duration(milliseconds: 45),
+                    radius: prism.AppCorner.xl,
                     padding: EdgeInsets.zero,
-                    child: PrismListTile(
-                      leading: PrismGlyph(
-                        AntGlyphs.folder,
-                        size: 20,
-                        color: colors.primary,
-                      ),
-                      title: const Text('打开项目根目录'),
-                      subtitle: const Text('SKILL 安装命令默认从这个目录运行。'),
-                      trailing: prism.OutlinedButton.icon(
-                        onPressed: _openProjectRoot,
-                        icon: const PrismGlyph(AntGlyphs.folder, size: 16),
-                        label: const Text('打开目录'),
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        prism.InfoHeader(
+                          info: const prism.Info(
+                            label: '文档目录',
+                            glyph: AntGlyphs.book,
+                          ),
+                          padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                          child: PrismSearchBar(
+                            controller: _searchController,
+                            hintText: '搜索文档章节…',
+                            height: 34,
+                            onChanged: (_) => setState(() {}),
+                          ),
+                        ),
+                        const prism.Divider(height: 1),
+                        Expanded(
+                          child: filteredGroups.isEmpty
+                              ? PrismEmptyState(
+                                  glyph: AntGlyphs.search,
+                                  title: '无匹配章节',
+                                  subtitle: '尝试调整关键词',
+                                  action: prism.OutlinedButton(
+                                    onPressed: () {
+                                      _searchController.clear();
+                                      setState(() {});
+                                    },
+                                    child: const Text('重置搜索'),
+                                  ),
+                                )
+                              : ListView(
+                                  padding: const EdgeInsets.all(10),
+                                  children: [
+                                    for (final group in filteredGroups) ...[
+                                      Padding(
+                                        padding: const EdgeInsets.fromLTRB(
+                                          10,
+                                          10,
+                                          10,
+                                          4,
+                                        ),
+                                        child: Text(
+                                          group.label,
+                                          style: prism.AppTextStyle.caption1
+                                              .of(context, emphasized: true)
+                                              .copyWith(
+                                                color: colors.onSurfaceVariant,
+                                              ),
+                                        ),
+                                      ),
+                                      for (final item in group.items)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 2,
+                                          ),
+                                          child: PrismHoverMotion(
+                                            hoverScale: 1.015,
+                                            pressScale: 0.985,
+                                            child: PrismListTile(
+                                              selected: item.id == _selected,
+                                              selectedTileColor:
+                                                  colors.primaryContainer,
+                                              selectedColor:
+                                                  colors.onPrimaryContainer,
+                                              shape: prism.AppShape.md,
+                                              leading: PrismGlyph(
+                                                group.glyph,
+                                                size: 17,
+                                                color: item.id == _selected
+                                                    ? colors.onPrimaryContainer
+                                                    : colors.onSurfaceVariant,
+                                              ),
+                                              title: Text(item.label),
+                                              onTap: () => setState(
+                                                () => _selected = item.id,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ],
+                                ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-                if (section.id == 'api-demo') ...[
-                  const SizedBox(height: 14),
-                  _LaunchApiDemoPanel(
-                    launchServerInfo: _launchServerInfo,
-                    onRefreshServerInfo: _loadLaunchServerInfo,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: PrismHoverCard(
+                    staggerIndex: 5,
+                    staggerDelay: const Duration(milliseconds: 45),
+                    radius: prism.AppCorner.xl,
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        prism.InfoHeader(
+                          info: prism.Info(
+                            label: section.label,
+                            glyph: activeGroup.glyph,
+                          ),
+                          actions: [
+                            PrismBadge(
+                              label: activeGroup.label,
+                              tone: PrismTone.info,
+                            ),
+                          ],
+                          padding: const EdgeInsets.fromLTRB(20, 12, 16, 10),
+                        ),
+                        const prism.Divider(height: 1),
+                        Expanded(
+                          child: prism.PageTransitionSwitcher(
+                            duration: PrismMotionSpec.current.pageDuration,
+                            transitionBuilder:
+                                PrismSlideThroughTransition.builder,
+                            child: ListView(
+                              key: ValueKey(_selected),
+                              padding: const EdgeInsets.fromLTRB(
+                                26,
+                                20,
+                                26,
+                                28,
+                              ),
+                              children: [
+                                Text(
+                                  section.summary,
+                                  style: prism.AppTextStyle.body
+                                      .of(context)
+                                      .copyWith(color: colors.onSurfaceVariant),
+                                ),
+                                const SizedBox(height: 18),
+                                _DocsMarkdown(source: renderedSource),
+                                if (section.id == 'tutorial-skill') ...[
+                                  const SizedBox(height: 14),
+                                  PrismSectionCard(
+                                    padding: EdgeInsets.zero,
+                                    child: PrismListTile(
+                                      leading: PrismGlyph(
+                                        AntGlyphs.folder,
+                                        size: 20,
+                                        color: colors.primary,
+                                      ),
+                                      title: const Text('打开项目根目录'),
+                                      subtitle: const Text(
+                                        'SKILL 安装命令默认从这个目录运行。',
+                                      ),
+                                      trailing: prism.OutlinedButton.icon(
+                                        onPressed: _openProjectRoot,
+                                        icon: const PrismGlyph(
+                                          AntGlyphs.folder,
+                                          size: 16,
+                                        ),
+                                        label: const Text('打开目录'),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                if (section.id == 'api-demo') ...[
+                                  const SizedBox(height: 14),
+                                  _LaunchApiDemoPanel(
+                                    launchServerInfo: _launchServerInfo,
+                                    onRefreshServerInfo: _loadLaunchServerInfo,
+                                  ),
+                                ],
+                                const SizedBox(height: 28),
+                                const prism.Divider(height: 1),
+                                const SizedBox(height: 16),
+                                Row(
+                                  children: [
+                                    if (prevItem != null)
+                                      PrismHoverMotion(
+                                        child: prism.OutlinedButton.icon(
+                                          onPressed: () => setState(
+                                            () => _selected = prevItem.id,
+                                          ),
+                                          icon: const PrismGlyph(
+                                            AntGlyphs.chevronBack,
+                                            size: 16,
+                                          ),
+                                          label: Text('上一篇：${prevItem.label}'),
+                                        ),
+                                      ),
+                                    const Spacer(),
+                                    if (nextItem != null)
+                                      PrismHoverMotion(
+                                        child: PrismTonalButton.icon(
+                                          onPressed: () => setState(
+                                            () => _selected = nextItem.id,
+                                          ),
+                                          icon: const PrismGlyph(
+                                            AntGlyphs.chevronForward,
+                                            size: 16,
+                                          ),
+                                          child: Text('下一篇：${nextItem.label}'),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ],
-                const SizedBox(height: 28),
-                const prism.Divider(height: 1),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    if (prevItem != null)
-                      prism.OutlinedButton.icon(
-                        onPressed: () =>
-                            setState(() => _selected = prevItem.id),
-                        icon: const PrismGlyph(
-                          AntGlyphs.chevronBack,
-                          size: 16,
-                        ),
-                        label: Text('上一篇：${prevItem.label}'),
-                      ),
-                    const Spacer(),
-                    if (nextItem != null)
-                      PrismTonalButton.icon(
-                        onPressed: () =>
-                            setState(() => _selected = nextItem.id),
-                        icon: const PrismGlyph(
-                          AntGlyphs.chevronForward,
-                          size: 16,
-                        ),
-                        child: Text('下一篇：${nextItem.label}'),
-                      ),
-                  ],
                 ),
               ],
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
