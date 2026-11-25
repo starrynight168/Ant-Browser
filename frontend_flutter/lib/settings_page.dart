@@ -863,7 +863,7 @@ class _SettingsPageState extends State<SettingsPage> {
               children: [
                 // Top contextual bar：仅左侧标题区随分区平滑切换，右侧保存按钮固定不动。
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
+                  padding: const EdgeInsets.only(bottom: 10),
                   child: Row(
                     children: [
                       Expanded(
@@ -972,7 +972,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     child: SizedBox.expand(
                       key: ValueKey(_activeSection),
                       child: SingleChildScrollView(
-                        padding: const EdgeInsets.only(bottom: 24),
+                        padding: const EdgeInsets.fromLTRB(4, 4, 4, 20),
                         child: switch (_activeSection) {
                           _SettingsSection.appearance =>
                             _buildAppearanceSection(context),
@@ -1024,7 +1024,10 @@ class _SettingsPageState extends State<SettingsPage> {
               child: prism.Card(
                 radius: prism.AppCorner.xl,
                 inert: true,
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 14,
+                ),
                 child: Row(
                   children: [
                     Expanded(
@@ -1050,7 +1053,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 6),
                           Text(
                             '所有页面、卡片、按钮与图标均随你选择的主色与色彩风格自动联动。',
                             style: prism.AppTextStyle.footnote
@@ -1090,7 +1093,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         _groupedCard([
           prism.ListRow(
             title: const Text('外观模式'),
@@ -1144,11 +1147,11 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
         ]),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         PrismSectionCard(
           title: '主题色板',
           glyph: AntGlyphs.tune,
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           staggerIndex: _staggerSeq++,
           staggerDelay: const Duration(milliseconds: 55),
           child: Wrap(
@@ -1168,7 +1171,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         _buildMotionSettingsCard(context, currentMotion),
       ],
     );
@@ -1206,7 +1209,7 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       ),
       Padding(
-        padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+        padding: const EdgeInsets.fromLTRB(18, 10, 18, 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -1239,7 +1242,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 PrismValueBadge(value: currentMotion, unit: '%'),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 6),
             prism.Slider(
               value: currentMotion.toDouble(),
               min: kMinMotionIntensity.toDouble(),
@@ -1408,7 +1411,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         _groupedCard([
           PrismSwitchTile(
             title: const Text('启用自动化脚本支持'),
@@ -1649,7 +1652,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         _groupedCard([
           prism.ListRow(
             title: const Text('监听端口'),
