@@ -409,6 +409,7 @@ class _TagsPageState extends State<TagsPage> {
                     staggerDelay: const Duration(milliseconds: 45),
                     radius: prism.AppCorner.xl,
                     padding: EdgeInsets.zero,
+                    hoverGlow: false,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [

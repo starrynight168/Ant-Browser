@@ -1190,14 +1190,14 @@ class PrismNavItem extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        PrismHoverMotion(
-          hoverScale: 1.015,
-          pressScale: 0.985,
-          child: prism.PressRegion(
-            onTap: onTap,
-            shape: prism.AppShape.md,
-            fill: selected ? colors.primaryContainer : null,
-            mouseCursor: SystemMouseCursors.click,
+        prism.PressRegion(
+          onTap: onTap,
+          shape: prism.AppShape.md,
+          fill: selected ? colors.primaryContainer : null,
+          overlay: prism.PressRegion.pressOverlay,
+          mouseCursor: SystemMouseCursors.click,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 40),
             child: Stack(
               alignment: AlignmentDirectional.centerStart,
               children: [
@@ -1244,22 +1244,24 @@ class PrismNavItem extends StatelessWidget {
                   start: 3,
                   top: 0,
                   bottom: 0,
-                  child: Center(
-                    child: AnimatedOpacity(
-                      opacity: selected ? 1.0 : 0.0,
-                      duration: indicatorDuration,
-                      curve: motionSpec.springCurve,
-                      child: AnimatedScale(
-                        scale: selected ? 1.0 : 0.4,
+                  child: IgnorePointer(
+                    child: Center(
+                      child: AnimatedOpacity(
+                        opacity: selected ? 1.0 : 0.0,
                         duration: indicatorDuration,
                         curve: motionSpec.springCurve,
-                        child: SizedBox(
-                          width: 3,
-                          height: 18,
-                          child: DecoratedBox(
-                            decoration: ShapeDecoration(
-                              color: colors.primary,
-                              shape: prism.AppShape.full,
+                        child: AnimatedScale(
+                          scale: selected ? 1.0 : 0.4,
+                          duration: indicatorDuration,
+                          curve: motionSpec.springCurve,
+                          child: SizedBox(
+                            width: 3,
+                            height: 18,
+                            child: DecoratedBox(
+                              decoration: ShapeDecoration(
+                                color: colors.primary,
+                                shape: prism.AppShape.full,
+                              ),
                             ),
                           ),
                         ),

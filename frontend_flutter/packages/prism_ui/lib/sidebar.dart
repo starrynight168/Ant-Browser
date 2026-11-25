@@ -19,6 +19,7 @@ const _compactWidth = 48.0;
 const _expandedWidth = 220.0;
 const _itemSize = 40.0;
 const _itemGap = 4.0;
+const _sectionDividerHeight = 13.0;
 const _toggleGap = 8.0;
 const _verticalInset = 4.0;
 const _maxSideInset = 12.0;
@@ -31,10 +32,15 @@ const _indicatorDuration = Duration(milliseconds: 320);
 final _itemShape = AppShape.all(10);
 
 class SidebarDestination {
-  const SidebarDestination({required this.glyph, required this.label});
+  const SidebarDestination({
+    required this.glyph,
+    required this.label,
+    this.dividerBefore = false,
+  });
 
   final Glyph glyph;
   final String label;
+  final bool dividerBefore;
 }
 
 /// Where the sidebar cannot widen in place, [onToggle] is null and the toggle
@@ -242,9 +248,9 @@ class _SidebarColors {
       selectedIcon = scheme.onPrimaryContainer,
       indicator = scheme.primary,
       overlay = WidgetStateProperty.fromMap({
-        WidgetState.pressed: scheme.onSurface.withValues(alpha: 0.06),
-        WidgetState.focused: scheme.onSurface.withValues(alpha: 0.1),
-        WidgetState.hovered: scheme.onSurface.withValues(alpha: 0.04),
+        WidgetState.pressed: scheme.primary.withValues(alpha: 0.11),
+        WidgetState.focused: scheme.primary.withValues(alpha: 0.12),
+        WidgetState.hovered: scheme.primary.withValues(alpha: 0.06),
         WidgetState.any: Colors.transparent,
       });
 
@@ -335,7 +341,19 @@ class _SidebarPane extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        for (final (index, destination) in destinations.indexed)
+                        for (final (index, destination) in destinations.indexed) ...[
+                          if (destination.dividerBefore)
+                            SizedBox(
+                              height: _sectionDividerHeight,
+                              child: Center(
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: sideInset + 6,
+                                  ),
+                                  child: const Divider(height: 1),
+                                ),
+                              ),
+                            ),
                           _SidebarButton(
                             key: ValueKey(destination.label),
                             colors: colors,
@@ -355,6 +373,7 @@ class _SidebarPane extends StatelessWidget {
                               labelOpacity: labelOpacity,
                             ),
                           ),
+                        ],
                       ],
                     ),
                     if (selectedIndex < destinations.length)
@@ -363,6 +382,9 @@ class _SidebarPane extends StatelessWidget {
                         index: selectedIndex,
                         start: sideInset,
                         stride: itemHeight + _itemGap,
+                        dividerBeforeFlags: [
+                          for (final d in destinations) d.dividerBefore,
+                        ],
                       ),
                   ],
                 ),
@@ -513,12 +535,14 @@ class _SelectionIndicator extends StatefulWidget {
     required this.index,
     required this.start,
     required this.stride,
+    required this.dividerBeforeFlags,
   });
 
   final Color color;
   final int index;
   final double start;
   final double stride;
+  final List<bool> dividerBeforeFlags;
 
   @override
   State<_SelectionIndicator> createState() => _SelectionIndicatorState();
@@ -554,8 +578,17 @@ class _SelectionIndicatorState extends State<_SelectionIndicator>
     super.dispose();
   }
 
-  double _topOf(int index) =>
-      index * widget.stride + (widget.stride - _indicatorHeight) / 2;
+  double _topOf(int index) {
+    var dividers = 0;
+    final flags = widget.dividerBeforeFlags;
+    final upper = math.min(index, flags.length - 1);
+    for (var i = 0; i <= upper; i++) {
+      if (flags[i]) dividers++;
+    }
+    return index * widget.stride +
+        dividers * _sectionDividerHeight +
+        (widget.stride - _indicatorHeight) / 2;
+  }
 
   @override
   Widget build(BuildContext context) {

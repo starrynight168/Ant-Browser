@@ -685,6 +685,11 @@ class _Sidebar extends StatelessWidget {
           for (final item in items)
             prism.SidebarDestination(
               glyph: _navGlyphs[item.path]!,
+              dividerBefore:
+                  item.path == '/browser/proxy-pool' ||
+                  item.path == '/browser/bookmarks' ||
+                  item.path == '/settings' ||
+                  item.path == '/profile',
               label: item.path == '/notifications' && unreadCount > 0
                   ? '${item.title} (${unreadCount > 99 ? '99+' : unreadCount})'
                   : item.title,

@@ -260,6 +260,7 @@ class _DocsPageState extends State<DocsPage> {
                     staggerDelay: const Duration(milliseconds: 45),
                     radius: prism.AppCorner.xl,
                     padding: EdgeInsets.zero,
+                    hoverGlow: false,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -335,6 +336,7 @@ class _DocsPageState extends State<DocsPage> {
                     staggerDelay: const Duration(milliseconds: 45),
                     radius: prism.AppCorner.xl,
                     padding: EdgeInsets.zero,
+                    hoverGlow: false,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
