@@ -225,15 +225,9 @@ class _SettingsPageState extends State<SettingsPage> {
         if (stored is Map) ...Map<String, dynamic>.from(stored),
       };
       final results = await Future.wait([
-        AppBridge.call('GetAutomationState')
-            .timeout(const Duration(seconds: 4))
-            .catchError((_) => null),
-        AppBridge.call('GetLaunchServerInfo')
-            .timeout(const Duration(seconds: 4))
-            .catchError((_) => null),
-        AppBridge.call('GetLogLevel')
-            .timeout(const Duration(seconds: 4))
-            .catchError((_) => null),
+        AppBridge.call('GetAutomationState'),
+        AppBridge.call('GetLaunchServerInfo'),
+        AppBridge.call('GetLogLevel'),
       ]);
       final automation = _asMap(results[0]);
       final launchServer = _asMap(results[1]);
@@ -746,7 +740,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     ],
                   ),
                 ),
-                if (_busy.isNotEmpty)
+                if (_busy.isNotEmpty || _loading)
                   const Padding(
                     padding: EdgeInsets.only(bottom: 12),
                     child: prism.LinearProgressIndicator(minHeight: 3),
