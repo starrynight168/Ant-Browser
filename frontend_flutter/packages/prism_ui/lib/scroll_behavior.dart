@@ -4,6 +4,7 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:prism_ui/scroll.dart';
 import 'package:prism_ui/theme_data.dart';
@@ -107,54 +108,133 @@ class _SmoothWheelScroll extends StatefulWidget {
   State<_SmoothWheelScroll> createState() => _SmoothWheelScrollState();
 }
 
-class _SmoothWheelScrollState extends State<_SmoothWheelScroll> {
-  double? _target;
-  int _lastDirection = 0;
-  DateTime _lastEventAt = DateTime.fromMillisecondsSinceEpoch(0);
-  int _generation = 0;
+class _SmoothWheelScrollState extends State<_SmoothWheelScroll>
+    with SingleTickerProviderStateMixin {
+  static const double _damping = 14.0;
+
+  late final Ticker _ticker;
+  double _target = 0.0;
+  double _lastApplied = 0.0;
+  Duration _lastElapsed = Duration.zero;
+  bool _pendingMicrotask = false;
+  double _visualBefore = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = createTicker(_onTick);
+  }
+
+  @override
+  void didUpdateWidget(covariant _SmoothWheelScroll oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.position != widget.position) {
+      _stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    super.dispose();
+  }
+
+  void _stop() {
+    if (_ticker.isActive) {
+      _ticker.stop();
+    }
+    _lastElapsed = Duration.zero;
+  }
 
   void _handlePointerSignal(PointerSignalEvent event) {
     if (event is! PointerScrollEvent) return;
     if (event.kind != PointerDeviceKind.mouse) return;
-    final dy = event.scrollDelta.dy;
-    if (dy == 0) return;
+    if (event.scrollDelta.dy == 0) return;
     final position = widget.position;
     if (!position.hasPixels) return;
     if (position.maxScrollExtent <= position.minScrollExtent) return;
 
-    final direction = dy > 0 ? 1 : -1;
-    final atEdge =
-        (direction > 0 && position.pixels >= position.maxScrollExtent - 0.5) ||
-        (direction < 0 && position.pixels <= position.minScrollExtent + 0.5);
-    if (atEdge) return;
+    if (!_pendingMicrotask) {
+      _pendingMicrotask = true;
+      _visualBefore = position.pixels;
+      scheduleMicrotask(_consumeResolvedScroll);
+    }
+  }
 
-    final visualStart = position.pixels;
-    final now = DateTime.now();
-    final continuing =
-        _target != null &&
-        direction == _lastDirection &&
-        now.difference(_lastEventAt).inMilliseconds < 320;
-    final base = continuing ? _target! : visualStart;
-    final next = (base + dy * 1.15).clamp(
+  void _consumeResolvedScroll() {
+    _pendingMicrotask = false;
+    if (!mounted) return;
+    final position = widget.position;
+    if (!position.hasPixels) return;
+
+    final after = position.pixels;
+    final actualDelta = after - _visualBefore;
+    // Ignore if an inner nested scrollable handled the event or already at edge.
+    if (actualDelta.abs() < 0.01) return;
+
+    // Silently revert Scrollable's synchronous jump before layout/paint.
+    position.correctPixels(_visualBefore);
+
+    final reversing =
+        _ticker.isActive && ((_target - _visualBefore) * actualDelta < 0);
+    final base = (_ticker.isActive && !reversing) ? _target : _visualBefore;
+    _target = (base + actualDelta).clamp(
       position.minScrollExtent,
       position.maxScrollExtent,
     );
-    _target = next;
-    _lastDirection = direction;
-    _lastEventAt = now;
-    final gen = ++_generation;
+    _lastApplied = _visualBefore;
 
-    // Scrollable's inner Listener jumps synchronously during pointer signal
-    // resolution; restore visualStart before the frame paints and animate.
-    scheduleMicrotask(() {
-      if (!mounted || gen != _generation || !position.hasPixels) return;
-      position.jumpTo(visualStart);
-      position.animateTo(
-        next,
-        duration: const Duration(milliseconds: 260),
-        curve: Curves.easeOutCubic,
+    if (!_ticker.isActive) {
+      _lastElapsed = Duration.zero;
+      _ticker.start();
+    }
+  }
+
+  void _onTick(Duration elapsed) {
+    if (!mounted) {
+      _stop();
+      return;
+    }
+    final position = widget.position;
+    if (!position.hasPixels) {
+      _stop();
+      return;
+    }
+
+    final current = position.pixels;
+    // Yield immediately if user drags scrollbar or something else jumps position.
+    if ((current - _lastApplied).abs() > 1.0) {
+      _stop();
+      return;
+    }
+
+    final double dt;
+    if (_lastElapsed == Duration.zero) {
+      dt = 1.0 / 60.0;
+    } else {
+      dt = ((elapsed - _lastElapsed).inMicroseconds / 1000000.0).clamp(
+        0.001,
+        0.05,
       );
-    });
+    }
+    _lastElapsed = elapsed;
+
+    _target = _target.clamp(position.minScrollExtent, position.maxScrollExtent);
+    final remaining = _target - current;
+    if (remaining.abs() < 0.4) {
+      _lastApplied = _target;
+      position.jumpTo(_target);
+      _stop();
+      return;
+    }
+
+    final factor = 1.0 - exp(-_damping * dt);
+    final next = (current + remaining * factor).clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    );
+    _lastApplied = next;
+    position.jumpTo(next);
   }
 
   @override
