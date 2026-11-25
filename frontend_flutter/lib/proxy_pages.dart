@@ -4966,23 +4966,14 @@ socks5://user:password@proxy.example.com:6616''';
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Wrap(
-            spacing: 8,
-            children: [
-              for (final tab in const [
-                ('clash', 'Clash 订阅 / YAML'),
-                ('direct', 'HTTP / SOCKS5'),
-                ('ipfly', '链式代理'),
-              ])
-                _tab == tab.$1
-                    ? prism.FilledButton(
-                        onPressed: () => setState(() => _tab = tab.$1),
-                        child: Text(tab.$2),
-                      )
-                    : prism.OutlinedButton(
-                        onPressed: () => setState(() => _tab = tab.$1),
-                        child: Text(tab.$2),
-                      ),
+          // Tab 切换走 SegmentedControl（全站统一分段控件），不再手搓按钮组。
+          prism.SegmentedControl<String>(
+            value: _tab,
+            onChanged: (value) => setState(() => _tab = value),
+            segments: const [
+              ('clash', 'Clash 订阅 / YAML'),
+              ('direct', 'HTTP / SOCKS5'),
+              ('ipfly', '链式代理'),
             ],
           ),
           const SizedBox(height: 12),

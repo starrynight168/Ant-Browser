@@ -1401,7 +1401,7 @@ class _LaunchApiDemoPanelState extends State<_LaunchApiDemoPanel> {
                             child: prism.SelectableText(
                               _cdpUrl,
                               style: const TextStyle(
-                                fontFamily: 'Consolas',
+                                fontFamily: prismMonoFontFamily,
                                 fontSize: 12.5,
                               ),
                             ),
@@ -1443,7 +1443,7 @@ class _LaunchApiDemoPanelState extends State<_LaunchApiDemoPanel> {
                                   prism.SelectableText(
                                     log,
                                     style: const TextStyle(
-                                      fontFamily: 'Consolas',
+                                      fontFamily: prismMonoFontFamily,
                                       fontSize: 12,
                                       height: 1.5,
                                     ),

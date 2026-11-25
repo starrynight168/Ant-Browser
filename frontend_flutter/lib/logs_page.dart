@@ -874,7 +874,7 @@ class _LogsPageState extends State<LogsPage> {
                 style: prism.AppTextStyle.caption2
                     .of(context)
                     .copyWith(
-                      fontFamily: 'Consolas',
+                      fontFamily: prismMonoFontFamily,
                       color: colors.onSurfaceVariant,
                     ),
               ),

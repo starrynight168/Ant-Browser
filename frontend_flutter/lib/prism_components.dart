@@ -6,6 +6,19 @@ import 'package:prism_ui/prism_ui.dart' as prism;
 import 'prism_glyphs.dart';
 import 'theme_state.dart';
 
+/// 全站等宽字体 token：代码块、ID、路径、日志等 mono 文本统一引用，
+/// 避免各页面散落硬编码 fontFamily。
+const String prismMonoFontFamily = 'Consolas';
+
+/// mono 文本基础样式（12.5/1.5 与 PrismCodeSurface 一致），颜色可选。
+TextStyle prismMonoTextStyle({double? fontSize, double? height, Color? color}) =>
+    TextStyle(
+      fontFamily: prismMonoFontFamily,
+      fontSize: fontSize ?? 12.5,
+      height: height ?? 1.5,
+      color: color,
+    );
+
 enum PrismTone { neutral, primary, success, warning, danger, info }
 
 /// 滚动视口默认留白，避免卡片悬停浮起与高光描边被边缘裁切。
@@ -201,10 +214,66 @@ class PrismBanner extends StatelessWidget {
   }
 }
 
+/// 全局页面顶栏（外壳层）：70px 布局条，标题经 PrismBarTransition 弹簧切换，
+/// 动作区（快捷启动触发器等）由调用方传入 [trailing]。
+/// 页面主体配合页面级 PrismPageContextBar 使用，避免标题重复渲染。
+class PrismPageHeader extends StatelessWidget {
+  const PrismPageHeader({super.key, required this.title, this.trailing});
+
+  final String title;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 70,
+      padding: const EdgeInsets.symmetric(horizontal: 28),
+      child: Row(
+        children: [
+          Expanded(
+            child: ListenableBuilder(
+              listenable: appMotionIntensity,
+              builder: (context, child) => AnimatedSwitcher(
+                duration: PrismMotionSpec.current.barDuration,
+                transitionBuilder: PrismBarTransition.switcherBuilder,
+                layoutBuilder: (currentChild, previousChildren) => Stack(
+                  alignment: Alignment.centerLeft,
+                  children: [
+                    ...previousChildren,
+                    if (currentChild != null) currentChild,
+                  ],
+                ),
+                child: child!,
+              ),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                key: ValueKey(title),
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: prism.AppTextStyle.pageTitle.of(
+                    context,
+                    emphasized: true,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (trailing != null) ...[
+            const SizedBox(width: 12),
+            trailing!,
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 /// 页面顶部上下文栏（settings_page 样板）：
 /// 左侧 Surface 图标块 + 标题 + 副标题，右侧为页面操作按钮组。
 /// 页面主体配合 `EdgeInsets.fromLTRB(24, 6, 24, 24)` 外边距使用，
-/// 标题不再重复渲染页面大标题（外壳 _PageHeader 已展示）。
+/// 标题不再重复渲染页面大标题（外壳 PrismPageHeader 已展示）。
 class PrismPageContextBar extends StatelessWidget {
   const PrismPageContextBar({
     super.key,
@@ -1718,12 +1787,7 @@ class PrismCodeSurface extends StatelessWidget {
     final colors = prism.Theme.of(context).colorScheme;
     final body = prism.SelectableText(
       code,
-      style: TextStyle(
-        fontFamily: 'Consolas',
-        fontSize: 12.5,
-        height: 1.5,
-        color: colors.onSurface,
-      ),
+      style: prismMonoTextStyle(color: colors.onSurface),
     );
     return prism.Surface(
       color: colors.surfaceContainerLow,

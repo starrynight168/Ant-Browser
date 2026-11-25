@@ -408,7 +408,7 @@ Future<void> _showPublicApiQuickDialog(
                         child: prism.SelectableText(
                           url,
                           style: const TextStyle(
-                            fontFamily: 'Consolas',
+                            fontFamily: prismMonoFontFamily,
                             fontSize: 12.5,
                           ),
                         ),
@@ -1026,7 +1026,7 @@ class _AutomationScriptRunModalState extends State<AutomationScriptRunModal> {
                                       child: prism.SelectableText(
                                         path,
                                         style: const TextStyle(
-                                          fontFamily: 'Consolas',
+                                          fontFamily: prismMonoFontFamily,
                                           fontSize: 12,
                                         ),
                                       ),
@@ -3961,7 +3961,7 @@ class _AutomationScriptDetailPageState
               controller: _script,
               minLines: 12,
               maxLines: 30,
-              style: const TextStyle(fontFamily: 'Consolas', fontSize: 12.5),
+              style: const TextStyle(fontFamily: prismMonoFontFamily, fontSize: 12.5),
             ),
           ),
         const SizedBox(height: 14),
@@ -4011,7 +4011,7 @@ class _AutomationScriptDetailPageState
                               child: prism.SelectableText(
                                 _fullPublicApiUrl(),
                                 style: const TextStyle(
-                                  fontFamily: 'Consolas',
+                                  fontFamily: prismMonoFontFamily,
                                   fontSize: 12.5,
                                 ),
                               ),

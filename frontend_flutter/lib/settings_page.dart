@@ -1830,9 +1830,14 @@ class _ColorSwatchPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = prism.Theme.of(context).colorScheme;
     final spec = PrismMotionSpec.current;
     final motionOn = spec.enabled;
+    // 壳层色源走 PrismToneColors（primary=选中 / neutral=未选中），
+    // 与 PrismBadge/PrismChip 家族同一套 token，不再散取 colorScheme。
+    final palette = PrismToneColors.of(
+      context,
+      selected ? PrismTone.primary : PrismTone.neutral,
+    );
     return PrismHoverMotion(
       hoverScale: 1.06,
       pressScale: 0.93,
@@ -1843,9 +1848,7 @@ class _ColorSwatchPill extends StatelessWidget {
           duration: motionOn ? const Duration(milliseconds: 220) : Duration.zero,
           curve: motionOn ? spec.smoothCurve : Curves.linear,
           decoration: ShapeDecoration(
-            color: selected
-                ? colors.primaryContainer
-                : colors.surfaceContainerLow,
+            color: palette.bg,
             shape: prism.AppShape.full,
           ),
           padding: const EdgeInsets.fromLTRB(6, 6, 12, 6),
@@ -1890,11 +1893,7 @@ class _ColorSwatchPill extends StatelessWidget {
                 curve: motionOn ? spec.smoothCurve : Curves.linear,
                 style: prism.AppTextStyle.footnote
                     .of(context, emphasized: selected)
-                    .copyWith(
-                      color: selected
-                          ? colors.onPrimaryContainer
-                          : colors.onSurface,
-                    ),
+                    .copyWith(color: palette.fg),
                 child: Text(label),
               ),
             ],

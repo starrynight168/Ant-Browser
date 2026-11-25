@@ -1632,7 +1632,7 @@ class _BackupPageState extends State<BackupPage>
                   child: Text(
                     _progressLogs[index],
                     style: TextStyle(
-                      fontFamily: 'Consolas',
+                      fontFamily: prismMonoFontFamily,
                       fontSize: 11.5,
                       color: colors.onSurfaceVariant,
                     ),

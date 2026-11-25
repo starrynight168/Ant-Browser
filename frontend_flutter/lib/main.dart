@@ -454,9 +454,11 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _PageHeader(
+                      PrismPageHeader(
                         title: _activeTitle,
-                        onQuickLaunch: _showQuickLaunch,
+                        trailing: _QuickLaunchTrigger(
+                          onPressed: _showQuickLaunch,
+                        ),
                       ),
                       Expanded(
                         child: ListenableBuilder(
@@ -705,140 +707,52 @@ class _Sidebar extends StatelessWidget {
   }
 }
 
-class _PageHeader extends StatelessWidget {
-  const _PageHeader({required this.title, this.onQuickLaunch});
-
-  final String title;
-  final VoidCallback? onQuickLaunch;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 70,
-      padding: const EdgeInsets.symmetric(horizontal: 28),
-      child: Row(
-        children: [
-          Expanded(
-            child: ListenableBuilder(
-              listenable: appMotionIntensity,
-              builder: (context, child) => AnimatedSwitcher(
-                duration: PrismMotionSpec.current.barDuration,
-                transitionBuilder: PrismBarTransition.switcherBuilder,
-                layoutBuilder: (currentChild, previousChildren) => Stack(
-                  alignment: Alignment.centerLeft,
-                  children: [
-                    ...previousChildren,
-                    if (currentChild != null) currentChild,
-                  ],
-                ),
-                child: child!,
-              ),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                key: ValueKey(title),
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: prism.AppTextStyle.pageTitle.of(
-                    context,
-                    emphasized: true,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          if (onQuickLaunch != null) ...[
-            const SizedBox(width: 12),
-            _QuickLaunchTrigger(onPressed: onQuickLaunch!),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _QuickLaunchTrigger extends StatefulWidget {
+class _QuickLaunchTrigger extends StatelessWidget {
   const _QuickLaunchTrigger({required this.onPressed});
 
   final VoidCallback onPressed;
 
   @override
-  State<_QuickLaunchTrigger> createState() => _QuickLaunchTriggerState();
-}
-
-class _QuickLaunchTriggerState extends State<_QuickLaunchTrigger> {
-  bool _hovered = false;
-
-  @override
   Widget build(BuildContext context) {
     final colors = prism.Theme.of(context).colorScheme;
-    return ListenableBuilder(
-      listenable: appMotionIntensity,
-      builder: (context, child) {
-        final spec = PrismMotionSpec.current;
-        final motionOn =
-            spec.enabled && !MediaQuery.disableAnimationsOf(context);
-        return MouseRegion(
-          onEnter: (_) => setState(() => _hovered = true),
-          onExit: (_) => setState(() => _hovered = false),
-          child: PrismHoverMotion(
-            hoverScale: 1.06,
-            pressScale: 0.925,
-            child: prism.PressRegion(
-              onTap: widget.onPressed,
-              shape: prism.AppShape.full,
-              child: AnimatedContainer(
-                duration: motionOn ? spec.hoverDuration : Duration.zero,
-                curve: motionOn ? spec.smoothCurve : Curves.linear,
-                height: 38,
-                padding: const EdgeInsets.fromLTRB(13, 0, 8, 0),
-                decoration: ShapeDecoration(
-                  color: _hovered
-                      ? colors.surfaceContainerHighest
-                      : colors.surfaceContainerHigh,
-                  shape: RoundedSuperellipseBorder(
-                    borderRadius: prism.AppRadius.full,
-                    side: BorderSide(
-                      color: _hovered
-                          ? colors.primary.withValues(alpha: 0.35)
-                          : colors.outlineVariant.withValues(alpha: 0.45),
-                      width: 1.0,
-                    ),
-                  ),
+    // 壳层走 PrismTonalButton（tonal 胶囊 + hover/press overlay），
+    // 不再手搓 ShapeDecoration；键帽保留 Surface。
+    return PrismHoverMotion(
+      hoverScale: 1.06,
+      pressScale: 0.925,
+      child: PrismTonalButton(
+        onPressed: onPressed,
+        style: prism.ButtonStyle(
+          minimumSize: const Size(0, 38),
+          padding: const EdgeInsets.fromLTRB(13, 0, 9, 0),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            PrismGlyph(AntGlyphs.bolt, size: 15, color: colors.primary),
+            const SizedBox(width: 7),
+            Text(
+              '快捷启动',
+              style: prism.AppTextStyle.footnote
+                  .of(context, emphasized: true)
+                  .copyWith(color: colors.onSurface),
+            ),
+            const SizedBox(width: 10),
+            prism.Surface(
+              color: colors.surfaceContainerLowest,
+              shape: prism.AppShape.sm,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                child: Text(
+                  'Ctrl K',
+                  style: prism.AppTextStyle.caption2
+                      .of(context, emphasized: true)
+                      .copyWith(color: colors.onSurfaceVariant),
                 ),
-                child: child,
               ),
             ),
-          ),
-        );
-      },
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          PrismGlyph(AntGlyphs.bolt, size: 15, color: colors.primary),
-          const SizedBox(width: 7),
-          Text(
-            '快捷启动',
-            style: prism.AppTextStyle.footnote
-                .of(context, emphasized: true)
-                .copyWith(color: colors.onSurface),
-          ),
-          const SizedBox(width: 10),
-          prism.Surface(
-            color: colors.surfaceContainerLowest,
-            shape: prism.AppShape.sm,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-              child: Text(
-                'Ctrl K',
-                style: prism.AppTextStyle.caption2
-                    .of(context, emphasized: true)
-                    .copyWith(color: colors.onSurfaceVariant),
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

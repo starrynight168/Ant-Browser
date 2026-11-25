@@ -1389,7 +1389,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                                                     overflow:
                                                         TextOverflow.ellipsis,
                                                     style: const TextStyle(
-                                                      fontFamily: 'Consolas',
+                                                      fontFamily: prismMonoFontFamily,
                                                       fontSize: 12,
                                                     ),
                                                   ),
