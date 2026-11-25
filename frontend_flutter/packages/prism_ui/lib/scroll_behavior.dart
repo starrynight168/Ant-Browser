@@ -175,10 +175,13 @@ class _SmoothWheelScrollState extends State<_SmoothWheelScroll>
     // Silently revert Scrollable's synchronous jump before layout/paint.
     position.correctPixels(_visualBefore);
 
+    final dpr = View.maybeOf(context)?.devicePixelRatio ?? 1.0;
     final reversing =
         _ticker.isActive && ((_target - _visualBefore) * actualDelta < 0);
     final base = (_ticker.isActive && !reversing) ? _target : _visualBefore;
-    _target = (base + actualDelta).clamp(
+    final rawTarget = base + actualDelta;
+    final snappedTarget = (rawTarget * dpr).roundToDouble() / dpr;
+    _target = snappedTarget.clamp(
       position.minScrollExtent,
       position.maxScrollExtent,
     );
@@ -219,9 +222,12 @@ class _SmoothWheelScrollState extends State<_SmoothWheelScroll>
     }
     _lastElapsed = elapsed;
 
+    final dpr = View.maybeOf(context)?.devicePixelRatio ?? 1.0;
+    final onePhysicalPx = 1.0 / dpr;
+
     _target = _target.clamp(position.minScrollExtent, position.maxScrollExtent);
     final remaining = _target - current;
-    if (remaining.abs() < 0.4) {
+    if (remaining.abs() <= onePhysicalPx * 1.5) {
       _lastApplied = _target;
       position.jumpTo(_target);
       _stop();
@@ -229,12 +235,26 @@ class _SmoothWheelScrollState extends State<_SmoothWheelScroll>
     }
 
     final factor = 1.0 - exp(-_damping * dt);
-    final next = (current + remaining * factor).clamp(
+    var step = remaining * factor;
+    if (step.abs() < onePhysicalPx) {
+      step = remaining.sign * onePhysicalPx;
+    }
+    final rawNext = current + step;
+    final snappedNext = ((rawNext * dpr).roundToDouble() / dpr).clamp(
       position.minScrollExtent,
       position.maxScrollExtent,
     );
+    // Guarantee forward progress toward _target without stalling or overshooting.
+    final next =
+        ((snappedNext - current) * remaining <= 0 ||
+            (snappedNext - _target) * remaining > 0)
+        ? _target
+        : snappedNext;
     _lastApplied = next;
     position.jumpTo(next);
+    if ((_target - next).abs() <= onePhysicalPx * 0.5) {
+      _stop();
+    }
   }
 
   @override
