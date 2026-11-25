@@ -1456,65 +1456,90 @@ class PrismMetricTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = prism.Theme.of(context).colorScheme;
     final palette = PrismToneColors.of(context, tone);
-    final card = PrismHoverGlow(
-      radius: prism.AppCorner.lg,
-      child: prism.Card(
-        radius: prism.AppCorner.lg,
-        onPressed: onPressed,
-        inert: onPressed == null,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (glyph != null) ...[
-              prism.Surface(
-                color: palette.bg,
-                shape: prism.AppShape.md,
-                child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: prism_icons.GlyphIcon(
-                    glyph!,
-                    size: 18,
-                    color: palette.fg,
-                  ),
+    final textColumn = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: prism.AppTextStyle.caption1
+              .of(context)
+              .copyWith(color: colors.onSurfaceVariant, height: 1.25),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: prism.AppTextStyle.headline
+              .of(context, emphasized: true)
+              .copyWith(height: 1.25),
+        ),
+        if (subtitle != null && subtitle!.isNotEmpty) ...[
+          const SizedBox(height: 3),
+          Text(
+            subtitle!,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: prism.AppTextStyle.caption2
+                .of(context)
+                .copyWith(color: colors.onSurfaceVariant, height: 1.25),
+          ),
+        ],
+      ],
+    );
+    final iconBadge = glyph == null
+        ? null
+        : prism.Surface(
+            color: palette.bg,
+            shape: prism.AppShape.md,
+            child: SizedBox.square(
+              dimension: 38,
+              child: Center(
+                child: prism_icons.GlyphIcon(
+                  glyph!,
+                  size: 19,
+                  color: palette.fg,
                 ),
               ),
-              const SizedBox(width: 12),
-            ],
-            Flexible(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    label,
-                    style: prism.AppTextStyle.caption1
-                        .of(context)
-                        .copyWith(color: colors.onSurfaceVariant),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    value,
-                    style: prism.AppTextStyle.title3.of(
-                      context,
-                      emphasized: true,
-                    ),
-                  ),
-                  if (subtitle != null && subtitle!.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: prism.AppTextStyle.caption2
-                          .of(context)
-                          .copyWith(color: colors.onSurfaceVariant),
-                    ),
-                  ],
-                ],
-              ),
             ),
-          ],
+          );
+
+    final card = PrismHoverGlow(
+      radius: prism.AppCorner.xl,
+      child: prism.Card(
+        radius: prism.AppCorner.xl,
+        onPressed: onPressed,
+        inert: onPressed == null,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final bounded = constraints.hasBoundedWidth;
+            return Row(
+              mainAxisSize: bounded ? MainAxisSize.max : MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                if (iconBadge != null) ...[
+                  iconBadge,
+                  const SizedBox(width: 12),
+                ],
+                if (bounded)
+                  Expanded(child: textColumn)
+                else
+                  Flexible(child: textColumn),
+                if (bounded && onPressed != null) ...[
+                  const SizedBox(width: 8),
+                  PrismGlyph(
+                    AntGlyphs.chevronForward,
+                    size: 14,
+                    color: colors.onSurfaceVariant.withValues(alpha: 0.45),
+                  ),
+                ],
+              ],
+            );
+          },
         ),
       ),
     );
