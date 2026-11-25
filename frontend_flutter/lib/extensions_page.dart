@@ -948,31 +948,35 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                       shape: prism.AppShape.lg,
                       child: Padding(
                         padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            prism.SelectableText(
-                              '插件 ID：${guide['extensionId'] ?? ''}',
-                              style: prism.AppTextStyle.caption1.of(
-                                context,
-                                emphasized: true,
-                              ),
+                        child: RepaintBoundary(
+                          child: prism.SelectionArea(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '插件 ID：${guide['extensionId'] ?? ''}',
+                                  style: prism.AppTextStyle.caption1.of(
+                                    context,
+                                    emphasized: true,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '下载地址：${guide['downloadUrl'] ?? ''}',
+                                  style: prism.AppTextStyle.caption1
+                                      .of(context)
+                                      .copyWith(color: colors.onSurfaceVariant),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '推荐保存路径：$recommendedSavePath',
+                                  style: prism.AppTextStyle.caption1
+                                      .of(context)
+                                      .copyWith(color: colors.onSurfaceVariant),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 4),
-                            prism.SelectableText(
-                              '下载地址：${guide['downloadUrl'] ?? ''}',
-                              style: prism.AppTextStyle.caption1
-                                  .of(context)
-                                  .copyWith(color: colors.onSurfaceVariant),
-                            ),
-                            const SizedBox(height: 4),
-                            prism.SelectableText(
-                              '推荐保存路径：$recommendedSavePath',
-                              style: prism.AppTextStyle.caption1
-                                  .of(context)
-                                  .copyWith(color: colors.onSurfaceVariant),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
@@ -1616,65 +1620,64 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                 style: prism.AppTextStyle.title2.of(context, emphasized: true),
               ),
             ),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
+            prism.TonalButtonGroup(
+              size: prism.TonalButtonSize.section,
               children: [
-                prism.OutlinedButton.icon(
+                prism.IconButton(
+                  tooltip: '下载目录安装',
                   onPressed: _busy.isEmpty
                       ? _openDownloadDirectoryInstallModal
                       : null,
-                  icon: const PrismGlyph(AntGlyphs.folderSpecial, size: 16),
-                  label: const Text('下载目录安装'),
+                  icon: const PrismGlyph(AntGlyphs.folderSpecial, size: 18),
                 ),
-                prism.OutlinedButton.icon(
+                prism.IconButton(
+                  tooltip: '历史记录',
                   onPressed: _showHistory,
-                  icon: const PrismGlyph(AntGlyphs.history, size: 16),
-                  label: const Text('历史记录'),
-                ),
-                PrismPopupMenuButton<String>(
-                  tooltip: '导入插件',
-                  icon: const PrismGlyph(AntGlyphs.add, size: 18),
-                  onSelected: (mode) {
-                    if (mode == 'manual') {
-                      _openManualInstall();
-                    } else if (mode == 'download-dir') {
-                      _openDownloadDirectoryInstallModal();
-                    } else {
-                      _run(
-                        mode,
-                        () async {
-                          await AppBridge.call(
-                            mode == 'file'
-                                ? 'BrowserExtensionInstallLocalFile'
-                                : 'BrowserExtensionInstallLocalDirectory',
-                          );
-                        },
-                        history: {
-                          'action': 'import',
-                          'query': mode == 'file' ? '本地插件包' : '本地插件目录',
-                          'extensionId': '',
-                          'name': '',
-                          'version': '',
-                          'storeUrl': '',
-                          'proxyLabel': '本地导入',
-                        },
-                      );
-                    }
-                  },
-                  itemBuilder: (_) => const [
-                    PrismMenuItem(value: 'file', child: Text('从本地插件包导入')),
-                    PrismMenuItem(value: 'directory', child: Text('从本地文件夹导入')),
-                    PrismMenuItem(value: 'manual', child: Text('手动下载与导入')),
-                    PrismMenuItem(value: 'download-dir', child: Text('下载目录安装')),
-                  ],
+                  icon: const PrismGlyph(AntGlyphs.history, size: 18),
                 ),
                 prism.IconButton(
                   tooltip: '刷新',
                   onPressed: _loading ? null : _refresh,
                   icon: const PrismGlyph(AntGlyphs.refresh, size: 18),
                 ),
+              ],
+            ),
+            const SizedBox(width: 6),
+            PrismPopupMenuButton<String>(
+              tooltip: '导入插件',
+              icon: const PrismGlyph(AntGlyphs.add, size: 18),
+              onSelected: (mode) {
+                if (mode == 'manual') {
+                  _openManualInstall();
+                } else if (mode == 'download-dir') {
+                  _openDownloadDirectoryInstallModal();
+                } else {
+                  _run(
+                    mode,
+                    () async {
+                      await AppBridge.call(
+                        mode == 'file'
+                            ? 'BrowserExtensionInstallLocalFile'
+                            : 'BrowserExtensionInstallLocalDirectory',
+                      );
+                    },
+                    history: {
+                      'action': 'import',
+                      'query': mode == 'file' ? '本地插件包' : '本地插件目录',
+                      'extensionId': '',
+                      'name': '',
+                      'version': '',
+                      'storeUrl': '',
+                      'proxyLabel': '本地导入',
+                    },
+                  );
+                }
+              },
+              itemBuilder: (_) => const [
+                PrismMenuItem(value: 'file', child: Text('从本地插件包导入')),
+                PrismMenuItem(value: 'directory', child: Text('从本地文件夹导入')),
+                PrismMenuItem(value: 'manual', child: Text('手动下载与导入')),
+                PrismMenuItem(value: 'download-dir', child: Text('下载目录安装')),
               ],
             ),
           ],

@@ -1205,32 +1205,31 @@ class _CoresPageState extends State<CoresPage> {
                   ],
                 ),
               ),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
+              prism.TonalButtonGroup(
+                size: prism.TonalButtonSize.section,
                 children: [
-                  prism.OutlinedButton.icon(
+                  prism.IconButton(
+                    tooltip: '扫描本地内核',
                     onPressed: _busy ? null : _scan,
-                    icon: const PrismGlyph(AntGlyphs.search, size: 16),
-                    label: const Text('扫描'),
+                    icon: const PrismGlyph(AntGlyphs.search, size: 18),
                   ),
-                  prism.OutlinedButton.icon(
+                  prism.IconButton(
+                    tooltip: '导入本地内核',
                     onPressed: _busy ? null : _import,
-                    icon: const PrismGlyph(AntGlyphs.folder, size: 16),
-                    label: const Text('导入本地'),
+                    icon: const PrismGlyph(AntGlyphs.folder, size: 18),
                   ),
-                  prism.OutlinedButton.icon(
+                  prism.IconButton(
+                    tooltip: '添加内核路径',
                     onPressed: _busy ? null : () => _edit(),
-                    icon: const PrismGlyph(AntGlyphs.add, size: 16),
-                    label: const Text('添加路径'),
-                  ),
-                  prism.FilledButton.icon(
-                    onPressed: _busy ? null : () => _openDownloadModal(),
-                    icon: const PrismGlyph(AntGlyphs.download, size: 16),
-                    label: const Text('下载内核'),
+                    icon: const PrismGlyph(AntGlyphs.add, size: 18),
                   ),
                 ],
+              ),
+              const SizedBox(width: 10),
+              prism.FilledButton.icon(
+                onPressed: _busy ? null : () => _openDownloadModal(),
+                icon: const PrismGlyph(AntGlyphs.download, size: 16),
+                label: const Text('下载内核'),
               ),
             ],
           ),

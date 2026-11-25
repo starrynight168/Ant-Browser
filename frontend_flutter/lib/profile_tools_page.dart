@@ -632,7 +632,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
             ),
           ),
           Expanded(
-            child: prism.SelectableText(
+            child: Text(
               value.isEmpty ? '-' : value,
               style: prism.AppTextStyle.footnote.of(context),
             ),
@@ -713,16 +713,6 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
             runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              prism.OutlinedButton.icon(
-                onPressed: _busy.isEmpty ? _openUserDataDir : null,
-                icon: const PrismGlyph(AntGlyphs.folder, size: 16),
-                label: const Text('数据目录'),
-              ),
-              prism.OutlinedButton.icon(
-                onPressed: _busy.isEmpty ? _restart : null,
-                icon: const PrismGlyph(AntGlyphs.restart, size: 16),
-                label: const Text('重启'),
-              ),
               PrismTonalButton.icon(
                 onPressed: _busy.isEmpty ? _toggle : null,
                 icon: PrismGlyph(
@@ -737,10 +727,25 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                       : '启动实例',
                 ),
               ),
-              prism.IconButton(
-                tooltip: '刷新状态',
-                onPressed: _busy.isEmpty ? () => _reload() : null,
-                icon: const PrismGlyph(AntGlyphs.refresh, size: 17),
+              prism.TonalButtonGroup(
+                size: prism.TonalButtonSize.section,
+                children: [
+                  prism.IconButton(
+                    tooltip: '打开数据目录',
+                    onPressed: _busy.isEmpty ? _openUserDataDir : null,
+                    icon: const PrismGlyph(AntGlyphs.folder, size: 18),
+                  ),
+                  prism.IconButton(
+                    tooltip: '重启实例',
+                    onPressed: _busy.isEmpty ? _restart : null,
+                    icon: const PrismGlyph(AntGlyphs.restart, size: 18),
+                  ),
+                  prism.IconButton(
+                    tooltip: '刷新状态',
+                    onPressed: _busy.isEmpty ? () => _reload() : null,
+                    icon: const PrismGlyph(AntGlyphs.refresh, size: 18),
+                  ),
+                ],
               ),
             ],
           ),
@@ -822,92 +827,98 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                     PrismSectionCard(
                       title: '实例配置与启动码',
                       glyph: AntGlyphs.settings,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _infoRow(
-                            context,
-                            '实例编号',
-                            '${profile['profileId'] ?? ''}',
-                          ),
-                          _infoRow(
-                            context,
-                            '浏览器内核',
-                            _resolveCoreName(profile),
-                          ),
-                          _infoRow(
-                            context,
-                            '所属分组',
-                            _resolveGroupName(profile),
-                          ),
-                          _infoRow(
-                            context,
-                            '代理配置',
-                            '${profile['proxyConfig'] ?? ''}'.trim().isEmpty
-                                ? '直连'
-                                : '${profile['proxyConfig']}',
-                          ),
-                          _infoRow(
-                            context,
-                            '参数概览',
-                            '指纹参数 ${_valueCount(profile['fingerprintArgs'])} 项 · '
-                                '启动参数 ${_valueCount(profile['launchArgs'])} 项',
-                          ),
-                          _infoRow(
-                            context,
-                            '用户数据目录',
-                            '${profile['userDataDir'] ?? ''}',
-                          ),
-                          if (tags.isNotEmpty) ...[
-                            const SizedBox(height: 6),
-                            Wrap(
-                              spacing: 6,
-                              runSpacing: 6,
-                              children: [
-                                for (final tag in tags)
-                                  PrismBadge(
-                                    label: tag,
-                                    tone: PrismTone.info,
-                                    glyph: AntGlyphs.tag,
-                                  ),
-                              ],
-                            ),
-                          ],
-                          const SizedBox(height: 10),
-                          const prism.Divider(height: 1),
-                          const SizedBox(height: 10),
-                          Row(
+                      // 整卡单个 SelectionArea + 普通 Text，
+                      // 避免逐行 SelectableText 在滚动容器内堆叠。
+                      child: RepaintBoundary(
+                        child: prism.SelectionArea(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              Expanded(
-                                child: prism.SelectableText(
-                                  '启动码：${profile['launchCode'] ?? '未分配'}',
-                                  style: prism.AppTextStyle.subheadline.of(
-                                    context,
-                                    emphasized: true,
+                              _infoRow(
+                                context,
+                                '实例编号',
+                                '${profile['profileId'] ?? ''}',
+                              ),
+                              _infoRow(
+                                context,
+                                '浏览器内核',
+                                _resolveCoreName(profile),
+                              ),
+                              _infoRow(
+                                context,
+                                '所属分组',
+                                _resolveGroupName(profile),
+                              ),
+                              _infoRow(
+                                context,
+                                '代理配置',
+                                '${profile['proxyConfig'] ?? ''}'.trim().isEmpty
+                                    ? '直连'
+                                    : '${profile['proxyConfig']}',
+                              ),
+                              _infoRow(
+                                context,
+                                '参数概览',
+                                '指纹参数 ${_valueCount(profile['fingerprintArgs'])} 项 · '
+                                    '启动参数 ${_valueCount(profile['launchArgs'])} 项',
+                              ),
+                              _infoRow(
+                                context,
+                                '用户数据目录',
+                                '${profile['userDataDir'] ?? ''}',
+                              ),
+                              if (tags.isNotEmpty) ...[
+                                const SizedBox(height: 6),
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 6,
+                                  children: [
+                                    for (final tag in tags)
+                                      PrismBadge(
+                                        label: tag,
+                                        tone: PrismTone.info,
+                                        glyph: AntGlyphs.tag,
+                                      ),
+                                  ],
+                                ),
+                              ],
+                              const SizedBox(height: 10),
+                              const prism.Divider(height: 1),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      '启动码：${profile['launchCode'] ?? '未分配'}',
+                                      style: prism.AppTextStyle.subheadline.of(
+                                        context,
+                                        emphasized: true,
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
-                              prism.IconButton(
-                                tooltip: '复制启动码',
-                                onPressed: () => _copyLaunchCode(profile),
-                                icon: const PrismGlyph(
-                                  AntGlyphs.copy,
-                                  size: 16,
-                                ),
-                              ),
-                              prism.IconButton(
-                                tooltip: '重新生成启动码',
-                                onPressed: _busy.isEmpty
-                                    ? _regenerateLaunchCode
-                                    : null,
-                                icon: const PrismGlyph(
-                                  AntGlyphs.refresh,
-                                  size: 16,
-                                ),
+                                  prism.IconButton(
+                                    tooltip: '复制启动码',
+                                    onPressed: () => _copyLaunchCode(profile),
+                                    icon: const PrismGlyph(
+                                      AntGlyphs.copy,
+                                      size: 16,
+                                    ),
+                                  ),
+                                  prism.IconButton(
+                                    tooltip: '重新生成启动码',
+                                    onPressed: _busy.isEmpty
+                                        ? _regenerateLaunchCode
+                                        : null,
+                                    icon: const PrismGlyph(
+                                      AntGlyphs.refresh,
+                                      size: 16,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
                     const SizedBox(height: 14),
@@ -1234,84 +1245,98 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                                     subtitle: '尝试修改域名过滤关键词',
                                   );
                                 }
-                                return ListView(
-                                  children: [
-                                    for (final cookie in cookies)
-                                      PrismCard(
-                                        margin: const EdgeInsets.only(
-                                          bottom: 8,
-                                        ),
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(12),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Row(
+                                // 列表外层单个 SelectionArea 覆盖全部条目，
+                                // Cookie value 改用普通 Text 避免手势区域碎片化。
+                                return RepaintBoundary(
+                                  child: prism.SelectionArea(
+                                    child: ListView(
+                                      children: [
+                                        for (final cookie in cookies)
+                                          PrismCard(
+                                            margin: const EdgeInsets.only(
+                                              bottom: 8,
+                                            ),
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(12),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
                                                 children: [
-                                                  Expanded(
-                                                    child: Text(
-                                                      (cookie['name'] ?? '')
-                                                          .toString(),
-                                                      style: prism
-                                                          .AppTextStyle
-                                                          .subheadline
-                                                          .of(
-                                                            context,
-                                                            emphasized: true,
+                                                  Row(
+                                                    children: [
+                                                      Expanded(
+                                                        child: Text(
+                                                          (cookie['name'] ?? '')
+                                                              .toString(),
+                                                          style: prism
+                                                              .AppTextStyle
+                                                              .subheadline
+                                                              .of(
+                                                                context,
+                                                                emphasized:
+                                                                    true,
+                                                              ),
+                                                        ),
+                                                      ),
+                                                      if (cookie['httpOnly'] ==
+                                                          true)
+                                                        const Padding(
+                                                          padding:
+                                                              EdgeInsets.only(
+                                                                left: 6,
+                                                              ),
+                                                          child: PrismBadge(
+                                                            label: 'HttpOnly',
+                                                            tone:
+                                                                PrismTone.info,
                                                           ),
+                                                        ),
+                                                      if (cookie['secure'] ==
+                                                          true)
+                                                        const Padding(
+                                                          padding:
+                                                              EdgeInsets.only(
+                                                                left: 6,
+                                                              ),
+                                                          child: PrismBadge(
+                                                            label: 'Secure',
+                                                            tone: PrismTone
+                                                                .success,
+                                                          ),
+                                                        ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    '${cookie['domain'] ?? ''} · ${cookie['path'] ?? '/'} · ${_cookieExpiry(cookie['expires'])}',
+                                                    style: prism
+                                                        .AppTextStyle
+                                                        .caption1
+                                                        .of(context)
+                                                        .copyWith(
+                                                          color: colors
+                                                              .onSurfaceVariant,
+                                                        ),
+                                                  ),
+                                                  const SizedBox(height: 6),
+                                                  Text(
+                                                    (cookie['value'] ?? '')
+                                                        .toString(),
+                                                    maxLines: 2,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: const TextStyle(
+                                                      fontFamily: 'Consolas',
+                                                      fontSize: 12,
                                                     ),
                                                   ),
-                                                  if (cookie['httpOnly'] ==
-                                                      true)
-                                                    const Padding(
-                                                      padding: EdgeInsets.only(
-                                                        left: 6,
-                                                      ),
-                                                      child: PrismBadge(
-                                                        label: 'HttpOnly',
-                                                        tone: PrismTone.info,
-                                                      ),
-                                                    ),
-                                                  if (cookie['secure'] == true)
-                                                    const Padding(
-                                                      padding: EdgeInsets.only(
-                                                        left: 6,
-                                                      ),
-                                                      child: PrismBadge(
-                                                        label: 'Secure',
-                                                        tone: PrismTone.success,
-                                                      ),
-                                                    ),
                                                 ],
                                               ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                '${cookie['domain'] ?? ''} · ${cookie['path'] ?? '/'} · ${_cookieExpiry(cookie['expires'])}',
-                                                style: prism
-                                                    .AppTextStyle
-                                                    .caption1
-                                                    .of(context)
-                                                    .copyWith(
-                                                      color: colors
-                                                          .onSurfaceVariant,
-                                                    ),
-                                              ),
-                                              const SizedBox(height: 6),
-                                              prism.SelectableText(
-                                                (cookie['value'] ?? '')
-                                                    .toString(),
-                                                maxLines: 2,
-                                                style: const TextStyle(
-                                                  fontFamily: 'Consolas',
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                            ],
+                                            ),
                                           ),
-                                        ),
-                                      ),
-                                  ],
+                                      ],
+                                    ),
+                                  ),
                                 );
                               },
                             ),

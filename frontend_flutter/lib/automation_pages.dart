@@ -1996,47 +1996,52 @@ class _AutomationPageState extends State<AutomationPage> {
               runSpacing: 6,
               alignment: WrapAlignment.end,
               children: [
-                prism.OutlinedButton.icon(
-                  onPressed: () {
+                // 接口调试工具收进菜单，保持卡片操作行克制。
+                PrismPopupMenuButton<String>(
+                  tooltip: '接口调试',
+                  icon: const PrismGlyph(AntGlyphs.api, size: 16),
+                  onSelected: (action) {
                     final url = _buildScriptApiUrl(script, _launchBaseUrl);
                     final body = _buildScriptRequestJson(
                       script,
                       launchCode: launchCode,
                     );
-                    final curl = _buildCurlCommand(
-                      url: url,
-                      bodyJson: body,
-                      authHeader: _apiAuthHeader,
-                    );
-                    Clipboard.setData(ClipboardData(text: curl));
-                    showPrismNotice(context, '已复制 cURL 命令');
+                    if (action == 'curl') {
+                      final curl = _buildCurlCommand(
+                        url: url,
+                        bodyJson: body,
+                        authHeader: _apiAuthHeader,
+                      );
+                      Clipboard.setData(ClipboardData(text: curl));
+                      showPrismNotice(context, '已复制 cURL 命令');
+                    } else if (action == 'json') {
+                      Clipboard.setData(ClipboardData(text: body));
+                      showPrismNotice(context, '已复制 JSON 请求体');
+                    } else if (action == 'api') {
+                      _showPublicApiQuickDialog(
+                        context,
+                        script: script,
+                        baseUrl: _launchBaseUrl,
+                        authHeader: _apiAuthHeader,
+                        authEnabled: _apiAuthEnabled,
+                        launchCode: launchCode,
+                      );
+                    }
                   },
-                  icon: const PrismGlyph(AntGlyphs.copy, size: 14),
-                  label: const Text('cURL'),
-                ),
-                prism.OutlinedButton.icon(
-                  onPressed: () {
-                    final body = _buildScriptRequestJson(
-                      script,
-                      launchCode: launchCode,
-                    );
-                    Clipboard.setData(ClipboardData(text: body));
-                    showPrismNotice(context, '已复制 JSON 请求体');
-                  },
-                  icon: const PrismGlyph(AntGlyphs.dataObject, size: 14),
-                  label: const Text('JSON'),
-                ),
-                prism.OutlinedButton.icon(
-                  onPressed: () => _showPublicApiQuickDialog(
-                    context,
-                    script: script,
-                    baseUrl: _launchBaseUrl,
-                    authHeader: _apiAuthHeader,
-                    authEnabled: _apiAuthEnabled,
-                    launchCode: launchCode,
-                  ),
-                  icon: const PrismGlyph(AntGlyphs.api, size: 14),
-                  label: const Text('接口'),
+                  itemBuilder: (_) => const [
+                    PrismMenuItem(
+                      value: 'curl',
+                      child: Text('复制 cURL 命令'),
+                    ),
+                    PrismMenuItem(
+                      value: 'json',
+                      child: Text('复制 JSON 请求体'),
+                    ),
+                    PrismMenuItem(
+                      value: 'api',
+                      child: Text('接口调试窗口'),
+                    ),
+                  ],
                 ),
                 if (!isLaunchApi)
                   PrismTonalButton.icon(
@@ -2080,21 +2085,28 @@ class _AutomationPageState extends State<AutomationPage> {
                 icon: const PrismGlyph(AntGlyphs.add, size: 16),
                 label: const Text('新建脚本'),
               ),
-              prism.OutlinedButton.icon(
-                onPressed: _showHistory,
-                icon: const PrismGlyph(AntGlyphs.history, size: 16),
-                label: const Text('调用记录'),
-              ),
-              if (_selectedScriptIds.isNotEmpty)
-                prism.OutlinedButton.icon(
-                  onPressed: _busy.isEmpty ? _exportSelectedScripts : null,
-                  icon: const PrismGlyph(AntGlyphs.download, size: 16),
-                  label: Text('导出 ${_selectedScriptIds.length} 个'),
-                ),
-              prism.IconButton(
-                tooltip: '刷新',
-                onPressed: _refresh,
-                icon: const PrismGlyph(AntGlyphs.refresh, size: 17),
+              prism.TonalButtonGroup(
+                size: prism.TonalButtonSize.section,
+                children: [
+                  prism.IconButton(
+                    tooltip: '调用记录',
+                    onPressed: _showHistory,
+                    icon: const PrismGlyph(AntGlyphs.history, size: 18),
+                  ),
+                  if (_selectedScriptIds.isNotEmpty)
+                    prism.IconButton(
+                      tooltip: '导出选中脚本 ZIP',
+                      onPressed: _busy.isEmpty
+                          ? _exportSelectedScripts
+                          : null,
+                      icon: const PrismGlyph(AntGlyphs.download, size: 18),
+                    ),
+                  prism.IconButton(
+                    tooltip: '刷新',
+                    onPressed: _refresh,
+                    icon: const PrismGlyph(AntGlyphs.refresh, size: 18),
+                  ),
+                ],
               ),
               PrismPopupMenuButton<String>(
                 tooltip: '导入脚本',

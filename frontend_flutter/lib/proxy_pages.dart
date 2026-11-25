@@ -3559,33 +3559,38 @@ socks5://user:password@proxy.example.com:1080''',
                 ),
               ),
               _buildCoreStatusBadge(),
-              prism.IconButton(
-                tooltip: '刷新列表',
-                onPressed: _refreshing ? null : _refresh,
-                icon: _refreshing
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: PrismProgressIndicator(size: 18),
-                      )
-                    : const PrismGlyph(AntGlyphs.refresh, size: 18),
-              ),
-              prism.IconButton(
-                tooltip: '代理检测设置',
-                onPressed: _editCheckSettings,
-                icon: const PrismGlyph(AntGlyphs.tune, size: 18),
-              ),
-              prism.IconButton(
-                tooltip: '清理异常订阅节点（$_missingCount）',
-                onPressed: _busy.isEmpty && _missingCount > 0
-                    ? _cleanupMissing
-                    : null,
-                icon: const PrismGlyph(AntGlyphs.deleteSweep, size: 18),
-              ),
-              prism.IconButton(
-                tooltip: '下载代理内核',
-                onPressed: () => _openProxyCoreDownload(),
-                icon: const PrismGlyph(AntGlyphs.download, size: 18),
+              prism.TonalButtonGroup(
+                size: prism.TonalButtonSize.section,
+                children: [
+                  prism.IconButton(
+                    tooltip: _refreshing ? '刷新中…' : '刷新列表',
+                    onPressed: _refreshing ? null : _refresh,
+                    icon: _refreshing
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: PrismProgressIndicator(size: 18),
+                          )
+                        : const PrismGlyph(AntGlyphs.refresh, size: 18),
+                  ),
+                  prism.IconButton(
+                    tooltip: '代理检测设置',
+                    onPressed: _editCheckSettings,
+                    icon: const PrismGlyph(AntGlyphs.tune, size: 18),
+                  ),
+                  prism.IconButton(
+                    tooltip: '清理异常订阅节点（$_missingCount）',
+                    onPressed: _busy.isEmpty && _missingCount > 0
+                        ? _cleanupMissing
+                        : null,
+                    icon: const PrismGlyph(AntGlyphs.deleteSweep, size: 18),
+                  ),
+                  prism.IconButton(
+                    tooltip: '下载代理内核',
+                    onPressed: () => _openProxyCoreDownload(),
+                    icon: const PrismGlyph(AntGlyphs.download, size: 18),
+                  ),
+                ],
               ),
             ],
           ),
@@ -3618,59 +3623,105 @@ socks5://user:password@proxy.example.com:1080''',
           Wrap(
             spacing: 8,
             runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              prism.OutlinedButton.icon(
-                onPressed: _busy.isEmpty ? () => _testAll(visible) : null,
-                icon: const PrismGlyph(AntGlyphs.speed, size: 16),
-                label: Text(_busy == 'batch-speed' ? '测速中…' : '测试全部'),
+              // 批量检测操作收拢为图标组，悬停 tooltip 显示动态状态。
+              prism.TonalButtonGroup(
+                size: prism.TonalButtonSize.section,
+                children: [
+                  prism.IconButton(
+                    tooltip: _busy == 'batch-speed' ? '测速中…' : '测试全部',
+                    onPressed: _busy.isEmpty ? () => _testAll(visible) : null,
+                    icon: _busy == 'batch-speed'
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: PrismProgressIndicator(size: 18),
+                          )
+                        : const PrismGlyph(AntGlyphs.speed, size: 18),
+                  ),
+                  prism.IconButton(
+                    tooltip: _busy == 'batch-ip' ? '检测中…' : '检测 IP 健康',
+                    onPressed: _busy.isEmpty
+                        ? () => _checkAllIPHealth(visible)
+                        : null,
+                    icon: _busy == 'batch-ip'
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: PrismProgressIndicator(size: 18),
+                          )
+                        : const PrismGlyph(AntGlyphs.globe, size: 18),
+                  ),
+                  prism.IconButton(
+                    tooltip: _busy == 'batch-warmup' ? '预热中…' : '桥接预热全部',
+                    onPressed: _busy.isEmpty ? () => _warmupAll(visible) : null,
+                    icon: _busy == 'batch-warmup'
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: PrismProgressIndicator(size: 18),
+                          )
+                        : const PrismGlyph(AntGlyphs.fire, size: 18),
+                  ),
+                  prism.IconButton(
+                    tooltip: _busy == 'refresh-all' ? '刷新中…' : '刷新全部订阅',
+                    onPressed: _busy.isEmpty && hasSources
+                        ? _refreshAllSources
+                        : null,
+                    icon: _busy == 'refresh-all'
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: PrismProgressIndicator(size: 18),
+                          )
+                        : const PrismGlyph(AntGlyphs.sync, size: 18),
+                  ),
+                ],
               ),
-              prism.OutlinedButton.icon(
-                onPressed: _busy.isEmpty
-                    ? () => _checkAllIPHealth(visible)
-                    : null,
-                icon: const PrismGlyph(AntGlyphs.globe, size: 16),
-                label: Text(_busy == 'batch-ip' ? '检测中…' : '检测 IP 健康'),
+              // 页面入口收拢为图标组。
+              prism.TonalButtonGroup(
+                size: prism.TonalButtonSize.section,
+                children: [
+                  prism.IconButton(
+                    tooltip: '更新管理',
+                    onPressed: _busy.isEmpty ? _openSourceRefreshModal : null,
+                    icon: const PrismGlyph(AntGlyphs.schedule, size: 18),
+                  ),
+                  prism.IconButton(
+                    tooltip: '虚拟分组',
+                    onPressed: widget.onOpenGroups,
+                    icon: const PrismGlyph(AntGlyphs.hub, size: 18),
+                  ),
+                  prism.IconButton(
+                    tooltip: '订阅管理',
+                    onPressed: widget.onOpenAlign,
+                    icon: const PrismGlyph(AntGlyphs.compare, size: 18),
+                  ),
+                ],
               ),
-              prism.OutlinedButton.icon(
-                onPressed: _busy.isEmpty ? () => _warmupAll(visible) : null,
-                icon: const PrismGlyph(AntGlyphs.fire, size: 16),
-                label: Text(_busy == 'batch-warmup' ? '预热中…' : '桥接预热全部'),
-              ),
-              prism.OutlinedButton.icon(
-                onPressed: _busy.isEmpty && hasSources
-                    ? _refreshAllSources
-                    : null,
-                icon: const PrismGlyph(AntGlyphs.sync, size: 16),
-                label: Text(_busy == 'refresh-all' ? '刷新中…' : '刷新全部订阅'),
-              ),
-              prism.OutlinedButton.icon(
-                onPressed: _busy.isEmpty ? _openSourceRefreshModal : null,
-                icon: const PrismGlyph(AntGlyphs.schedule, size: 16),
-                label: const Text('更新管理'),
-              ),
-              prism.OutlinedButton.icon(
-                onPressed: widget.onOpenGroups,
-                icon: const PrismGlyph(AntGlyphs.hub, size: 16),
-                label: const Text('虚拟分组'),
-              ),
-              prism.OutlinedButton.icon(
-                onPressed: widget.onOpenAlign,
-                icon: const PrismGlyph(AntGlyphs.compare, size: 16),
-                label: const Text('订阅管理'),
-              ),
-              prism.OutlinedButton.icon(
-                onPressed: _busy.isEmpty ? _importSubscription : null,
-                icon: const PrismGlyph(AntGlyphs.download, size: 16),
-                label: Text(_busy == 'subscription' ? '导入中…' : '导入订阅'),
-              ),
-              prism.OutlinedButton.icon(
-                onPressed: _busy.isEmpty ? _importProxies : null,
-                icon: const PrismGlyph(AntGlyphs.paste, size: 16),
-                label: const Text('导入代理'),
-              ),
-              prism.OutlinedButton(
-                onPressed: _showUsageGuide,
-                child: const Text('使用说明'),
+              // 低频导入操作收进菜单。
+              PrismPopupMenuButton<String>(
+                tooltip: '导入与帮助',
+                enabled: _busy.isEmpty,
+                icon: const PrismGlyph(AntGlyphs.paste, size: 18),
+                itemBuilder: (_) => const [
+                  PrismMenuItem(
+                    value: 'subscription',
+                    child: Text('导入订阅'),
+                  ),
+                  PrismMenuItem(value: 'proxies', child: Text('导入代理')),
+                  PrismMenuItem(value: 'guide', child: Text('使用说明')),
+                ],
+                onSelected: (action) {
+                  if (action == 'subscription') {
+                    _importSubscription();
+                  } else if (action == 'proxies') {
+                    _importProxies();
+                  } else if (action == 'guide') {
+                    _showUsageGuide();
+                  }
+                },
               ),
               prism.FilledButton.icon(
                 onPressed: () => _edit(),

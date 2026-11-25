@@ -1917,21 +1917,11 @@ class _BackupPageState extends State<BackupPage>
                       .copyWith(color: colors.onSurfaceVariant),
                 ),
                 const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    prism.FilledButton.icon(
-                      onPressed: _busy.isEmpty ? _createBackup : null,
-                      icon: const PrismGlyph(AntGlyphs.archive, size: 16),
-                      label: Text(_busy == 'backup' ? '备份中…' : '立即备份'),
-                    ),
-                    prism.OutlinedButton.icon(
-                      onPressed: _busy.isEmpty ? _importBackup : null,
-                      icon: const PrismGlyph(AntGlyphs.restore, size: 16),
-                      label: const Text('导入备份'),
-                    ),
-                  ],
+                Text(
+                  '使用页面右上角的「立即备份」「导入备份」操作当前目录；此处仅维护目录位置。',
+                  style: prism.AppTextStyle.caption1
+                      .of(context)
+                      .copyWith(color: colors.onSurfaceVariant),
                 ),
               ],
             ),
@@ -2252,6 +2242,7 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
           children: [
             prism.IconButton(
               onPressed: widget.onBack,
+              tooltip: '返回',
               icon: const PrismGlyph(AntGlyphs.arrowBack, size: 18),
             ),
             const SizedBox(width: 4),
@@ -2752,6 +2743,7 @@ class _S3ConfigPageState extends State<S3ConfigPage>
           children: [
             prism.IconButton(
               onPressed: widget.onBack,
+              tooltip: '返回',
               icon: const PrismGlyph(AntGlyphs.arrowBack, size: 18),
             ),
             const SizedBox(width: 4),
