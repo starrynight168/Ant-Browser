@@ -7122,7 +7122,7 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
             ),
           ],
         ),
-        subtitle: Text('$members 个成员 · 点击查看成员与健康详情'),
+        subtitle: Text('$members 个成员'),
         trailing: Wrap(
           children: [
             prism.IconButton(

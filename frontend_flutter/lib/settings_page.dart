@@ -691,6 +691,8 @@ class _SettingsPageState extends State<SettingsPage> {
                     padding: const EdgeInsets.fromLTRB(10, 4, 10, 8),
                   ),
                   PrismSlidingRail<_SettingsSection>(
+                    itemHeight: 44,
+                    gap: 2,
                     items: [
                       for (final section in _SettingsSection.values)
                         PrismSlidingRailItem<_SettingsSection>(
@@ -1026,7 +1028,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            '所有页面、卡片、按钮与图标均随你选择的主色与色彩风格自动联动。',
+                            '主色与色彩风格实时联动全站界面',
                             style: prism.AppTextStyle.footnote
                                 .of(context)
                                 .copyWith(color: colors.onSurfaceVariant),
@@ -1067,8 +1069,10 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(height: 12),
         _groupedCard([
           prism.ListRow(
-            title: const Text('外观模式'),
-            subtitle: const Text('切换浅色、深色或自动跟随 Windows 系统主题'),
+            title: prism.Tooltip(
+              message: '切换浅色、深色或自动跟随 Windows 系统主题',
+              child: const Text('外观模式'),
+            ),
             trailing: SizedBox(
               width: 260,
               child: prism.SegmentedControl<String>(
@@ -1086,8 +1090,10 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
           prism.ListRow(
-            title: const Text('Prism 色彩风格'),
-            subtitle: const Text('鲜明突出强调色 · 浸润微染背景 · 柔和低饱和 · 单色纯粹'),
+            title: prism.Tooltip(
+              message: '鲜明突出强调色 · 浸润微染背景 · 柔和低饱和 · 单色纯粹',
+              child: const Text('Prism 色彩风格'),
+            ),
             trailing: SizedBox(
               width: 300,
               child: prism.SegmentedControl<String>(
@@ -1106,8 +1112,10 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
           prism.ListRow(
-            title: const Text('界面语言'),
-            subtitle: const Text('应用界面默认展示语言'),
+            title: prism.Tooltip(
+              message: '应用界面默认展示语言',
+              child: const Text('界面语言'),
+            ),
             trailing: SizedBox(
               width: 210,
               child: prism.SegmentedControl<String>(
@@ -1155,7 +1163,6 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _buildMotionSettingsCard(BuildContext context, int currentMotion) {
-    final colors = prism.Theme.of(context).colorScheme;
     final motionEnabled = currentMotion > 0;
     final (tierLabel, tierTone) = switch (currentMotion) {
       0 => ('已关闭', PrismTone.neutral),
@@ -1166,12 +1173,11 @@ class _SettingsPageState extends State<SettingsPage> {
     };
     return _groupedCard([
       prism.ListRow(
-        title: const Text('界面动效'),
-        subtitle: Text(
-          motionEnabled
-              ? '开启后全站启用过渡、悬停与弹簧动画'
-              : '已关闭 · 所有页面切换与交互均为即时响应',
+        title: prism.Tooltip(
+          message: '开启后全站启用过渡、悬停与弹簧动画',
+          child: const Text('界面动效'),
         ),
+        subtitle: motionEnabled ? null : const Text('已关闭'),
         trailing: prism.Switch(
           value: motionEnabled,
           onChanged: (enabled) => _applyMotionIntensity(
@@ -1187,24 +1193,15 @@ class _SettingsPageState extends State<SettingsPage> {
             Row(
               children: [
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '动效强度',
-                        style: prism.AppTextStyle.subheadline.of(
-                          context,
-                          emphasized: true,
-                        ),
+                  child: prism.Tooltip(
+                    message: '拖到 0% 可关闭全部动画，向右最高增强至 250%',
+                    child: Text(
+                      '动效强度',
+                      style: prism.AppTextStyle.subheadline.of(
+                        context,
+                        emphasized: true,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '拖到 0% 可关闭全部动画，向右最高增强至 250%',
-                        style: prism.AppTextStyle.caption1
-                            .of(context)
-                            .copyWith(color: colors.onSurfaceVariant),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1234,8 +1231,10 @@ class _SettingsPageState extends State<SettingsPage> {
       children: [
         _groupedCard([
           PrismSwitchTile(
-            title: const Text('保存通知历史'),
-            subtitle: const Text('在通知中心保留错误和运行状态提醒'),
+            title: prism.Tooltip(
+              message: '在通知中心保留错误和运行状态提醒',
+              child: const Text('保存通知历史'),
+            ),
             value: _bool('enableNotifications'),
             onChanged: (value) => _change('enableNotifications', value),
           ),
@@ -1244,8 +1243,10 @@ class _SettingsPageState extends State<SettingsPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               PrismSwitchTile(
-                title: const Text('自动保存'),
-                subtitle: const Text('定期自动持久化配置改动'),
+                title: prism.Tooltip(
+                  message: '定期自动持久化配置改动',
+                  child: const Text('自动保存'),
+                ),
                 value: autoSaveEnabled,
                 onChanged: (value) => _change('enableAutoSave', value),
               ),
@@ -1385,8 +1386,10 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(height: 12),
         _groupedCard([
           PrismSwitchTile(
-            title: const Text('启用自动化脚本支持'),
-            subtitle: const Text('允许通过内置运行时执行自动化脚本任务'),
+            title: prism.Tooltip(
+              message: '允许通过内置运行时执行自动化脚本任务',
+              child: const Text('启用自动化脚本支持'),
+            ),
             value: automationEnabled,
             onChanged: _busy.isEmpty
                 ? (value) => _saveAutomation(
@@ -1396,22 +1399,28 @@ class _SettingsPageState extends State<SettingsPage> {
                 : null,
           ),
           PrismSwitchTile(
-            title: const Text('默认无头模式'),
-            subtitle: const Text('脚本启动实例时默认隐藏浏览器窗口'),
+            title: prism.Tooltip(
+              message: '脚本启动实例时默认隐藏浏览器窗口',
+              child: const Text('默认无头模式'),
+            ),
             value: automationSettings['headlessDefault'] == true,
             onChanged: _busy.isEmpty
                 ? (value) => _saveAutomation(automationEnabled, value)
                 : null,
           ),
           PrismSwitchTile(
-            title: const Text('允许构建 TypeScript 脚本'),
-            subtitle: const Text('导入或运行 TS 脚本包时自动编译'),
+            title: prism.Tooltip(
+              message: '导入或运行 TS 脚本包时自动编译',
+              child: const Text('允许构建 TypeScript 脚本'),
+            ),
             value: automationSettings['allowTypeScriptBuild'] == true,
             onChanged: _busy.isEmpty ? _toggleTypeScript : null,
           ),
           prism.ListRow(
-            title: const Text('Node 来源'),
-            subtitle: const Text('优先使用自动探测、指定系统 Node 或内置运行时'),
+            title: prism.Tooltip(
+              message: '优先使用自动探测、指定系统 Node 或内置运行时',
+              child: const Text('Node 来源'),
+            ),
             trailing: SizedBox(
               width: 280,
               child: prism.SegmentedControl<String>(
@@ -1660,14 +1669,18 @@ class _SettingsPageState extends State<SettingsPage> {
       children: [
         _groupedCard([
           PrismSwitchTile(
-            title: const Text('启用本地缓存'),
-            subtitle: const Text('缓存高频读取的配置与运行时元数据以提升响应速度'),
+            title: prism.Tooltip(
+              message: '缓存高频读取的配置与运行时元数据以提升响应速度',
+              child: const Text('启用本地缓存'),
+            ),
             value: _bool('cacheEnabled'),
             onChanged: (value) => _change('cacheEnabled', value),
           ),
           prism.ListRow(
-            title: const Text('日志级别'),
-            subtitle: const Text('控制后端记录的最低日志严重程度'),
+            title: prism.Tooltip(
+              message: '控制后端记录的最低日志严重程度',
+              child: const Text('日志级别'),
+            ),
             trailing: SizedBox(
               width: 300,
               child: prism.SegmentedControl<String>(

@@ -407,16 +407,32 @@ class _PrismHoverGlowState extends State<PrismHoverGlow> {
     final restingBorderColor = scheme.outlineVariant.withValues(
       alpha: dark ? 0.30 : 0.45,
     );
+    final restingShadow = BoxShadow(
+      color: dark
+          ? const Color(0xFF000000).withValues(alpha: 0.22)
+          : const Color(0xFF101828).withValues(alpha: 0.05),
+      blurRadius: 10,
+      offset: const Offset(0, 2),
+    );
+    final cardShape = RoundedSuperellipseBorder(
+      borderRadius: prism.AppRadius.all(widget.radius),
+    );
     if (!widget.enabled) {
       return DecoratedBox(
-        position: DecorationPosition.foreground,
         decoration: ShapeDecoration(
-          shape: RoundedSuperellipseBorder(
-            borderRadius: prism.AppRadius.all(widget.radius),
-            side: BorderSide(color: restingBorderColor, width: 1.0),
-          ),
+          shape: cardShape,
+          shadows: [restingShadow],
         ),
-        child: widget.child,
+        child: DecoratedBox(
+          position: DecorationPosition.foreground,
+          decoration: ShapeDecoration(
+            shape: RoundedSuperellipseBorder(
+              borderRadius: prism.AppRadius.all(widget.radius),
+              side: BorderSide(color: restingBorderColor, width: 1.0),
+            ),
+          ),
+          child: widget.child,
+        ),
       );
     }
     return ListenableBuilder(
@@ -426,9 +442,6 @@ class _PrismHoverGlowState extends State<PrismHoverGlow> {
         final spec = PrismMotionSpec.current;
         final activeHover = spec.enabled && _hover;
         final activeLift = widget.lift && activeHover;
-        final cardShape = RoundedSuperellipseBorder(
-          borderRadius: prism.AppRadius.all(widget.radius),
-        );
         // 保持子树结构恒定，避免开关动效瞬间卸载重建子组件导致拖动中断。
         final decorated = AnimatedContainer(
           duration: spec.enabled ? spec.hoverDuration : Duration.zero,
@@ -439,13 +452,15 @@ class _PrismHoverGlowState extends State<PrismHoverGlow> {
               BoxShadow(
                 color: dark
                     ? const Color(0xFF000000).withValues(
-                        alpha: activeLift ? spec.hoverShadowDarkAlpha : 0,
+                        alpha: activeLift ? spec.hoverShadowDarkAlpha : 0.22,
                       )
                     : const Color(0xFF101828).withValues(
-                        alpha: activeLift ? spec.hoverShadowLightAlpha : 0,
+                        alpha: activeLift ? spec.hoverShadowLightAlpha : 0.05,
                       ),
-                blurRadius: spec.hoverShadowBlur,
-                offset: Offset(0, spec.hoverShadowOffsetY),
+                blurRadius: activeLift ? spec.hoverShadowBlur : 10,
+                offset: activeLift
+                    ? Offset(0, spec.hoverShadowOffsetY)
+                    : const Offset(0, 2),
               ),
             ],
           ),
@@ -771,6 +786,7 @@ class PrismSlidingRail<T> extends StatelessWidget {
     this.gap = 4.0,
     this.showDividers = true,
     this.showSelectionBadge = false,
+    this.showSubtitle = false,
     this.sectionHeaderHeight = 34.0,
   });
 
@@ -781,6 +797,7 @@ class PrismSlidingRail<T> extends StatelessWidget {
   final double gap;
   final bool showDividers;
   final bool showSelectionBadge;
+  final bool showSubtitle;
   final double sectionHeaderHeight;
 
   double _topOf(int index) {
@@ -863,6 +880,7 @@ class PrismSlidingRail<T> extends StatelessWidget {
                           item: items[i],
                           selected: items[i].value == selectedValue,
                           showSelectionBadge: showSelectionBadge,
+                          showSubtitle: showSubtitle,
                           onTap: () => onSelected(items[i].value),
                         ),
                         if (showDividers &&
@@ -896,12 +914,14 @@ class _PrismSlidingRailTile<T> extends StatefulWidget {
     required this.item,
     required this.selected,
     required this.showSelectionBadge,
+    required this.showSubtitle,
     required this.onTap,
   });
 
   final PrismSlidingRailItem<T> item;
   final bool selected;
   final bool showSelectionBadge;
+  final bool showSubtitle;
   final VoidCallback onTap;
 
   @override
@@ -916,6 +936,7 @@ class _PrismSlidingRailTileState<T> extends State<_PrismSlidingRailTile<T>> {
   Widget build(BuildContext context) {
     final colors = prism.Theme.of(context).colorScheme;
     final item = widget.item;
+    final hasSubtitle = item.subtitle != null && item.subtitle!.isNotEmpty;
     final dotColor = item.statusTone == null
         ? null
         : PrismToneColors.of(context, item.statusTone!).fg;
@@ -928,7 +949,7 @@ class _PrismSlidingRailTileState<T> extends State<_PrismSlidingRailTile<T>> {
 
     final spec = PrismMotionSpec.current;
     // 背景与左竖条由外层 Stack 滑动胶囊承担；保留水平轻推，不缩放点击热区以确保命中稳固。
-    return MouseRegion(
+    final tile = MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: prism.PressRegion(
@@ -988,8 +1009,7 @@ class _PrismSlidingRailTileState<T> extends State<_PrismSlidingRailTile<T>> {
                             .copyWith(color: titleColor),
                         child: Text(item.title),
                       ),
-                      if (item.subtitle != null &&
-                          item.subtitle!.isNotEmpty) ...[
+                      if (widget.showSubtitle && hasSubtitle) ...[
                         AnimatedDefaultTextStyle(
                           duration: spec.enabled
                               ? const Duration(milliseconds: 220)
@@ -1038,6 +1058,10 @@ class _PrismSlidingRailTileState<T> extends State<_PrismSlidingRailTile<T>> {
         ),
       ),
     );
+    if (!widget.showSubtitle && hasSubtitle) {
+      return prism.Tooltip(message: item.subtitle!, child: tile);
+    }
+    return tile;
   }
 }
 
@@ -1467,21 +1491,21 @@ class PrismMetricTile extends StatelessWidget {
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: prism.AppTextStyle.caption1
+          style: prism.AppTextStyle.footnote
               .of(context)
               .copyWith(color: colors.onSurfaceVariant, height: 1.2),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 4),
         Text(
           value,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: prism.AppTextStyle.headline
+          style: prism.AppTextStyle.title3
               .of(context, emphasized: true)
-              .copyWith(height: 1.2),
+              .copyWith(fontWeight: FontWeight.w700, height: 1.15),
         ),
         if (showSubtitle && hasSubtitle) ...[
-          const SizedBox(height: 2),
+          const SizedBox(height: 4),
           Text(
             subtitle!,
             maxLines: 1,
@@ -1495,15 +1519,20 @@ class PrismMetricTile extends StatelessWidget {
     );
     final iconBadge = glyph == null
         ? null
-        : prism.Surface(
-            color: palette.bg,
-            shape: prism.AppShape.md,
-            child: SizedBox.square(
-              dimension: 36,
+        : SizedBox.square(
+            dimension: 44,
+            child: DecoratedBox(
+              decoration: ShapeDecoration(
+                color: palette.bg,
+                shape: RoundedSuperellipseBorder(
+                  borderRadius: prism.AppRadius.all(prism.AppCorner.md),
+                  side: BorderSide(color: palette.border, width: 1.0),
+                ),
+              ),
               child: Center(
                 child: prism_icons.GlyphIcon(
                   glyph!,
-                  size: 18,
+                  size: 21,
                   color: palette.fg,
                 ),
               ),
@@ -1516,33 +1545,36 @@ class PrismMetricTile extends StatelessWidget {
         radius: prism.AppCorner.xl,
         onPressed: onPressed,
         inert: onPressed == null,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final bounded = constraints.hasBoundedWidth;
-            return Row(
-              mainAxisSize: bounded ? MainAxisSize.max : MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                if (iconBadge != null) ...[
-                  iconBadge,
-                  const SizedBox(width: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final bounded = constraints.hasBoundedWidth;
+              return Row(
+                mainAxisSize: bounded ? MainAxisSize.max : MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  if (iconBadge != null) ...[
+                    iconBadge,
+                    const SizedBox(width: 14),
+                  ],
+                  if (bounded)
+                    Expanded(child: textColumn)
+                  else
+                    Flexible(child: textColumn),
+                  if (bounded && onPressed != null) ...[
+                    const SizedBox(width: 8),
+                    PrismGlyph(
+                      AntGlyphs.chevronForward,
+                      size: 14,
+                      color: colors.onSurfaceVariant.withValues(alpha: 0.45),
+                    ),
+                  ],
                 ],
-                if (bounded)
-                  Expanded(child: textColumn)
-                else
-                  Flexible(child: textColumn),
-                if (bounded && onPressed != null) ...[
-                  const SizedBox(width: 8),
-                  PrismGlyph(
-                    AntGlyphs.chevronForward,
-                    size: 14,
-                    color: colors.onSurfaceVariant.withValues(alpha: 0.45),
-                  ),
-                ],
-              ],
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );
