@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'dart:ui';
 
@@ -62,10 +63,15 @@ class BaseScrollBehavior extends ScrollBehavior {
     ScrollableDetails details,
   ) {
     final platform = getPlatform(context);
+    ScrollPosition? position;
+    if (context is StatefulElement && context.state is ScrollableState) {
+      position = (context.state as ScrollableState).position;
+    }
     final wrapped =
         axisDirectionToAxis(details.direction) == Axis.vertical &&
-            !isTouchPlatform(platform)
-        ? _SmoothWheelScroll(child: child)
+            !isTouchPlatform(platform) &&
+            position != null
+        ? _SmoothWheelScroll(position: position, child: child)
         : child;
     return switch (platform) {
       TargetPlatform.android => StretchingOverscrollIndicator(
@@ -92,8 +98,9 @@ class BaseScrollBehavior extends ScrollBehavior {
 }
 
 class _SmoothWheelScroll extends StatefulWidget {
-  const _SmoothWheelScroll({required this.child});
+  const _SmoothWheelScroll({required this.position, required this.child});
 
+  final ScrollPosition position;
   final Widget child;
 
   @override
@@ -104,14 +111,15 @@ class _SmoothWheelScrollState extends State<_SmoothWheelScroll> {
   double? _target;
   int _lastDirection = 0;
   DateTime _lastEventAt = DateTime.fromMillisecondsSinceEpoch(0);
+  int _generation = 0;
 
   void _handlePointerSignal(PointerSignalEvent event) {
     if (event is! PointerScrollEvent) return;
     if (event.kind != PointerDeviceKind.mouse) return;
     final dy = event.scrollDelta.dy;
     if (dy == 0) return;
-    final position = Scrollable.maybeOf(context)?.position;
-    if (position == null || !position.hasPixels) return;
+    final position = widget.position;
+    if (!position.hasPixels) return;
     if (position.maxScrollExtent <= position.minScrollExtent) return;
 
     final direction = dy > 0 ? 1 : -1;
@@ -120,24 +128,30 @@ class _SmoothWheelScrollState extends State<_SmoothWheelScroll> {
         (direction < 0 && position.pixels <= position.minScrollExtent + 0.5);
     if (atEdge) return;
 
-    GestureBinding.instance.pointerSignalResolver.register(event, (_) {
-      if (!mounted || !position.hasPixels) return;
-      final now = DateTime.now();
-      final continuing =
-          _target != null &&
-          direction == _lastDirection &&
-          now.difference(_lastEventAt).inMilliseconds < 280;
-      final base = continuing ? _target! : position.pixels;
-      final next = (base + dy * 1.15).clamp(
-        position.minScrollExtent,
-        position.maxScrollExtent,
-      );
-      _target = next;
-      _lastDirection = direction;
-      _lastEventAt = now;
+    final visualStart = position.pixels;
+    final now = DateTime.now();
+    final continuing =
+        _target != null &&
+        direction == _lastDirection &&
+        now.difference(_lastEventAt).inMilliseconds < 320;
+    final base = continuing ? _target! : visualStart;
+    final next = (base + dy * 1.15).clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    );
+    _target = next;
+    _lastDirection = direction;
+    _lastEventAt = now;
+    final gen = ++_generation;
+
+    // Scrollable's inner Listener jumps synchronously during pointer signal
+    // resolution; restore visualStart before the frame paints and animate.
+    scheduleMicrotask(() {
+      if (!mounted || gen != _generation || !position.hasPixels) return;
+      position.jumpTo(visualStart);
       position.animateTo(
         next,
-        duration: const Duration(milliseconds: 220),
+        duration: const Duration(milliseconds: 260),
         curve: Curves.easeOutCubic,
       );
     });
