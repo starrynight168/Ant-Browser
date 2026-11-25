@@ -651,9 +651,11 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
         glyph: AntGlyphs.browserOff,
         title: '实例不存在',
         subtitle: '该实例可能已被删除或移动',
-        action: prism.FilledButton(
-          onPressed: widget.onBack,
-          child: const Text('返回列表'),
+        action: PrismHoverMotion(
+          child: prism.FilledButton(
+            onPressed: widget.onBack,
+            child: const Text('返回列表'),
+          ),
         ),
       );
     }
@@ -950,15 +952,18 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              prism.FilledButton.icon(
-                                onPressed: _debugReady && _busy.isEmpty
-                                    ? _openUrl
-                                    : null,
-                                icon: const PrismGlyph(
-                                  AntGlyphs.openInNew,
-                                  size: 15,
+                              PrismHoverMotion(
+                                enabled: _debugReady && _busy.isEmpty,
+                                child: prism.FilledButton.icon(
+                                  onPressed: _debugReady && _busy.isEmpty
+                                      ? _openUrl
+                                      : null,
+                                  icon: const PrismGlyph(
+                                    AntGlyphs.openInNew,
+                                    size: 15,
+                                  ),
+                                  label: const Text('打开'),
                                 ),
-                                label: const Text('打开'),
                               ),
                             ],
                           ),
@@ -1028,12 +1033,15 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                             ),
                           ),
                           const SizedBox(width: 12),
-                          prism.FilledButton.icon(
-                            onPressed: !_running && _busy.isEmpty
-                                ? _createSnapshot
-                                : null,
-                            icon: const PrismGlyph(AntGlyphs.add, size: 16),
-                            label: const Text('创建快照'),
+                          PrismHoverMotion(
+                            enabled: !_running && _busy.isEmpty,
+                            child: prism.FilledButton.icon(
+                              onPressed: !_running && _busy.isEmpty
+                                  ? _createSnapshot
+                                  : null,
+                              icon: const PrismGlyph(AntGlyphs.add, size: 16),
+                              label: const Text('创建快照'),
+                            ),
                           ),
                         ],
                       ),
@@ -1046,6 +1054,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                               subtitle: '在实例停止状态下点击“创建快照”保存当前数据',
                             )
                           : ListView(
+                              padding: kPrismListPadding,
                               children: [
                                 for (final snapshot in _snapshots)
                                   PrismCard(
@@ -1248,6 +1257,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                                 return RepaintBoundary(
                                   child: prism.SelectionArea(
                                     child: ListView(
+                                      padding: kPrismListPadding,
                                       children: [
                                         for (final cookie in cookies)
                                           PrismCard(

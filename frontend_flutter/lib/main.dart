@@ -361,9 +361,10 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
                 ),
               ),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            if (!motionSpec.enabled) return child;
             final curve = CurvedAnimation(
               parent: animation,
-              curve: Curves.easeOutCubic,
+              curve: motionSpec.smoothCurve,
               reverseCurve: Curves.easeInCubic,
             );
             return FadeTransition(
@@ -768,68 +769,72 @@ class _QuickLaunchTriggerState extends State<_QuickLaunchTrigger> {
   @override
   Widget build(BuildContext context) {
     final colors = prism.Theme.of(context).colorScheme;
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: PrismHoverMotion(
-        hoverScale: 1.06,
-        pressScale: 0.925,
-        child: prism.PressRegion(
-          onTap: widget.onPressed,
-          shape: prism.AppShape.full,
-          child: AnimatedContainer(
-            duration: MediaQuery.disableAnimationsOf(context)
-                ? Duration.zero
-                : const Duration(milliseconds: 180),
-            curve: Curves.easeOutCubic,
-            height: 38,
-            padding: const EdgeInsets.fromLTRB(13, 0, 8, 0),
-            decoration: ShapeDecoration(
-              color: _hovered
-                  ? colors.surfaceContainerHighest
-                  : colors.surfaceContainerHigh,
-              shape: RoundedSuperellipseBorder(
-                borderRadius: prism.AppRadius.full,
-                side: BorderSide(
+    return ListenableBuilder(
+      listenable: appMotionIntensity,
+      builder: (context, child) {
+        final spec = PrismMotionSpec.current;
+        final motionOn =
+            spec.enabled && !MediaQuery.disableAnimationsOf(context);
+        return MouseRegion(
+          onEnter: (_) => setState(() => _hovered = true),
+          onExit: (_) => setState(() => _hovered = false),
+          child: PrismHoverMotion(
+            hoverScale: 1.06,
+            pressScale: 0.925,
+            child: prism.PressRegion(
+              onTap: widget.onPressed,
+              shape: prism.AppShape.full,
+              child: AnimatedContainer(
+                duration: motionOn ? spec.hoverDuration : Duration.zero,
+                curve: motionOn ? spec.smoothCurve : Curves.linear,
+                height: 38,
+                padding: const EdgeInsets.fromLTRB(13, 0, 8, 0),
+                decoration: ShapeDecoration(
                   color: _hovered
-                      ? colors.primary.withValues(alpha: 0.35)
-                      : colors.outlineVariant.withValues(alpha: 0.45),
-                  width: 1.0,
-                ),
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                PrismGlyph(AntGlyphs.bolt, size: 15, color: colors.primary),
-                const SizedBox(width: 7),
-                Text(
-                  '快捷启动',
-                  style: prism.AppTextStyle.footnote
-                      .of(context, emphasized: true)
-                      .copyWith(color: colors.onSurface),
-                ),
-                const SizedBox(width: 10),
-                prism.Surface(
-                  color: colors.surfaceContainerLowest,
-                  shape: prism.AppShape.sm,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 7,
-                      vertical: 2,
-                    ),
-                    child: Text(
-                      'Ctrl K',
-                      style: prism.AppTextStyle.caption2
-                          .of(context, emphasized: true)
-                          .copyWith(color: colors.onSurfaceVariant),
+                      ? colors.surfaceContainerHighest
+                      : colors.surfaceContainerHigh,
+                  shape: RoundedSuperellipseBorder(
+                    borderRadius: prism.AppRadius.full,
+                    side: BorderSide(
+                      color: _hovered
+                          ? colors.primary.withValues(alpha: 0.35)
+                          : colors.outlineVariant.withValues(alpha: 0.45),
+                      width: 1.0,
                     ),
                   ),
                 ),
-              ],
+                child: child,
+              ),
             ),
           ),
-        ),
+        );
+      },
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          PrismGlyph(AntGlyphs.bolt, size: 15, color: colors.primary),
+          const SizedBox(width: 7),
+          Text(
+            '快捷启动',
+            style: prism.AppTextStyle.footnote
+                .of(context, emphasized: true)
+                .copyWith(color: colors.onSurface),
+          ),
+          const SizedBox(width: 10),
+          prism.Surface(
+            color: colors.surfaceContainerLowest,
+            shape: prism.AppShape.sm,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              child: Text(
+                'Ctrl K',
+                style: prism.AppTextStyle.caption2
+                    .of(context, emphasized: true)
+                    .copyWith(color: colors.onSurfaceVariant),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -4763,6 +4768,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
             staggerIndex: 4,
             staggerDelay: const Duration(milliseconds: 45),
             radius: prism.AppCorner.xl,
+            lift: false,
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -5360,7 +5366,9 @@ class _ErrorPanel extends StatelessWidget {
       title: '无法连接到应用服务',
       subtitle: message,
       glyph: AntGlyphs.cloudOff,
-      action: prism.FilledButton(onPressed: onRetry, child: const Text('重试')),
+      action: PrismHoverMotion(
+        child: prism.FilledButton(onPressed: onRetry, child: const Text('重试')),
+      ),
     );
   }
 }

@@ -1678,6 +1678,7 @@ class _AutomationPageState extends State<AutomationPage> {
                             subtitle: '运行任意脚本或调用对外 API 后会在这里展示记录',
                           )
                         : ListView.builder(
+                            padding: kPrismListPadding,
                             itemCount: runs.length,
                             itemBuilder: (context, index) {
                               final run = runs[index];
@@ -2315,6 +2316,7 @@ class _AutomationPageState extends State<AutomationPage> {
       staggerIndex: 5,
       staggerDelay: const Duration(milliseconds: 45),
       radius: prism.AppCorner.xl,
+      lift: false,
       padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2419,6 +2421,7 @@ class _AutomationPageState extends State<AutomationPage> {
       staggerIndex: 6,
       staggerDelay: const Duration(milliseconds: 45),
       radius: prism.AppCorner.xl,
+      lift: false,
       padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -3699,10 +3702,13 @@ class _AutomationScriptDetailPageState
                       icon: const PrismGlyph(AntGlyphs.play, size: 15),
                       label: const Text('运行脚本'),
                     ),
-                  prism.FilledButton.icon(
-                    onPressed: _busy.isEmpty ? _save : null,
-                    icon: const PrismGlyph(AntGlyphs.save, size: 15),
-                    label: Text(_busy == 'save' ? '保存中…' : '保存'),
+                  PrismHoverMotion(
+                    enabled: _busy.isEmpty,
+                    child: prism.FilledButton.icon(
+                      onPressed: _busy.isEmpty ? _save : null,
+                      icon: const PrismGlyph(AntGlyphs.save, size: 15),
+                      label: Text(_busy == 'save' ? '保存中…' : '保存'),
+                    ),
                   ),
                 ],
               ),
@@ -3951,7 +3957,7 @@ class _AutomationScriptDetailPageState
         PrismSectionCard(
           title: '对外 API 配置',
           glyph: AntGlyphs.api,
-          staggerIndex: 4,
+          staggerIndex: _isLaunchApi ? 4 : 3,
           staggerDelay: const Duration(milliseconds: 45),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -4165,11 +4171,14 @@ class _AutomationScriptDetailPageState
                 const SizedBox(height: 12),
                 Align(
                   alignment: Alignment.centerRight,
-                  child: prism.FilledButton.icon(
-                    onPressed: _busy.isEmpty ? _testPublicAPI : null,
-                    icon: const PrismGlyph(AntGlyphs.play, size: 15),
-                    label: Text(
-                      _busy == 'public-api' ? '测试中…' : '保存并测试接口',
+                  child: PrismHoverMotion(
+                    enabled: _busy.isEmpty,
+                    child: prism.FilledButton.icon(
+                      onPressed: _busy.isEmpty ? _testPublicAPI : null,
+                      icon: const PrismGlyph(AntGlyphs.play, size: 15),
+                      label: Text(
+                        _busy == 'public-api' ? '测试中…' : '保存并测试接口',
+                      ),
                     ),
                   ),
                 ),

@@ -2421,6 +2421,7 @@ socks5://user:password@proxy.example.com:1080''',
                   glyph: AntGlyphs.hub,
                 )
               : ListView.separated(
+                  padding: kPrismListPadding,
                   itemCount: selected.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 6),
                   itemBuilder: (context, index) {
@@ -3731,6 +3732,7 @@ socks5://user:password@proxy.example.com:1080''',
       staggerIndex: 4,
       staggerDelay: const Duration(milliseconds: 45),
       radius: prism.AppCorner.xl,
+      lift: false,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -4091,6 +4093,7 @@ socks5://user:password@proxy.example.com:1080''',
       staggerIndex: 5,
       staggerDelay: const Duration(milliseconds: 45),
       radius: prism.AppCorner.xl,
+      lift: false,
       padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -4148,9 +4151,11 @@ socks5://user:password@proxy.example.com:1080''',
                         title: '加载代理池失败',
                         subtitle: _error!,
                         glyph: AntGlyphs.error,
-                        action: prism.FilledButton(
-                          onPressed: _refresh,
-                          child: const Text('重试'),
+                        action: PrismHoverMotion(
+                          child: prism.FilledButton(
+                            onPressed: _refresh,
+                            child: const Text('重试'),
+                          ),
                         ),
                       )
                     : visible.isEmpty
@@ -4169,10 +4174,15 @@ socks5://user:password@proxy.example.com:1080''',
                                 onPressed: _clearFilters,
                                 child: const Text('清除筛选'),
                               )
-                            : prism.FilledButton.icon(
-                                onPressed: () => _edit(),
-                                icon: const PrismGlyph(AntGlyphs.add, size: 16),
-                                label: const Text('添加代理'),
+                            : PrismHoverMotion(
+                                child: prism.FilledButton.icon(
+                                  onPressed: () => _edit(),
+                                  icon: const PrismGlyph(
+                                    AntGlyphs.add,
+                                    size: 16,
+                                  ),
+                                  label: const Text('添加代理'),
+                                ),
                               ),
                       )
                     : Padding(
@@ -4550,6 +4560,7 @@ class _ProxySourceRefreshModalState extends State<_ProxySourceRefreshModal> {
                 glyph: AntGlyphs.link,
               )
             : ListView.separated(
+                padding: kPrismListPadding,
                 itemCount: sources.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 10),
                 itemBuilder: (context, index) {
@@ -4844,6 +4855,7 @@ class _ProxySourceAbnormalModalState extends State<_ProxySourceAbnormalModal> {
                 glyph: AntGlyphs.checkCircle,
               )
             : ListView.separated(
+                padding: kPrismListPadding,
                 itemCount: widget.abnormalNodes.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 6),
                 itemBuilder: (context, index) {
@@ -5914,12 +5926,15 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
                     ),
                   ],
                 ),
-                prism.FilledButton.icon(
-                  onPressed: source == null || _busy.isNotEmpty
-                      ? null
-                      : () => _refreshSource(source),
-                  icon: const PrismGlyph(AntGlyphs.sync, size: 16),
-                  label: Text(_busy.isNotEmpty ? '处理中…' : '刷新订阅'),
+                PrismHoverMotion(
+                  enabled: source != null && _busy.isEmpty,
+                  child: prism.FilledButton.icon(
+                    onPressed: source == null || _busy.isNotEmpty
+                        ? null
+                        : () => _refreshSource(source),
+                    icon: const PrismGlyph(AntGlyphs.sync, size: 16),
+                    label: Text(_busy.isNotEmpty ? '处理中…' : '刷新订阅'),
+                  ),
                 ),
               ],
             ),
@@ -5940,6 +5955,7 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
                     glyph: AntGlyphs.compare,
                   )
                 : ListView.separated(
+                    padding: kPrismListPadding,
                     itemCount: _records.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (context, index) {
@@ -6044,6 +6060,7 @@ class _ProxyManualAlignmentDialogState
             const SizedBox(height: 12),
             Expanded(
               child: ListView.separated(
+                padding: kPrismListPadding,
                 itemCount: widget.oldProxies.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 8),
                 itemBuilder: (context, index) {
@@ -6687,6 +6704,7 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
                   glyph: AntGlyphs.hub,
                 )
               : ListView.separated(
+                  padding: kPrismListPadding,
                   itemCount: memberIds.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 6),
                   itemBuilder: (context, index) {
@@ -7148,6 +7166,7 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
       staggerIndex: 5,
       staggerDelay: const Duration(milliseconds: 45),
       radius: prism.AppCorner.xl,
+      lift: false,
       padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

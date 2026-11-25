@@ -204,41 +204,43 @@ class _AboutPageState extends State<AboutPage> {
 
   @override
   Widget build(BuildContext context) {
+    final channels = (_author['channels'] as List? ?? [])
+        .whereType<Map>()
+        .map((channel) => Map<String, dynamic>.from(channel))
+        .toList();
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _authorCard(),
-              const SizedBox(height: 12),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final columns = constraints.maxWidth < 560
-                      ? 1
-                      : constraints.maxWidth < 850
-                      ? 2
-                      : 3;
-                  return GridView.count(
-                    crossAxisCount: columns,
-                    shrinkWrap: true,
-                    clipBehavior: Clip.none,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: columns == 1 ? 3.2 : 1.75,
-                    children: [
-                      for (final channel
-                          in (_author['channels'] as List? ?? [])
-                              .whereType<Map>())
-                        _channelCard(Map<String, dynamic>.from(channel)),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-              _skillsCard(),
-              const SizedBox(height: 12),
-              _projectCard(),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.maxWidth < 560
+                  ? 1
+                  : constraints.maxWidth < 850
+                  ? 2
+                  : 3;
+              return GridView.count(
+                crossAxisCount: columns,
+                shrinkWrap: true,
+                clipBehavior: Clip.none,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: columns == 1 ? 3.2 : 1.75,
+                children: [
+                  for (var i = 0; i < channels.length; i++)
+                    _channelCard(channels[i], staggerIndex: 1 + i),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          _skillsCard(staggerIndex: 1 + channels.length),
+          const SizedBox(height: 12),
+          _projectCard(staggerIndex: 2 + channels.length),
         ],
       ),
     );
@@ -253,7 +255,7 @@ class _AboutPageState extends State<AboutPage> {
     return PrismSectionCard(
       padding: const EdgeInsets.all(22),
       staggerIndex: 0,
-      staggerDelay: const Duration(milliseconds: 55),
+      staggerDelay: const Duration(milliseconds: 45),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -362,15 +364,18 @@ class _AboutPageState extends State<AboutPage> {
     );
   }
 
-  Widget _channelCard(Map<String, dynamic> channel) {
+  Widget _channelCard(
+    Map<String, dynamic> channel, {
+    required int staggerIndex,
+  }) {
     final colors = prism.Theme.of(context).colorScheme;
     final primaryTone = PrismToneColors.of(context, PrismTone.primary);
     final href = (channel['href'] ?? '').toString().trim();
     final title = (channel['name'] ?? '').toString();
     final detail = (channel['detail'] ?? '').toString();
     return PrismHoverCard(
-      staggerIndex: 1,
-      staggerDelay: const Duration(milliseconds: 55),
+      staggerIndex: staggerIndex,
+      staggerDelay: const Duration(milliseconds: 45),
       radius: prism.AppCorner.xl,
       onPressed: href.isEmpty ? null : () => AppBridge.openExternal(href),
       inert: href.isEmpty,
@@ -434,13 +439,13 @@ class _AboutPageState extends State<AboutPage> {
     );
   }
 
-  Widget _skillsCard() {
+  Widget _skillsCard({required int staggerIndex}) {
     return PrismSectionCard(
       title: '技术栈与技能',
       glyph: AntGlyphs.sparkles,
       padding: const EdgeInsets.all(20),
-      staggerIndex: 2,
-      staggerDelay: const Duration(milliseconds: 55),
+      staggerIndex: staggerIndex,
+      staggerDelay: const Duration(milliseconds: 45),
       child: Wrap(
         spacing: 10,
         runSpacing: 10,
@@ -477,7 +482,7 @@ class _AboutPageState extends State<AboutPage> {
       .replaceFirst(RegExp(r'^https?://'), '')
       .replaceFirst(RegExp(r'/$'), '');
 
-  Widget _projectCard() {
+  Widget _projectCard({required int staggerIndex}) {
     final colors = prism.Theme.of(context).colorScheme;
     final result = _updateResult;
     final projectName = (_project['name'] ?? 'Ant Browser').toString();
@@ -502,8 +507,8 @@ class _AboutPageState extends State<AboutPage> {
       title: '项目介绍',
       glyph: AntGlyphs.browser,
       padding: const EdgeInsets.all(22),
-      staggerIndex: 3,
-      staggerDelay: const Duration(milliseconds: 55),
+      staggerIndex: staggerIndex,
+      staggerDelay: const Duration(milliseconds: 45),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

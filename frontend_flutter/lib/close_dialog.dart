@@ -41,50 +41,66 @@ class CloseDialog extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               if (isWindows) ...[
-                prism.FilledButton.icon(
-                  style: prism.ButtonStyle.from(
-                    backgroundColor: neutralBg,
-                    foregroundColor: colors.onSurface,
-                    minimumSize: pillSize,
-                    shape: prism.AppShape.full,
+                PrismHoverMotion(
+                  hoverScale: 1.025,
+                  pressScale: 0.975,
+                  child: prism.FilledButton.icon(
+                    style: prism.ButtonStyle.from(
+                      backgroundColor: neutralBg,
+                      foregroundColor: colors.onSurface,
+                      minimumSize: pillSize,
+                      shape: prism.AppShape.full,
+                    ),
+                    onPressed: () => Navigator.pop(context, 'minimize'),
+                    icon: const PrismGlyph(AntGlyphs.alignBottom, size: 17),
+                    label: const Text('最小化到托盘'),
                   ),
-                  onPressed: () => Navigator.pop(context, 'minimize'),
-                  icon: const PrismGlyph(AntGlyphs.alignBottom, size: 17),
-                  label: const Text('最小化到托盘'),
                 ),
                 const SizedBox(height: 8),
               ],
-              prism.FilledButton(
-                style: prism.ButtonStyle.from(
-                  backgroundColor: primaryBg,
-                  foregroundColor: colors.primary,
-                  minimumSize: pillSize,
-                  shape: prism.AppShape.full,
+              PrismHoverMotion(
+                hoverScale: 1.025,
+                pressScale: 0.975,
+                child: prism.FilledButton(
+                  style: prism.ButtonStyle.from(
+                    backgroundColor: primaryBg,
+                    foregroundColor: colors.primary,
+                    minimumSize: pillSize,
+                    shape: prism.AppShape.full,
+                  ),
+                  onPressed: () => Navigator.pop(context, 'quit-app'),
+                  child: const Text('仅退出应用'),
                 ),
-                onPressed: () => Navigator.pop(context, 'quit-app'),
-                child: const Text('仅退出应用'),
               ),
               const SizedBox(height: 8),
-              prism.FilledButton(
-                style: prism.ButtonStyle.from(
-                  backgroundColor: dangerBg,
-                  foregroundColor: colors.error,
-                  minimumSize: pillSize,
-                  shape: prism.AppShape.full,
+              PrismHoverMotion(
+                hoverScale: 1.025,
+                pressScale: 0.975,
+                child: prism.FilledButton(
+                  style: prism.ButtonStyle.from(
+                    backgroundColor: dangerBg,
+                    foregroundColor: colors.error,
+                    minimumSize: pillSize,
+                    shape: prism.AppShape.full,
+                  ),
+                  onPressed: () => Navigator.pop(context, 'quit-all'),
+                  child: const Text('退出应用与浏览器'),
                 ),
-                onPressed: () => Navigator.pop(context, 'quit-all'),
-                child: const Text('退出应用与浏览器'),
               ),
               const SizedBox(height: 8),
-              prism.FilledButton(
-                style: prism.ButtonStyle.from(
-                  backgroundColor: neutralBg,
-                  foregroundColor: colors.onSurfaceVariant,
-                  minimumSize: pillSize,
-                  shape: prism.AppShape.full,
+              PrismHoverMotion(
+                hoverScale: 1.025,
+                pressScale: 0.975,
+                child: prism.FilledButton(
+                  style: prism.ButtonStyle.from(
+                    backgroundColor: neutralBg,
+                    foregroundColor: colors.onSurfaceVariant,
+                    minimumSize: pillSize,
+                    shape: prism.AppShape.full,
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('取消'),
                 ),
-                onPressed: () => Navigator.pop(context),
-                child: const Text('取消'),
               ),
             ],
           ),

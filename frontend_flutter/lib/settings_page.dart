@@ -678,9 +678,9 @@ class _SettingsPageState extends State<SettingsPage> {
           // ── Left Category Rail (macOS / iPadOS Prism Settings) ──
           SizedBox(
             width: 244,
-            child: prism.Card(
+            child: PrismHoverCard(
               radius: prism.AppCorner.xl,
-              inert: true,
+              lift: false,
               padding: const EdgeInsets.all(10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -900,7 +900,9 @@ class _SettingsPageState extends State<SettingsPage> {
                         duration: PrismMotionSpec.current.enabled
                             ? const Duration(milliseconds: 220)
                             : Duration.zero,
-                        curve: kPrismSmooth,
+                        curve: PrismMotionSpec.current.enabled
+                            ? PrismMotionSpec.current.smoothCurve
+                            : Curves.linear,
                         child: AnimatedSwitcher(
                           duration: PrismMotionSpec.current.enabled
                               ? const Duration(milliseconds: 200)
@@ -1790,7 +1792,8 @@ class _ColorSwatchPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = prism.Theme.of(context).colorScheme;
-    final motionOn = PrismMotionSpec.current.enabled;
+    final spec = PrismMotionSpec.current;
+    final motionOn = spec.enabled;
     return PrismHoverMotion(
       hoverScale: 1.06,
       pressScale: 0.93,
@@ -1799,7 +1802,7 @@ class _ColorSwatchPill extends StatelessWidget {
         shape: prism.AppShape.full,
         child: AnimatedContainer(
           duration: motionOn ? const Duration(milliseconds: 220) : Duration.zero,
-          curve: Curves.easeOutCubic,
+          curve: motionOn ? spec.smoothCurve : Curves.linear,
           decoration: ShapeDecoration(
             color: selected
                 ? colors.primaryContainer
@@ -1829,7 +1832,7 @@ class _ColorSwatchPill extends StatelessWidget {
                       duration: motionOn
                           ? const Duration(milliseconds: 320)
                           : Duration.zero,
-                      curve: kPrismSpring,
+                      curve: motionOn ? spec.springCurve : Curves.linear,
                       child: const Center(
                         child: PrismGlyph(
                           AntGlyphs.check,
@@ -1845,7 +1848,7 @@ class _ColorSwatchPill extends StatelessWidget {
                 duration: motionOn
                     ? const Duration(milliseconds: 200)
                     : Duration.zero,
-                curve: Curves.easeOut,
+                curve: motionOn ? spec.smoothCurve : Curves.linear,
                 style: prism.AppTextStyle.footnote
                     .of(context, emphasized: selected)
                     .copyWith(

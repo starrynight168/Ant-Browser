@@ -260,7 +260,8 @@ class _DocsPageState extends State<DocsPage> {
                     staggerDelay: const Duration(milliseconds: 45),
                     radius: prism.AppCorner.xl,
                     padding: EdgeInsets.zero,
-                    hoverGlow: false,
+                    hoverGlow: true,
+                    lift: false,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -336,7 +337,8 @@ class _DocsPageState extends State<DocsPage> {
                     staggerDelay: const Duration(milliseconds: 45),
                     radius: prism.AppCorner.xl,
                     padding: EdgeInsets.zero,
-                    hoverGlow: false,
+                    hoverGlow: true,
+                    lift: false,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -721,6 +723,7 @@ class ChartsPage extends StatelessWidget {
               children: [
                 _ChartCard(
                   width: cardWidth,
+                  staggerIndex: 0,
                   title: '折线图示例（Prism LineChart）',
                   legend: [
                     ('活跃实例数', colors.primary),
@@ -735,6 +738,7 @@ class ChartsPage extends StatelessWidget {
                 ),
                 _ChartCard(
                   width: cardWidth,
+                  staggerIndex: 1,
                   title: '柱状图示例',
                   legend: [
                     ('主业务', colors.primary),
@@ -768,6 +772,7 @@ class ChartsPage extends StatelessWidget {
                 ),
                 _ChartCard(
                   width: cardWidth,
+                  staggerIndex: 2,
                   title: '饼图示例',
                   legend: [
                     ('实例 36%', colors.primary),
@@ -787,6 +792,7 @@ class ChartsPage extends StatelessWidget {
                 ),
                 _ChartCard(
                   width: cardWidth,
+                  staggerIndex: 3,
                   title: '面积图示例（Prism LineChart）',
                   legend: [
                     ('请求吞吐量 (req/min)', colors.tertiary),
@@ -801,6 +807,7 @@ class ChartsPage extends StatelessWidget {
                 ),
                 _ChartCard(
                   width: cardWidth,
+                  staggerIndex: 4,
                   title: '复合图表示例',
                   legend: [
                     ('任务量（柱）', colors.secondary),
@@ -924,12 +931,14 @@ class _PrismLineChartBox extends StatelessWidget {
 class _ChartCard extends StatelessWidget {
   const _ChartCard({
     required this.width,
+    required this.staggerIndex,
     required this.title,
     required this.legend,
     required this.child,
   });
 
   final double width;
+  final int staggerIndex;
   final String title;
   final List<(String, Color)> legend;
   final Widget child;
@@ -940,6 +949,8 @@ class _ChartCard extends StatelessWidget {
     return SizedBox(
       width: width,
       child: PrismSectionCard(
+        staggerIndex: staggerIndex,
+        staggerDelay: const Duration(milliseconds: 45),
         title: title,
         actions: [
           Wrap(
@@ -1257,23 +1268,39 @@ class _LaunchApiDemoPanelState extends State<_LaunchApiDemoPanel> {
     final serverReady = widget.launchServerInfo['ready'] == true;
     final baseUrl = '${widget.launchServerInfo['baseUrl'] ?? ''}'.trim();
 
-    return PrismSectionCard(
-      title: '启动 API 交互演示',
-      glyph: AntGlyphs.api,
-      actions: [
-        PrismBadge(
-          label: serverReady
-              ? (baseUrl.isNotEmpty
-                    ? 'LaunchServerReady · $baseUrl'
-                    : 'LaunchServerReady')
-              : 'LaunchServer 未就绪',
-          tone: serverReady ? PrismTone.success : PrismTone.warning,
-          dot: true,
-        ),
-      ],
+    return PrismHoverCard(
+      radius: prism.AppCorner.xl,
+      padding: EdgeInsets.zero,
+      hoverGlow: true,
+      lift: false,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
+          prism.InfoHeader(
+            info: const prism.Info(
+              label: '启动 API 交互演示',
+              glyph: AntGlyphs.api,
+            ),
+            actions: [
+              PrismBadge(
+                label: serverReady
+                    ? (baseUrl.isNotEmpty
+                          ? 'LaunchServerReady · $baseUrl'
+                          : 'LaunchServerReady')
+                    : 'LaunchServer 未就绪',
+                tone: serverReady ? PrismTone.success : PrismTone.warning,
+                dot: true,
+              ),
+            ],
+            padding: const EdgeInsets.fromLTRB(16, 14, 14, 10),
+          ),
+          const prism.Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
           Text(
             '演示会创建一个临时实例并启动，验证启动 API 链路后可一键清理；不会影响已有实例。',
             style: prism.AppTextStyle.footnote
@@ -1391,6 +1418,9 @@ class _LaunchApiDemoPanelState extends State<_LaunchApiDemoPanel> {
                       ),
               ),
             ),
+          ),
+        ],
+      ),
           ),
         ],
       ),

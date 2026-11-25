@@ -421,6 +421,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   staggerDelay: const Duration(milliseconds: 45),
                   radius: prism.AppCorner.xl,
                   padding: EdgeInsets.zero,
+                  hoverGlow: true,
+                  lift: false,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [

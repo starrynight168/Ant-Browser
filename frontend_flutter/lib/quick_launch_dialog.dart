@@ -187,12 +187,13 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final target = key.currentContext;
       if (target != null) {
+        final spec = PrismMotionSpec.current;
+        final motionOn = spec.enabled && !MediaQuery.disableAnimationsOf(context);
         Scrollable.ensureVisible(
           target,
           alignment: 0.35,
-          duration: PrismMotionSpec.current.enabled
-              ? const Duration(milliseconds: 180)
-              : Duration.zero,
+          duration: motionOn ? const Duration(milliseconds: 180) : Duration.zero,
+          curve: motionOn ? spec.smoothCurve : Curves.linear,
         );
       }
     });
@@ -202,12 +203,13 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
     setState(() => _activeTag = tag);
     final target = _sectionKey(tag).currentContext;
     if (target != null) {
+      final spec = PrismMotionSpec.current;
+      final motionOn = spec.enabled && !MediaQuery.disableAnimationsOf(context);
       Scrollable.ensureVisible(
         target,
         alignment: 0,
-        duration: PrismMotionSpec.current.enabled
-            ? const Duration(milliseconds: 220)
-            : Duration.zero,
+        duration: motionOn ? const Duration(milliseconds: 220) : Duration.zero,
+        curve: motionOn ? spec.smoothCurve : Curves.linear,
       );
     }
   }
@@ -324,6 +326,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                 SizedBox(
                   height: 36,
                   child: ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
                     scrollDirection: Axis.horizontal,
                     children: [
                       _filterButton('全部分组（${_profiles.length}）', _allGroups),
@@ -340,6 +343,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                   SizedBox(
                     height: 32,
                     child: ListView(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
                       scrollDirection: Axis.horizontal,
                       children: [
                         for (final section in sections)
@@ -389,6 +393,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                         )
                       : ListView(
                           controller: _listController,
+                          padding: kPrismListPadding,
                           children: [
                             for (final section in sections) ...[
                               Padding(
@@ -433,14 +438,17 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                   : () => _startByCode(_query.text),
               child: const Text('按启动码启动'),
             ),
-            prism.FilledButton.icon(
-              onPressed: _starting || filtered.isEmpty
-                  ? null
-                  : () => _startProfile(
-                      filtered[_selectedIndex.clamp(0, filtered.length - 1)],
-                    ),
-              icon: const PrismGlyph(AntGlyphs.play, size: 15),
-              label: const Text('启动选中实例'),
+            PrismHoverMotion(
+              enabled: !(_starting || filtered.isEmpty),
+              child: prism.FilledButton.icon(
+                onPressed: _starting || filtered.isEmpty
+                    ? null
+                    : () => _startProfile(
+                        filtered[_selectedIndex.clamp(0, filtered.length - 1)],
+                      ),
+                icon: const PrismGlyph(AntGlyphs.play, size: 15),
+                label: const Text('启动选中实例'),
+              ),
             ),
             prism.TextButton(
               onPressed: () => Navigator.of(context).maybePop(),
@@ -468,31 +476,34 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
     final identity = _profileIdentity(profile);
     final isStartingThis = _starting && _startingProfileId == identity;
 
+    final spec = PrismMotionSpec.current;
+    final motionOn = spec.enabled && !MediaQuery.disableAnimationsOf(context);
+
     return Padding(
       key: _profileKey(profile),
-      padding: const EdgeInsets.only(bottom: 6),
-      child: GestureDetector(
-        onDoubleTap: _starting ? null : () => _startProfile(profile),
-        child: AnimatedContainer(
-          duration: MediaQuery.disableAnimationsOf(context)
-              ? Duration.zero
-              : const Duration(milliseconds: 180),
-          curve: Curves.easeOutCubic,
-          decoration: ShapeDecoration(
-            color: selected
-                ? colors.secondaryContainer
-                : colors.surfaceContainerLow,
-            shape: RoundedSuperellipseBorder(
-              borderRadius: prism.AppRadius.lg,
-              side: BorderSide(
-                color: selected
-                    ? colors.primary.withValues(alpha: 0.35)
-                    : const Color(0x00000000),
-                width: 1.2,
+      padding: const EdgeInsets.only(bottom: 8),
+      child: PrismHoverGlow(
+        radius: prism.AppCorner.lg,
+        child: GestureDetector(
+          onDoubleTap: _starting ? null : () => _startProfile(profile),
+          child: AnimatedContainer(
+            duration: motionOn ? spec.hoverDuration : Duration.zero,
+            curve: motionOn ? spec.smoothCurve : Curves.linear,
+            decoration: ShapeDecoration(
+              color: selected
+                  ? colors.secondaryContainer
+                  : colors.surfaceContainerLow,
+              shape: RoundedSuperellipseBorder(
+                borderRadius: prism.AppRadius.lg,
+                side: selected
+                    ? BorderSide(
+                        color: colors.primary.withValues(alpha: 0.45),
+                        width: 1.4,
+                      )
+                    : BorderSide.none,
               ),
             ),
-          ),
-          child: prism.PressRegion(
+            child: prism.PressRegion(
             onTap: _starting ? null : () => _selectProfile(index, filtered),
             shape: prism.AppShape.lg,
             child: Padding(
@@ -592,6 +603,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
             ),
           ),
         ),
+        ),
       ),
     );
   }
@@ -628,6 +640,8 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
   Widget _filterButton(String label, String filter) {
     final selected = _groupFilter == filter;
     final colors = prism.Theme.of(context).colorScheme;
+    final spec = PrismMotionSpec.current;
+    final motionOn = spec.enabled && !MediaQuery.disableAnimationsOf(context);
     return Padding(
       padding: const EdgeInsets.only(right: 6),
       child: PrismHoverMotion(
@@ -641,10 +655,8 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
           }),
           shape: prism.AppShape.full,
           child: AnimatedContainer(
-            duration: MediaQuery.disableAnimationsOf(context)
-                ? Duration.zero
-                : const Duration(milliseconds: 180),
-            curve: Curves.easeOutCubic,
+            duration: motionOn ? spec.hoverDuration : Duration.zero,
+            curve: motionOn ? spec.smoothCurve : Curves.linear,
             decoration: ShapeDecoration(
               color: selected
                   ? colors.primaryContainer

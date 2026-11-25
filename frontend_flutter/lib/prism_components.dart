@@ -378,18 +378,20 @@ class _PrismStaggerInState extends State<PrismStaggerIn>
   }
 }
 
-/// 悬停高光：受全局 `appMotionIntensity` 实时驱动，滑块拖动后立即生效。
+/// 悬停高光：统一提供静止细边框；开启 [enabled] 与 [lift] 时叠加悬停高光、抬升与弹簧微缩放。
 class PrismHoverGlow extends StatefulWidget {
   const PrismHoverGlow({
     super.key,
     required this.child,
     this.radius = 18,
     this.enabled = true,
+    this.lift = true,
   });
 
   final Widget child;
   final double radius;
   final bool enabled;
+  final bool lift;
 
   @override
   State<PrismHoverGlow> createState() => _PrismHoverGlowState();
@@ -400,24 +402,71 @@ class _PrismHoverGlowState extends State<PrismHoverGlow> {
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.enabled) return widget.child;
+    final scheme = prism.Theme.of(context).colorScheme;
+    final dark = scheme.brightness == Brightness.dark;
+    final restingBorderColor = scheme.outlineVariant.withValues(
+      alpha: dark ? 0.30 : 0.45,
+    );
+    if (!widget.enabled) {
+      return DecoratedBox(
+        position: DecorationPosition.foreground,
+        decoration: ShapeDecoration(
+          shape: RoundedSuperellipseBorder(
+            borderRadius: prism.AppRadius.all(widget.radius),
+            side: BorderSide(color: restingBorderColor, width: 1.0),
+          ),
+        ),
+        child: widget.child,
+      );
+    }
     return ListenableBuilder(
       listenable: appMotionIntensity,
       child: widget.child,
       builder: (context, child) {
         final spec = PrismMotionSpec.current;
         final activeHover = spec.enabled && _hover;
-        final scheme = prism.Theme.of(context).colorScheme;
-        final dark = scheme.brightness == Brightness.dark;
+        final activeLift = widget.lift && activeHover;
         final cardShape = RoundedSuperellipseBorder(
           borderRadius: prism.AppRadius.all(widget.radius),
         );
         // 保持子树结构恒定，避免开关动效瞬间卸载重建子组件导致拖动中断。
+        final decorated = AnimatedContainer(
+          duration: spec.enabled ? spec.hoverDuration : Duration.zero,
+          curve: spec.enabled ? spec.smoothCurve : Curves.linear,
+          decoration: ShapeDecoration(
+            shape: cardShape,
+            shadows: [
+              BoxShadow(
+                color: dark
+                    ? const Color(0xFF000000).withValues(
+                        alpha: activeLift ? spec.hoverShadowDarkAlpha : 0,
+                      )
+                    : const Color(0xFF101828).withValues(
+                        alpha: activeLift ? spec.hoverShadowLightAlpha : 0,
+                      ),
+                blurRadius: spec.hoverShadowBlur,
+                offset: Offset(0, spec.hoverShadowOffsetY),
+              ),
+            ],
+          ),
+          foregroundDecoration: ShapeDecoration(
+            shape: RoundedSuperellipseBorder(
+              borderRadius: prism.AppRadius.all(widget.radius),
+              side: BorderSide(
+                color: activeHover
+                    ? scheme.primary.withValues(alpha: spec.hoverRimAlpha)
+                    : restingBorderColor,
+                width: activeHover ? spec.hoverRimWidth : 1.0,
+              ),
+            ),
+          ),
+          child: child,
+        );
         return MouseRegion(
           onEnter: (_) => setState(() => _hover = true),
           onExit: (_) => setState(() => _hover = false),
           child: TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0.0, end: activeHover ? 1.0 : 0.0),
+            tween: Tween(begin: 0.0, end: activeLift ? 1.0 : 0.0),
             duration: spec.enabled ? spec.hoverDuration : Duration.zero,
             curve: spec.enabled ? spec.springCurve : Curves.linear,
             builder: (context, t, inner) => Transform.translate(
@@ -430,38 +479,7 @@ class _PrismHoverGlowState extends State<PrismHoverGlow> {
                 ),
               ),
             ),
-            child: AnimatedContainer(
-              duration: spec.enabled ? spec.hoverDuration : Duration.zero,
-              curve: spec.enabled ? spec.smoothCurve : Curves.linear,
-              decoration: ShapeDecoration(
-                shape: cardShape,
-                shadows: [
-                  BoxShadow(
-                    color: dark
-                        ? const Color(0xFF000000).withValues(
-                            alpha: activeHover ? spec.hoverShadowDarkAlpha : 0,
-                          )
-                        : const Color(0xFF101828).withValues(
-                            alpha: activeHover ? spec.hoverShadowLightAlpha : 0,
-                          ),
-                    blurRadius: spec.hoverShadowBlur,
-                    offset: Offset(0, spec.hoverShadowOffsetY),
-                  ),
-                ],
-              ),
-              foregroundDecoration: ShapeDecoration(
-                shape: RoundedSuperellipseBorder(
-                  borderRadius: prism.AppRadius.all(widget.radius),
-                  side: BorderSide(
-                    color: scheme.primary.withValues(
-                      alpha: activeHover ? spec.hoverRimAlpha : 0,
-                    ),
-                    width: spec.hoverRimWidth,
-                  ),
-                ),
-              ),
-              child: child,
-            ),
+            child: decorated,
           ),
         );
       },
@@ -1014,6 +1032,7 @@ class PrismHoverCard extends StatelessWidget {
     this.staggerIndex,
     this.staggerDelay = Duration.zero,
     this.hoverGlow = true,
+    this.lift = true,
   });
 
   final Widget child;
@@ -1025,12 +1044,14 @@ class PrismHoverCard extends StatelessWidget {
   final int? staggerIndex;
   final Duration staggerDelay;
   final bool hoverGlow;
+  final bool lift;
 
   @override
   Widget build(BuildContext context) {
     final card = PrismHoverGlow(
       radius: radius,
       enabled: hoverGlow,
+      lift: lift,
       child: prism.Card(
         radius: radius,
         onPressed: onPressed,
@@ -1150,8 +1171,8 @@ class PrismSectionDividerHeader extends StatelessWidget {
   }
 }
 
-/// iOS 风格目录导航项：左侧主题胶囊选中条、内缩下划线分隔线、原生 SelectionBadge 与渐进微动效。
-class PrismNavItem extends StatelessWidget {
+/// iOS 风格目录导航项：左侧主题胶囊选中条、内缩下划线分隔线、原生 SelectionBadge 与平滑弹簧推挤动效。
+class PrismNavItem extends StatefulWidget {
   const PrismNavItem({
     super.key,
     required this.label,
@@ -1172,113 +1193,155 @@ class PrismNavItem extends StatelessWidget {
   final bool showSelectionBadge;
 
   @override
+  State<PrismNavItem> createState() => _PrismNavItemState();
+}
+
+class _PrismNavItemState extends State<PrismNavItem> {
+  bool _hovered = false;
+
+  @override
   Widget build(BuildContext context) {
     final colors = prism.Theme.of(context).colorScheme;
-    final motionSpec = PrismMotionSpec.current;
-    final indicatorDuration = motionSpec.enabled
-        ? const Duration(milliseconds: 220)
-        : Duration.zero;
-    final rowStyle = selected
-        ? prism.AppTextStyle.subheadline
-              .of(context, emphasized: true)
-              .copyWith(color: colors.onPrimaryContainer)
-        : prism.AppTextStyle.subheadline
-              .of(context)
-              .copyWith(color: colors.onSurface);
+    final selected = widget.selected;
+    return ListenableBuilder(
+      listenable: appMotionIntensity,
+      builder: (context, _) {
+        final spec = PrismMotionSpec.current;
+        final indicatorDuration = spec.enabled
+            ? const Duration(milliseconds: 220)
+            : Duration.zero;
+        final rowStyle = selected
+            ? prism.AppTextStyle.subheadline
+                  .of(context, emphasized: true)
+                  .copyWith(color: colors.onPrimaryContainer)
+            : prism.AppTextStyle.subheadline
+                  .of(context)
+                  .copyWith(color: colors.onSurface);
+        final nudge =
+            (_hovered || selected) ? 12.0 + spec.railNudgePx * 0.65 : 12.0;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        prism.PressRegion(
-          onTap: onTap,
-          shape: prism.AppShape.md,
-          fill: selected ? colors.primaryContainer : null,
-          overlay: prism.PressRegion.pressOverlay,
-          mouseCursor: SystemMouseCursors.click,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 40),
-            child: Stack(
-              alignment: AlignmentDirectional.centerStart,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 9, 10, 9),
-                  child: Row(
-                    children: [
-                      PrismGlyph(
-                        glyph,
-                        size: 17,
-                        color: selected
-                            ? colors.onPrimaryContainer
-                            : colors.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: rowStyle,
-                        ),
-                      ),
-                      if (trailing != null) ...[
-                        const SizedBox(width: 8),
-                        trailing!,
-                      ] else if (showSelectionBadge) ...[
-                        const SizedBox(width: 8),
-                        if (selected)
-                          const prism.SelectionBadge(size: 18, tonal: true)
-                        else
-                          PrismGlyph(
-                            AntGlyphs.chevronForward,
-                            size: 14,
-                            color: colors.onSurfaceVariant.withValues(
-                              alpha: 0.45,
-                            ),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            MouseRegion(
+              onEnter: (_) => setState(() => _hovered = true),
+              onExit: (_) => setState(() => _hovered = false),
+              child: prism.PressRegion(
+                onTap: widget.onTap,
+                shape: prism.AppShape.md,
+                overlay: prism.PressRegion.pressOverlay,
+                mouseCursor: SystemMouseCursors.click,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 40),
+                  child: AnimatedContainer(
+                    duration: spec.enabled
+                        ? const Duration(milliseconds: 160)
+                        : Duration.zero,
+                    curve: Curves.easeOut,
+                    decoration: ShapeDecoration(
+                      color: selected
+                          ? colors.primaryContainer
+                          : _hovered
+                          ? colors.primary.withValues(alpha: 0.06)
+                          : const Color(0x00000000),
+                      shape: prism.AppShape.md,
+                    ),
+                    child: Stack(
+                      alignment: AlignmentDirectional.centerStart,
+                      children: [
+                        AnimatedPadding(
+                          duration: spec.railPaddingDuration,
+                          curve: spec.springCurve,
+                          padding: EdgeInsets.fromLTRB(nudge, 9, 10, 9),
+                          child: Row(
+                            children: [
+                              PrismGlyph(
+                                widget.glyph,
+                                size: 17,
+                                color: selected
+                                    ? colors.onPrimaryContainer
+                                    : colors.onSurfaceVariant,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: AnimatedDefaultTextStyle(
+                                  duration: spec.enabled
+                                      ? const Duration(milliseconds: 180)
+                                      : Duration.zero,
+                                  style: rowStyle,
+                                  child: Text(
+                                    widget.label,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                              if (widget.trailing != null) ...[
+                                const SizedBox(width: 8),
+                                widget.trailing!,
+                              ] else if (widget.showSelectionBadge) ...[
+                                const SizedBox(width: 8),
+                                if (selected)
+                                  const prism.SelectionBadge(
+                                    size: 18,
+                                    tonal: true,
+                                  )
+                                else
+                                  PrismGlyph(
+                                    AntGlyphs.chevronForward,
+                                    size: 14,
+                                    color: colors.onSurfaceVariant.withValues(
+                                      alpha: 0.45,
+                                    ),
+                                  ),
+                              ],
+                            ],
                           ),
-                      ],
-                    ],
-                  ),
-                ),
-                PositionedDirectional(
-                  start: 3,
-                  top: 0,
-                  bottom: 0,
-                  child: IgnorePointer(
-                    child: Center(
-                      child: AnimatedOpacity(
-                        opacity: selected ? 1.0 : 0.0,
-                        duration: indicatorDuration,
-                        curve: motionSpec.springCurve,
-                        child: AnimatedScale(
-                          scale: selected ? 1.0 : 0.4,
-                          duration: indicatorDuration,
-                          curve: motionSpec.springCurve,
-                          child: SizedBox(
-                            width: 3,
-                            height: 18,
-                            child: DecoratedBox(
-                              decoration: ShapeDecoration(
-                                color: colors.primary,
-                                shape: prism.AppShape.full,
+                        ),
+                        PositionedDirectional(
+                          start: 3,
+                          top: 0,
+                          bottom: 0,
+                          child: IgnorePointer(
+                            child: Center(
+                              child: AnimatedOpacity(
+                                opacity: selected ? 1.0 : 0.0,
+                                duration: indicatorDuration,
+                                curve: spec.springCurve,
+                                child: AnimatedScale(
+                                  scale: selected ? 1.0 : 0.4,
+                                  duration: indicatorDuration,
+                                  curve: spec.springCurve,
+                                  child: SizedBox(
+                                    width: 3,
+                                    height: 18,
+                                    child: DecoratedBox(
+                                      decoration: ShapeDecoration(
+                                        color: colors.primary,
+                                        shape: prism.AppShape.full,
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
-        if (showDivider && !selected)
-          const Padding(
-            padding: EdgeInsets.only(left: 40, right: 10),
-            child: prism.Divider(height: 1),
-          ),
-      ],
+            if (widget.showDivider && !selected)
+              const Padding(
+                padding: EdgeInsets.only(left: 40, right: 10),
+                child: prism.Divider(height: 1),
+              ),
+          ],
+        );
+      },
     );
   }
 }

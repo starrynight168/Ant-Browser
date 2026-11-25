@@ -1824,9 +1824,11 @@ class _BackupPageState extends State<BackupPage>
           title: '尚未配置 OpenList',
           subtitle: '配置 OpenList 连接后，可在此查看、下载或合并恢复云端备份。',
           glyph: AntGlyphs.cloudOff,
-          action: prism.FilledButton(
-            onPressed: widget.onOpenOpenList,
-            child: const Text('前往配置 OpenList'),
+          action: PrismHoverMotion(
+            child: prism.FilledButton(
+              onPressed: widget.onOpenOpenList,
+              child: const Text('前往配置 OpenList'),
+            ),
           ),
         );
       }
@@ -1852,9 +1854,11 @@ class _BackupPageState extends State<BackupPage>
         title: '尚未配置 S3 存储',
         subtitle: '配置 S3 兼容存储后，可在此查看、下载或合并恢复远端备份。',
         glyph: AntGlyphs.cloudOff,
-        action: prism.FilledButton(
-          onPressed: widget.onOpenS3,
-          child: const Text('前往配置 S3'),
+        action: PrismHoverMotion(
+          child: prism.FilledButton(
+            onPressed: widget.onOpenS3,
+            child: const Text('前往配置 S3'),
+          ),
         ),
       );
     }
@@ -2127,6 +2131,7 @@ class _BackupPageState extends State<BackupPage>
       staggerIndex: 5,
       staggerDelay: const Duration(milliseconds: 45),
       radius: prism.AppCorner.xl,
+      lift: false,
       padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2484,9 +2489,12 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
                     onPressed: _busy.isEmpty ? () => _action('test') : null,
                     child: Text(_busy == 'test' ? '测试中…' : '测试连接'),
                   ),
-                  prism.FilledButton(
-                    onPressed: _busy.isEmpty ? () => _action('save') : null,
-                    child: const Text('保存'),
+                  PrismHoverMotion(
+                    enabled: _busy.isEmpty,
+                    child: prism.FilledButton(
+                      onPressed: _busy.isEmpty ? () => _action('save') : null,
+                      child: const Text('保存'),
+                    ),
                   ),
                 ],
               ),
@@ -2505,7 +2513,7 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
           title: '连接与认证',
           glyph: AntGlyphs.cloud,
           staggerIndex: 0,
-          staggerDelay: const Duration(milliseconds: 55),
+          staggerDelay: const Duration(milliseconds: 45),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -2622,10 +2630,13 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
               icon: const PrismGlyph(AntGlyphs.refresh, size: 18),
             ),
             const SizedBox(width: 6),
-            prism.FilledButton.icon(
-              onPressed: _busy.isEmpty ? () => _action('upload') : null,
-              icon: const PrismGlyph(AntGlyphs.cloudUpload, size: 16),
-              label: Text(_busy == 'upload' ? '上传中…' : '创建并上传备份'),
+            PrismHoverMotion(
+              enabled: _busy.isEmpty,
+              child: prism.FilledButton.icon(
+                onPressed: _busy.isEmpty ? () => _action('upload') : null,
+                icon: const PrismGlyph(AntGlyphs.cloudUpload, size: 16),
+                label: Text(_busy == 'upload' ? '上传中…' : '创建并上传备份'),
+              ),
             ),
           ],
         ),
@@ -2991,9 +3002,12 @@ class _S3ConfigPageState extends State<S3ConfigPage>
                         : null,
                     child: Text(_busy == 'BackupS3Test' ? '测试中…' : '测试连接'),
                   ),
-                  prism.FilledButton(
-                    onPressed: _busy.isEmpty ? () => _action('save') : null,
-                    child: const Text('保存'),
+                  PrismHoverMotion(
+                    enabled: _busy.isEmpty,
+                    child: prism.FilledButton(
+                      onPressed: _busy.isEmpty ? () => _action('save') : null,
+                      child: const Text('保存'),
+                    ),
                   ),
                 ],
               ),
@@ -3012,7 +3026,7 @@ class _S3ConfigPageState extends State<S3ConfigPage>
           title: '存储桶与凭据',
           glyph: AntGlyphs.cloudUpload,
           staggerIndex: 0,
-          staggerDelay: const Duration(milliseconds: 55),
+          staggerDelay: const Duration(milliseconds: 45),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -3125,10 +3139,13 @@ class _S3ConfigPageState extends State<S3ConfigPage>
               icon: const PrismGlyph(AntGlyphs.refresh, size: 18),
             ),
             const SizedBox(width: 6),
-            prism.FilledButton.icon(
-              onPressed: _busy.isEmpty ? _upload : null,
-              icon: const PrismGlyph(AntGlyphs.cloudUpload, size: 16),
-              label: Text(_busy == 'upload' ? '上传中…' : '创建并上传备份'),
+            PrismHoverMotion(
+              enabled: _busy.isEmpty,
+              child: prism.FilledButton.icon(
+                onPressed: _busy.isEmpty ? _upload : null,
+                icon: const PrismGlyph(AntGlyphs.cloudUpload, size: 16),
+                label: Text(_busy == 'upload' ? '上传中…' : '创建并上传备份'),
+              ),
             ),
           ],
         ),

@@ -371,6 +371,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                       glyph: AntGlyphs.history,
                     )
                   : ListView.builder(
+                      padding: kPrismListPadding,
                       itemCount: records.length,
                       itemBuilder: (context, index) {
                         final record = records[index];
@@ -612,6 +613,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                             glyph: AntGlyphs.folder,
                           )
                         : ListView.separated(
+                            padding: kPrismListPadding,
                             itemCount: files.length,
                             separatorBuilder: (_, __) =>
                                 const SizedBox(height: 6),
@@ -798,6 +800,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                               glyph: AntGlyphs.browser,
                             )
                           : ListView.separated(
+                              padding: kPrismListPadding,
                               itemCount: usingProfiles.length,
                               separatorBuilder: (_, __) =>
                                   const SizedBox(height: 6),
@@ -1054,6 +1057,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                               glyph: AntGlyphs.folder,
                             )
                           : ListView.separated(
+                              padding: kPrismListPadding,
                               itemCount: files.length,
                               separatorBuilder: (_, __) =>
                                   const SizedBox(height: 6),
@@ -1433,6 +1437,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                       glyph: AntGlyphs.search,
                                     )
                                   : ListView(
+                                      padding: kPrismListPadding,
                                       children: [
                                         for (final section in sections)
                                           Builder(
@@ -1795,9 +1800,12 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
               ),
             ),
             const SizedBox(width: 8),
-            prism.FilledButton(
-              onPressed: _busy.isEmpty ? _lookupExtension : null,
-              child: Text(_busy == 'lookup' ? '查询中…' : '查询'),
+            PrismHoverMotion(
+              enabled: _busy.isEmpty,
+              child: prism.FilledButton(
+                onPressed: _busy.isEmpty ? _lookupExtension : null,
+                child: Text(_busy == 'lookup' ? '查询中…' : '查询'),
+              ),
             ),
             const SizedBox(width: 6),
             prism.OutlinedButton.icon(
@@ -1951,16 +1959,21 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                 ),
                                 label: const Text('打开商店页'),
                               ),
-                            prism.FilledButton(
-                              onPressed: _busy.isEmpty &&
-                                      installable &&
-                                      !alreadyInstalled
-                                  ? _install
-                                  : null,
-                              child: Text(
-                                alreadyInstalled
-                                    ? '已安装'
-                                    : (_busy == 'install' ? '安装中…' : '安装'),
+                            PrismHoverMotion(
+                              enabled: _busy.isEmpty &&
+                                  installable &&
+                                  !alreadyInstalled,
+                              child: prism.FilledButton(
+                                onPressed: _busy.isEmpty &&
+                                        installable &&
+                                        !alreadyInstalled
+                                    ? _install
+                                    : null,
+                                child: Text(
+                                  alreadyInstalled
+                                      ? '已安装'
+                                      : (_busy == 'install' ? '安装中…' : '安装'),
+                                ),
                               ),
                             ),
                           ],
@@ -2039,6 +2052,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
       staggerIndex: 4,
       staggerDelay: const Duration(milliseconds: 45),
       radius: prism.AppCorner.xl,
+      lift: false,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2117,6 +2131,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
       staggerIndex: 5,
       staggerDelay: const Duration(milliseconds: 45),
       radius: prism.AppCorner.xl,
+      lift: false,
       padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

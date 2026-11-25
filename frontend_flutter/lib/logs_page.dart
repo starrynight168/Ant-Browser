@@ -594,6 +594,7 @@ class _LogsPageState extends State<LogsPage> {
       staggerIndex: 4,
       staggerDelay: const Duration(milliseconds: 45),
       radius: prism.AppCorner.xl,
+      lift: false,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -864,6 +865,7 @@ class _LogsPageState extends State<LogsPage> {
       staggerIndex: 5,
       staggerDelay: const Duration(milliseconds: 45),
       radius: prism.AppCorner.xl,
+      lift: false,
       padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
