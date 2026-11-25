@@ -155,15 +155,43 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
   final Map<String, Map<String, dynamic>> _speedResults = {};
   final Map<String, Map<String, dynamic>> _ipHealthResults = {};
   String? _error;
+  final List<void Function()> _eventUnsubscribers = [];
 
   @override
   void initState() {
     super.initState();
     _refresh();
+    _listenProxyEvents();
+  }
+
+  /// 订阅来源刷新事件：后台调度器自动刷新订阅后自动同步列表（旧版行为）。
+  void _listenProxyEvents() {
+    _eventUnsubscribers.add(
+      AppBridge.onEvent('proxy:sources:refreshed', (_) {
+        if (!mounted) return;
+        _refresh();
+      }),
+    );
+    _eventUnsubscribers.add(
+      AppBridge.onEvent('proxy:sources:refresh:failed', (payload) {
+        if (!mounted) return;
+        final message = payload is Map
+            ? '${payload['message'] ?? payload['error'] ?? ''}'.trim()
+            : '';
+        showPrismNotice(
+          context,
+          message.isEmpty ? '订阅来源自动刷新失败' : '订阅来源刷新失败：$message',
+          level: prism.BannerLevel.error,
+        );
+      }),
+    );
   }
 
   @override
   void dispose() {
+    for (final remove in _eventUnsubscribers) {
+      remove();
+    }
     _searchController.dispose();
     super.dispose();
   }
@@ -563,6 +591,71 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
       }
     } catch (error) {
       if (mounted) showPrismNotice(context, '批量 IP 检测失败：$error');
+    } finally {
+      if (mounted) setState(() => _busy = '');
+    }
+  }
+
+  /// 桥接预热（单个）：仅预热本地代理桥接，不执行外网测速（与旧版一致）。
+  Future<void> _warmupBridge(Map<String, dynamic> proxy) async {
+    final id = (proxy['proxyId'] ?? '').toString();
+    if (id.isEmpty) return;
+    setState(() => _busy = id);
+    try {
+      final result = await AppBridge.call('BrowserProxyWarmupBridge', [id]);
+      final map = result is Map ? Map<String, dynamic>.from(result) : {};
+      final ok = map['ok'] == true;
+      final latency = (map['latencyMs'] as num?)?.toInt() ?? 0;
+      if (mounted) {
+        setState(() {});
+        showPrismNotice(
+          context,
+          ok
+              ? '桥接预热成功：${proxy['proxyName'] ?? id}（${latency}ms）'
+              : '桥接预热失败：${map['error'] ?? '未知错误'}',
+          level: ok ? prism.BannerLevel.info : prism.BannerLevel.error,
+        );
+      }
+    } catch (error) {
+      if (mounted) showPrismNotice(context, '桥接预热失败：$error');
+    } finally {
+      if (mounted) setState(() => _busy = '');
+    }
+  }
+
+  /// 桥接预热（批量），与旧版「全部预热」一致，并发 5。
+  Future<void> _warmupAll(List<Map<String, dynamic>> proxies) async {
+    final ids = proxies
+        .where((proxy) => proxy['proxyConfig'] != 'direct://')
+        .map((proxy) => (proxy['proxyId'] ?? '').toString())
+        .where((id) => id.isNotEmpty)
+        .toList();
+    if (ids.isEmpty) {
+      showPrismNotice(context, '当前没有需要预热的代理');
+      return;
+    }
+    setState(() => _busy = 'batch-warmup');
+    try {
+      final raw = await AppBridge.call('BrowserProxyBatchWarmupBridge', [
+        ids,
+        5,
+      ]);
+      final results = raw is List ? raw : const [];
+      var failed = 0;
+      for (final item in results.whereType<Map>()) {
+        if (Map<String, dynamic>.from(item)['ok'] != true) failed++;
+      }
+      if (mounted) {
+        showPrismNotice(
+          context,
+          failed == 0
+              ? '桥接预热完成：${results.length} 个代理'
+              : '桥接预热完成：${results.length - failed} 个成功，$failed 个失败',
+          level: failed == 0 ? prism.BannerLevel.info : prism.BannerLevel.error,
+        );
+      }
+    } catch (error) {
+      if (mounted) showPrismNotice(context, '批量桥接预热失败：$error');
     } finally {
       if (mounted) setState(() => _busy = '');
     }
@@ -1335,6 +1428,11 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                 label: Text(_busy == 'batch-ip' ? '检测中…' : '检测 IP 健康'),
               ),
               prism.OutlinedButton.icon(
+                onPressed: _busy.isEmpty ? () => _warmupAll(visible) : null,
+                icon: const Icon(Icons.local_fire_department_outlined),
+                label: Text(_busy == 'batch-warmup' ? '预热中…' : '桥接预热全部'),
+              ),
+              prism.OutlinedButton.icon(
                 onPressed: _busy.isEmpty && hasSources
                     ? _refreshAllSources
                     : null,
@@ -1600,6 +1698,21 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                                         child: PrismProgressIndicator(),
                                       )
                                     : const Icon(Icons.speed),
+                              ),
+                              prism.IconButton(
+                                tooltip: '桥接预热',
+                                onPressed: _busy.isEmpty && !isDirect
+                                    ? () => _warmupBridge(item)
+                                    : null,
+                                icon: _busy == 'batch-warmup'
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: PrismProgressIndicator(),
+                                      )
+                                    : const Icon(
+                                        Icons.local_fire_department_outlined,
+                                      ),
                               ),
                               PrismPopupMenuButton<String>(
                                 tooltip: '更多操作',
@@ -2502,9 +2615,13 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
           ),
           const SizedBox(height: 12),
           if (_sources.isNotEmpty)
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Expanded(
+                SizedBox(
+                  width: 320,
                   child: PrismDropdownField<String>(
                     initialValue: _sourceId,
                     decoration: const PrismInputDecoration(labelText: '订阅来源'),
@@ -2541,7 +2658,6 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
                     },
                   ),
                 ),
-                const SizedBox(width: 8),
                 prism.OutlinedButton.icon(
                   onPressed: source == null || _busy.isNotEmpty
                       ? null
@@ -2783,11 +2899,26 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
   List<Map<String, dynamic>> _health = [];
   bool _loading = true;
   String _busy = '';
+  final List<void Function()> _eventUnsubscribers = [];
 
   @override
   void initState() {
     super.initState();
     _refresh();
+    // 分组探测完成后自动同步健康状态（旧版监听 proxy:virtual-group:* 行为）。
+    _eventUnsubscribers.add(
+      AppBridge.onEvent('proxy:virtual-group:health', (_) {
+        if (mounted) _refresh();
+      }),
+    );
+  }
+
+  @override
+  void dispose() {
+    for (final remove in _eventUnsubscribers) {
+      remove();
+    }
+    super.dispose();
   }
 
   Future<void> _refresh() async {
@@ -2919,6 +3050,43 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
     }
   }
 
+  /// 重置分组健康状态：清除降级记录，便于运维兜底（与后端语义一致）。
+  Future<void> _resetHealth(Map<String, dynamic> group) async {
+    final id = (group['groupId'] ?? '').toString();
+    if (id.isEmpty) return;
+    final confirmed = await showPrismDialog<bool>(
+      context: context,
+      useRootNavigator: false,
+      builder: (context) => PrismDialog(
+        title: Text('重置健康 · ${group['groupName'] ?? id}'),
+        content: const Text('将清除该分组的降级与异常记录，恢复全部成员参与调度。'),
+        actions: [
+          prism.TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          prism.FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('重置'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _busy = id);
+    try {
+      await AppBridge.call('BrowserProxyVirtualGroupResetHealth', [id]);
+      await _refresh();
+      if (mounted) showPrismNotice(context, '分组健康状态已重置');
+    } catch (error) {
+      if (mounted) {
+        showPrismNotice(context, '重置健康失败：$error');
+      }
+    } finally {
+      if (mounted) setState(() => _busy = '');
+    }
+  }
+
   Set<String> _resolveMemberProxyIds(Map<String, dynamic> group) {
     final selected = (group['memberProxyIds'] as List? ?? [])
         .map((value) => value.toString().trim())
@@ -3044,14 +3212,16 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
     padding: const EdgeInsets.all(24),
     child: Column(
       children: [
-        Row(
+        const Text(
+          '代理虚拟分组',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            const Expanded(
-              child: Text(
-                '代理虚拟分组',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-              ),
-            ),
             prism.IconButton(
               onPressed: _refresh,
               icon: const Icon(Icons.refresh),
@@ -3113,6 +3283,15 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
                                         : const Icon(
                                             Icons.health_and_safety_outlined,
                                           ),
+                                  ),
+                                  prism.IconButton(
+                                    tooltip: '重置健康',
+                                    onPressed: _busy.isEmpty
+                                        ? () => _resetHealth(group)
+                                        : null,
+                                    icon: const Icon(
+                                      Icons.restart_alt_outlined,
+                                    ),
                                   ),
                                   prism.IconButton(
                                     tooltip: '编辑',

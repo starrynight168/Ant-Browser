@@ -296,15 +296,18 @@ class _SettingsPageState extends State<SettingsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
+              const Text('配置应用外观、功能和本地服务。'),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  const Expanded(child: Text('配置应用外观、功能和本地服务。')),
                   prism.OutlinedButton.icon(
                     onPressed: _reset,
                     icon: const Icon(Icons.restore, size: 17),
                     label: const Text('恢复默认'),
                   ),
-                  const SizedBox(width: 8),
                   prism.FilledButton.icon(
                     onPressed: _saving ? null : _save,
                     icon: const Icon(Icons.save_outlined, size: 17),
@@ -730,7 +733,6 @@ class _SettingsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PrismCard(
-      elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(

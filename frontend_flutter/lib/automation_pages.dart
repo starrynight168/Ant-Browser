@@ -59,6 +59,10 @@ class _AutomationPageState extends State<AutomationPage> {
       await _importFromSource(mode);
       return;
     }
+    if (mode == 'text') {
+      await _importFromText();
+      return;
+    }
     setState(() => _busy = mode);
     try {
       if (mode == 'library') {
@@ -73,6 +77,54 @@ class _AutomationPageState extends State<AutomationPage> {
       await _refresh();
     } catch (error) {
       if (mounted) showPrismNotice(context, (error.toString()).toString());
+    } finally {
+      if (mounted) setState(() => _busy = '');
+    }
+  }
+
+  /// 粘贴文本导入：将脚本 JSON 文本直接导入为脚本（AutomationScriptImportText）。
+  Future<void> _importFromText() async {
+    final input = TextEditingController();
+    final text = await showPrismDialog<String>(
+      context: context,
+      useRootNavigator: false,
+      builder: (context) => PrismDialog(
+        title: const Text('粘贴文本导入'),
+        content: SizedBox(
+          width: 520,
+          child: PrismTextField(
+            controller: input,
+            minLines: 8,
+            maxLines: 16,
+            decoration: const PrismInputDecoration(
+              labelText: '脚本 JSON 文本',
+              hintText: '粘贴脚本包 JSON 内容（automation-template 格式）',
+            ),
+          ),
+        ),
+        actions: [
+          prism.TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          prism.FilledButton(
+            onPressed: () => Navigator.pop(context, input.text),
+            child: const Text('导入'),
+          ),
+        ],
+      ),
+    );
+    input.dispose();
+    if (text == null || text.trim().isEmpty) return;
+    setState(() => _busy = 'text');
+    try {
+      await AppBridge.call('AutomationScriptImportText', [text]);
+      await _refresh();
+      if (mounted) showPrismNotice(context, '文本导入完成');
+    } catch (error) {
+      if (mounted) {
+        showPrismNotice(context, (error.toString()).toString());
+      }
     } finally {
       if (mounted) setState(() => _busy = '');
     }
@@ -487,27 +539,27 @@ class _AutomationPageState extends State<AutomationPage> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
+        const Text(
+          '自动化脚本',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            const Expanded(
-              child: Text(
-                '自动化脚本',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-              ),
-            ),
             prism.FilledButton.icon(
               onPressed: _busy.isEmpty ? widget.onCreate : null,
               icon: const Icon(Icons.add),
               label: const Text('新建脚本'),
             ),
-            const SizedBox(width: 8),
             prism.OutlinedButton.icon(
               onPressed: _showHistory,
               icon: const Icon(Icons.history),
               label: const Text('调用记录'),
             ),
             if (_selectedScriptIds.isNotEmpty) ...[
-              const SizedBox(width: 8),
               prism.OutlinedButton.icon(
                 onPressed: _busy.isEmpty ? _exportSelectedScripts : null,
                 icon: const Icon(Icons.download_outlined),
@@ -529,6 +581,7 @@ class _AutomationPageState extends State<AutomationPage> {
                 PrismMenuItem(value: 'library', child: Text('导入内置脚本库')),
                 PrismMenuItem(value: 'remote', child: Text('从网址导入')),
                 PrismMenuItem(value: 'git', child: Text('从 Git 仓库导入')),
+                PrismMenuItem(value: 'text', child: Text('粘贴文本导入')),
               ],
             ),
           ],
@@ -1223,6 +1276,14 @@ class _AutomationScriptDetailPageState
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                   ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
                 PrismPopupMenuButton<String>(
                   enabled: _busy.isEmpty && widget.scriptId != 'new',
                   onSelected: (action) async {
@@ -1273,10 +1334,16 @@ class _AutomationScriptDetailPageState
                         ),
                       );
                       if (yes == true) {
-                        await AppBridge.call('AutomationScriptDelete', [
-                          widget.scriptId,
-                        ]);
-                        widget.onBack();
+                        try {
+                          await AppBridge.call('AutomationScriptDelete', [
+                            widget.scriptId,
+                          ]);
+                          widget.onBack();
+                        } catch (error) {
+                          if (mounted) {
+                            showPrismNotice(context, '删除脚本失败：$error');
+                          }
+                        }
                       }
                     } else if (action == 'refresh') {
                       try {
@@ -1349,7 +1416,6 @@ class _AutomationScriptDetailPageState
                   icon: const Icon(Icons.play_arrow),
                   label: Text(_busy == 'run' ? '运行中' : '试运行'),
                 ),
-                const SizedBox(width: 8),
                 prism.FilledButton.icon(
                   onPressed: _busy.isEmpty ? _save : null,
                   icon: const Icon(Icons.save_outlined),

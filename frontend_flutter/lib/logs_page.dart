@@ -231,15 +231,18 @@ class _LogsPageState extends State<LogsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
+          Text('${filtered.length} / ${_logs.length} 条日志'),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Expanded(child: Text('${filtered.length} / ${_logs.length} 条日志')),
               prism.OutlinedButton.icon(
                 onPressed: _loading ? null : _load,
                 icon: const Icon(Icons.refresh, size: 18),
                 label: const Text('刷新'),
               ),
-              const SizedBox(width: 8),
               prism.OutlinedButton.icon(
                 onPressed: _clearing || _logs.isEmpty ? null : _clear,
                 icon: const Icon(Icons.delete_outline, size: 18),
@@ -249,7 +252,6 @@ class _LogsPageState extends State<LogsPage> {
           ),
           const SizedBox(height: 14),
           PrismCard(
-            elevation: 0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
               side: BorderSide(
@@ -428,7 +430,6 @@ class _LogsPageState extends State<LogsPage> {
                           ? Map<String, dynamic>.from(entry['fields'] as Map)
                           : <String, dynamic>{};
                       return PrismCard(
-                        elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                           side: BorderSide(color: colors.outlineVariant),

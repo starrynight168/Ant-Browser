@@ -52,7 +52,8 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
   }
 
   Future<void> _refresh() async {
-    setState(() => _loading = true);
+    // 在 _run/弹窗回调链中页面可能已 dispose，需避免无 mounted 保护的 setState。
+    if (mounted) setState(() => _loading = true);
     try {
       final value = await AppBridge.call('BrowserExtensionList');
       _items = (value as List? ?? [])
@@ -81,6 +82,10 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  static bool _sameStringSet(Set<String> left, Set<String> right) {
+    return left.length == right.length && left.containsAll(right);
   }
 
   List<Map<String, dynamic>> _readHistory() {
@@ -603,6 +608,9 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                       'message': '本地插件目录导入成功',
                     });
                     await _refresh();
+                    if (context.mounted) {
+                      showPrismNotice(context, '本地插件目录导入成功');
+                    }
                   } catch (error) {
                     if (context.mounted) {
                       showPrismNotice(context, '导入目录失败：$error');
@@ -650,8 +658,15 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
     if (extensionId.isEmpty) return;
     setState(() => _busy = 'profiles:$extensionId');
     try {
-      final profileResult = await AppBridge.call('BrowserProfileList');
-      final profiles = (profileResult as List? ?? [])
+      final results = await Future.wait([
+        AppBridge.call('BrowserProfileList'),
+        AppBridge.call('ListGroups'),
+      ]);
+      final profiles = (results[0] as List? ?? [])
+          .whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList();
+      final groups = (results[1] as List? ?? [])
           .whereType<Map>()
           .map((row) => Map<String, dynamic>.from(row))
           .toList();
@@ -662,91 +677,288 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
           ]),
         ),
       );
+      // 与旧版一致：未单独配置的实例继承所有「启用 + 默认安装」插件。
+      final defaultExtensionIds = <String>{
+        for (final item in _items)
+          if (item['enabled'] == true && item['defaultInstall'] == true)
+            '${item['extensionId']}',
+      };
       final initial = <String, Map<String, dynamic>>{};
       final selected = <String>{};
+      var onlyInstalled = false;
       for (var i = 0; i < profiles.length; i++) {
         final profileId = (profiles[i]['profileId'] ?? '').toString();
         final settings = Map<String, dynamic>.from(settingsResult[i] as Map);
         initial[profileId] = settings;
-        if ((settings['extensionIds'] as List? ?? []).contains(extensionId))
-          selected.add(profileId);
+        final inherited = settings['configured'] == true
+            ? (settings['extensionIds'] as List? ?? [])
+                  .map((id) => id.toString())
+                  .contains(extensionId)
+            : extension['enabled'] == true &&
+                  extension['defaultInstall'] == true;
+        if (inherited) selected.add(profileId);
       }
+      // 分组分区（未分组兜底），与旧版分配弹窗一致。
+      final groupNames = {
+        for (final group in groups)
+          '${group['groupId']}': '${group['groupName'] ?? '分组'}',
+      };
+      final groupOrder = [for (final group in groups) '${group['groupId']}'];
       if (!mounted) return;
+      final query = TextEditingController();
       final saved = await showPrismDialog<bool>(
         context: context,
         useRootNavigator: false,
-        builder: (context) => StatefulBuilder(
-          builder: (context, setDialog) => PrismDialog(
-            title: Text('选择安装实例 · ${extension['name'] ?? extensionId}'),
-            content: SizedBox(
-              width: 500,
-              height: 440,
-              child: profiles.isEmpty
-                  ? const Center(child: Text('当前没有浏览器实例'))
-                  : ListView(
-                      children: [
-                        for (final profile in profiles)
-                          PrismCheckboxTile(
-                            value: selected.contains(profile['profileId']),
-                            title: Text(
-                              (profile['profileName'] ??
-                                      profile['profileId'] ??
-                                      '')
-                                  .toString(),
-                            ),
-                            subtitle: Text(
-                              (profile['profileId'] ?? '').toString(),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            onChanged: (value) => setDialog(() {
-                              final id = (profile['profileId'] ?? '')
-                                  .toString();
-                              if (value == true) {
-                                selected.add(id);
-                              } else {
-                                selected.remove(id);
-                              }
-                            }),
-                          ),
-                      ],
+        builder: (context) {
+          return StatefulBuilder(
+            builder: (dialogContext, setDialog) {
+              return StatefulBuilder(
+                builder: (dialogContext, setFilter) {
+                  final keyword = query.text.trim().toLowerCase();
+                  // 分组分区（未分组兜底），与旧版一致按分组归并展示。
+                  final buckets = <String, List<Map<String, dynamic>>>{};
+                  for (final profile in profiles) {
+                    final groupId = '${profile['groupId'] ?? ''}'.trim();
+                    buckets
+                        .putIfAbsent(
+                          groupId.isEmpty ? '__ungrouped__' : groupId,
+                          () => [],
+                        )
+                        .add(profile);
+                  }
+                  final orderedIds = [
+                    ...groupOrder.where(buckets.containsKey),
+                    if (buckets.containsKey('__ungrouped__')) '__ungrouped__',
+                    ...buckets.keys.where(
+                      (id) => id != '__ungrouped__' && !groupOrder.contains(id),
                     ),
-            ),
-            actions: [
-              prism.TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('取消'),
-              ),
-              prism.FilledButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('保存'),
-              ),
-            ],
-          ),
-        ),
+                  ];
+                  final sections = <MapEntry<String, List<Map<String, dynamic>>>>[
+                    for (final id in orderedIds)
+                      MapEntry(
+                        id == '__ungrouped__' ? '' : id,
+                        buckets[id]!.where((profile) {
+                          final searchable =
+                              '${profile['profileName'] ?? ''} ${profile['profileId'] ?? ''}'
+                                  .toLowerCase();
+                          return (keyword.isEmpty ||
+                                  searchable.contains(keyword)) &&
+                              (!onlyInstalled ||
+                                  selected.contains(
+                                    '${profile['profileId'] ?? ''}',
+                                  ));
+                        }).toList(),
+                      ),
+                  ].where((section) => section.value.isNotEmpty).toList();
+
+                  PrismCheckboxTile profileTile(Map<String, dynamic> profile) {
+                    final id = '${profile['profileId'] ?? ''}';
+                    return PrismCheckboxTile(
+                      value: selected.contains(id),
+                      title: Text(
+                        (profile['profileName'] ?? profile['profileId'] ?? '')
+                            .toString(),
+                      ),
+                      subtitle: Text(
+                        id,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      onChanged: (value) => setDialog(() {
+                        if (value == true) {
+                          selected.add(id);
+                        } else {
+                          selected.remove(id);
+                        }
+                      }),
+                    );
+                  }
+
+                  return PrismDialog(
+                    title: Text('选择安装实例 · ${extension['name'] ?? extensionId}'),
+                    content: SizedBox(
+                      width: 520,
+                      height: 480,
+                      child: profiles.isEmpty
+                          ? const Center(child: Text('当前没有浏览器实例'))
+                          : Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Text(
+                                  '勾选的实例会写入此插件并改为手动设置；未勾选的实例如果当前靠「默认安装」继承到该插件，保存后同样会改为手动设置并排除该插件。',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: prism.Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: PrismTextField(
+                                        controller: query,
+                                        onChanged: (_) => setFilter(() {}),
+                                        decoration: const PrismInputDecoration(
+                                          labelText: '搜索实例',
+                                          isDense: true,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    prism.TextButton(
+                                      onPressed: () => setFilter(
+                                        () => onlyInstalled = !onlyInstalled,
+                                      ),
+                                      child: Text(
+                                        onlyInstalled ? '显示全部' : '只看已选',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Expanded(
+                                  child: sections.isEmpty
+                                      ? Center(
+                                          child: Text(
+                                            keyword.isNotEmpty
+                                                ? '没有匹配的实例'
+                                                : onlyInstalled
+                                                ? '当前没有已勾选的实例'
+                                                : '当前没有浏览器实例',
+                                          ),
+                                        )
+                                      : ListView(
+                                          children: [
+                                            for (final section in sections)
+                                              Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.stretch,
+                                                children: [
+                                                  PrismListTile(
+                                                    title: Text(
+                                                      '${section.key.isEmpty ? '未分组' : (groupNames[section.key] ?? '分组 ${section.key}')}（${section.value.length}）',
+                                                      style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                      ),
+                                                    ),
+                                                    trailing: prism.TextButton(
+                                                      onPressed: () {
+                                                        final allSelected =
+                                                            section.value.every(
+                                                              (
+                                                                profile,
+                                                              ) => selected
+                                                                  .contains(
+                                                                    '${profile['profileId'] ?? ''}',
+                                                                  ),
+                                                            );
+                                                        setDialog(() {
+                                                          for (final profile
+                                                              in section
+                                                                  .value) {
+                                                            final id =
+                                                                '${profile['profileId'] ?? ''}';
+                                                            if (allSelected) {
+                                                              selected.remove(
+                                                                id,
+                                                              );
+                                                            } else {
+                                                              selected.add(id);
+                                                            }
+                                                          }
+                                                        });
+                                                      },
+                                                      child: Text(
+                                                        section.value.every(
+                                                              (
+                                                                profile,
+                                                              ) => selected
+                                                                  .contains(
+                                                                    '${profile['profileId'] ?? ''}',
+                                                                  ),
+                                                            )
+                                                            ? '取消整组'
+                                                            : '整组勾选',
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  for (final profile
+                                                      in section.value)
+                                                    profileTile(profile),
+                                                  const SizedBox(height: 6),
+                                                ],
+                                              ),
+                                          ],
+                                        ),
+                                ),
+                              ],
+                            ),
+                    ),
+                    actions: [
+                      prism.TextButton(
+                        onPressed: () => Navigator.pop(dialogContext, false),
+                        child: const Text('取消'),
+                      ),
+                      prism.FilledButton(
+                        onPressed: () => Navigator.pop(dialogContext, true),
+                        child: const Text('保存'),
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+          );
+        },
       );
+      query.dispose();
       if (saved != true) return;
+      // 与旧版 handleSave 一致：以「默认安装插件集合」为未配置实例的基准，
+      // 勾选/取消都会把实例翻转为手动设置（configured=true）。
+      var manualFlipCount = 0;
       for (final profile in profiles) {
         final profileId = (profile['profileId'] ?? '').toString();
         final settings = initial[profileId] ?? const <String, dynamic>{};
-        final ids = (settings['extensionIds'] as List? ?? [])
-            .map((value) => value.toString())
-            .toSet();
-        final wasSelected = ids.contains(extensionId);
-        final shouldSelect = selected.contains(profileId);
-        if (wasSelected == shouldSelect) continue;
-        if (shouldSelect) {
-          ids.add(extensionId);
+        final configured = settings['configured'] == true;
+        final baseIds = configured
+            ? (settings['extensionIds'] as List? ?? [])
+                  .map((value) => value.toString())
+                  .toSet()
+            : Set<String>.of(defaultExtensionIds);
+        final nextIds = Set<String>.of(baseIds);
+        if (selected.contains(profileId)) {
+          nextIds.add(extensionId);
         } else {
-          ids.remove(extensionId);
+          nextIds.remove(extensionId);
         }
+        if (!configured && _sameStringSet(baseIds, nextIds)) continue;
+        if (configured &&
+            _sameStringSet(
+              (settings['extensionIds'] as List? ?? [])
+                  .map((value) => value.toString())
+                  .toSet(),
+              nextIds,
+            )) {
+          continue;
+        }
+        if (!configured) manualFlipCount++;
         await AppBridge.call('BrowserProfileExtensionSave', [
           profileId,
-          ids.toList(),
+          nextIds.toList(),
           true,
         ]);
       }
-      if (mounted) showPrismNotice(context, ('实例插件设置已保存').toString());
+      if (mounted) {
+        showPrismNotice(
+          context,
+          manualFlipCount > 0
+              ? '实例插件设置已保存；其中 $manualFlipCount 个实例改为手动设置，不再继承默认安装'
+              : '实例插件设置已保存',
+        );
+      }
     } catch (error) {
       if (mounted) showPrismNotice(context, (error.toString()).toString());
     } finally {
@@ -759,14 +971,16 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
-        Row(
+        const Text(
+          '插件包管理',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            const Expanded(
-              child: Text(
-                '插件包管理',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-              ),
-            ),
             prism.IconButton(
               onPressed: _loading ? null : _refresh,
               icon: const Icon(Icons.refresh),
@@ -812,7 +1026,6 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                 PrismMenuItem(value: 'download-dir', child: Text('打开手动下载目录')),
               ],
             ),
-            const SizedBox(width: 8),
             prism.OutlinedButton.icon(
               onPressed: _showHistory,
               icon: const Icon(Icons.history),

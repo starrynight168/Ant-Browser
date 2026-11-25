@@ -585,7 +585,6 @@ class _AboutCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PrismCard(
-      elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(

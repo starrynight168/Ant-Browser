@@ -599,7 +599,6 @@ class PrismCard extends StatelessWidget {
     this.padding = EdgeInsets.zero,
     this.radius,
     this.onPressed,
-    this.elevation = 0,
     this.shape,
     this.clipBehavior = Clip.none,
   });
@@ -609,21 +608,27 @@ class PrismCard extends StatelessWidget {
   final EdgeInsets? padding;
   final double? radius;
   final VoidCallback? onPressed;
-  final double elevation;
   final ShapeBorder? shape;
   final Clip clipBehavior;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    final card = Padding(
       padding: margin,
       child: prism.Card(
         radius: radius,
+        shape: shape is OutlinedBorder ? shape as OutlinedBorder : null,
         padding: padding,
         onPressed: onPressed,
         inert: onPressed == null,
         child: child,
       ),
+    );
+    if (clipBehavior == Clip.none || shape == null) return card;
+    return ClipPath(
+      clipper: ShapeBorderClipper(shape: shape!),
+      clipBehavior: clipBehavior,
+      child: card,
     );
   }
 }

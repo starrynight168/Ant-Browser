@@ -130,7 +130,21 @@ class _CoresPageState extends State<CoresPage> {
   }
 
   Future<void> _editSettings() async {
-    if (_settings.isEmpty) return;
+    if (_settings.isEmpty) {
+      // 设置为空（加载失败或返回非对象）时尝试重新加载一次，避免按钮静默无响应。
+      try {
+        final settings = await AppBridge.call('GetBrowserSettings');
+        if (mounted && settings is Map) {
+          setState(() => _settings = Map<String, dynamic>.from(settings));
+        }
+      } catch (error) {
+        if (mounted) _message('读取浏览器设置失败：$error');
+      }
+      if (_settings.isEmpty) {
+        if (mounted) _message('浏览器设置尚未加载，请刷新后重试');
+        return;
+      }
+    }
     final root = TextEditingController(
       text: '${_settings['userDataRoot'] ?? ''}',
     );
@@ -426,7 +440,24 @@ class _CoresPageState extends State<CoresPage> {
     }
   }
 
+  /// 与旧版一致的删除保护：有实例使用或为默认内核时禁止删除。
+  String? _coreDeleteReason(Map<String, dynamic> core) {
+    final instanceCount = (core['instanceCount'] as num?)?.toInt() ?? 0;
+    if (instanceCount > 0) {
+      return '已有 $instanceCount 个实例使用此内核，不能删除';
+    }
+    if (core['isDefault'] == true) {
+      return '默认内核不能删除';
+    }
+    return null;
+  }
+
   Future<void> _delete(Map<String, dynamic> core) async {
+    final deleteReason = _coreDeleteReason(core);
+    if (deleteReason != null) {
+      _message(deleteReason);
+      return;
+    }
     final confirmed = await showPrismDialog<bool>(
       context: context,
       useRootNavigator: false,
@@ -860,33 +891,33 @@ class _CoresPageState extends State<CoresPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
+          Text('${_cores.length} 个内核'),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Expanded(child: Text('${_cores.length} 个内核')),
               prism.OutlinedButton.icon(
                 onPressed: _busy ? null : _editSettings,
                 icon: const Icon(Icons.tune, size: 18),
                 label: const Text('全局设置'),
               ),
-              const SizedBox(width: 8),
               prism.OutlinedButton.icon(
                 onPressed: _busy ? null : _scan,
                 icon: const Icon(Icons.manage_search, size: 18),
                 label: const Text('扫描'),
               ),
-              const SizedBox(width: 8),
               prism.OutlinedButton.icon(
                 onPressed: _busy ? null : _import,
                 icon: const Icon(Icons.file_open_outlined, size: 18),
                 label: const Text('导入本地'),
               ),
-              const SizedBox(width: 8),
               prism.OutlinedButton.icon(
                 onPressed: _busy ? null : () => _edit(),
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text('添加路径'),
               ),
-              const SizedBox(width: 8),
               prism.FilledButton.icon(
                 onPressed: _busy ? null : _download,
                 icon: const Icon(Icons.download, size: 18),
@@ -931,7 +962,6 @@ class _CoresPageState extends State<CoresPage> {
                           : const <String, dynamic>{};
                       final valid = validation['valid'] == true;
                       return PrismCard(
-                        elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                           side: BorderSide(
@@ -994,8 +1024,16 @@ class _CoresPageState extends State<CoresPage> {
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
+                                      '使用实例 ${((core['instanceCount'] as num?) ?? 0).toInt()} 个'
+                                      ' · Chrome ${core['chromeVersion'] ?? '版本未知'}',
+                                      style: TextStyle(
+                                        color: colors.onSurfaceVariant,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                    Text(
                                       valid
-                                          ? '可用 · Chrome ${core['chromeVersion'] ?? '版本未知'}'
+                                          ? '内核路径可用'
                                           : '${validation['message'] ?? '路径无效'}',
                                       style: TextStyle(
                                         color: valid
@@ -1049,8 +1087,11 @@ class _CoresPageState extends State<CoresPage> {
                                 icon: const Icon(Icons.edit_outlined, size: 19),
                               ),
                               prism.IconButton(
-                                tooltip: '删除',
-                                onPressed: _busy ? null : () => _delete(core),
+                                tooltip: _coreDeleteReason(core) ?? '删除',
+                                onPressed:
+                                    _busy || _coreDeleteReason(core) != null
+                                    ? null
+                                    : () => _delete(core),
                                 icon: const Icon(
                                   Icons.delete_outline,
                                   size: 19,

@@ -26,6 +26,7 @@ import 'misc_pages.dart';
 import 'notification_store.dart';
 import 'notifications_page.dart';
 import 'proxy_pages.dart';
+import 'quick_launch_dialog.dart';
 import 'tags_page.dart';
 import 'settings_page.dart';
 import 'theme_state.dart';
@@ -208,29 +209,23 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
   String _activePath = '/browser/list';
   bool _compactSidebar = false;
   bool _closeDialogOpen = false;
+  bool _quickLaunchOpen = false;
   late final void Function() _removeCloseListener;
   late final NotificationStore _notificationStore;
 
   @override
   void initState() {
     super.initState();
-    _notificationStore = NotificationStore()
-      ..addListener(_refreshForNotifications);
+    _notificationStore = NotificationStore();
     _removeCloseListener = AppBridge.onEvent('app:request-close', (_) {
       _showCloseDialog();
     });
   }
 
-  void _refreshForNotifications() {
-    if (mounted) setState(() {});
-  }
-
   @override
   void dispose() {
     _removeCloseListener();
-    _notificationStore
-      ..removeListener(_refreshForNotifications)
-      ..dispose();
+    _notificationStore.dispose();
     super.dispose();
   }
 
@@ -323,191 +318,229 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
     }
   }
 
+  Future<void> _showQuickLaunch() async {
+    if (_quickLaunchOpen || !mounted) return;
+    _quickLaunchOpen = true;
+    try {
+      await showPrismDialog<bool>(
+        context: context,
+        barrierDismissible: true,
+        builder: (_) => const QuickLaunchDialog(),
+      );
+    } finally {
+      _quickLaunchOpen = false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = prism.Theme.of(context).colorScheme;
-    return Container(
-      color: colors.surfaceContainer,
-      padding: const EdgeInsets.all(10),
-      child: Row(
-        children: [
-          _Sidebar(
-            activePath: _activePath,
-            compact: _compactSidebar,
-            unreadCount: _notificationStore.unreadCount,
-            onSelect: (path) => setState(() => _activePath = path),
-            onToggle: () => setState(() => _compactSidebar = !_compactSidebar),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(26),
-              child: prism.Surface(
-                color: prism.ColorScheme.of(context).surface,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _PageHeader(title: _activeTitle),
-                    Expanded(
-                      child: prism.PageTransitionSwitcher(
-                        duration: const Duration(milliseconds: 240),
-                        transitionBuilder:
-                            (child, animation, secondaryAnimation) =>
-                                prism.FadeThroughTransition(
-                                  animation: animation,
-                                  secondaryAnimation: secondaryAnimation,
-                                  child: child,
-                                ),
-                        child: KeyedSubtree(
-                          key: ValueKey(_activePath),
-                          child:
-                              _activePath == '/browser/list' ||
-                                  _activePath == '/browser/monitor'
-                              ? BrowserListPage(
-                                  onOpenDetails: (id) => setState(
-                                    () => _activePath = '/browser/detail/$id',
-                                  ),
-                                  onOpenExtensionManagement: () => setState(
-                                    () => _activePath = '/browser/extensions',
-                                  ),
-                                )
-                              : _activePath.startsWith('/browser/detail/')
-                              ? BrowserProfileToolsPage(
-                                  profileId: _activePath.split('/').last,
-                                  onBack: () => setState(
-                                    () => _activePath = '/browser/list',
-                                  ),
-                                )
-                              : _activePath.startsWith('/browser/edit/') ||
-                                    _activePath.startsWith('/browser/copy/')
-                              ? BrowserListPage(
-                                  onOpenDetails: (id) => setState(
-                                    () => _activePath = '/browser/detail/$id',
-                                  ),
-                                  onOpenExtensionManagement: () => setState(
-                                    () => _activePath = '/browser/extensions',
-                                  ),
-                                  initialQuery:
-                                      _activePath.split('/').last == 'new'
-                                      ? ''
-                                      : _activePath.split('/').last,
-                                )
-                              : _activePath == '/profile'
-                              ? const AboutPage()
-                              : _activePath == '/browser/logs'
-                              ? const LogsPage()
-                              : _activePath == '/browser/bookmarks'
-                              ? const BookmarksPage()
-                              : _activePath == '/notifications'
-                              ? NotificationsPage(
-                                  store: _notificationStore,
-                                  onNavigate: (path) =>
-                                      setState(() => _activePath = path),
-                                )
-                              : _activePath == '/browser/tags'
-                              ? const TagsPage()
-                              : _activePath == '/settings'
-                              ? const SettingsPage()
-                              : _activePath == '/browser/cores'
-                              ? const CoresPage()
-                              : _activePath == '/browser/extensions'
-                              ? const ExtensionsPage()
-                              : _activePath == '/browser/proxy-pool'
-                              ? ProxyPoolPage(
-                                  onOpenGroups: () => setState(
-                                    () => _activePath =
-                                        '/browser/proxy-virtual-groups',
-                                  ),
-                                  onOpenAlign: () => setState(
-                                    () => _activePath = '/browser/proxy-align',
-                                  ),
-                                )
-                              : _activePath == '/browser/proxy-virtual-groups'
-                              ? const ProxyGroupsPage()
-                              : _activePath == '/browser/proxy-align'
-                              ? ProxyAlignPage(
-                                  onBack: () => setState(
-                                    () => _activePath = '/browser/proxy-pool',
-                                  ),
-                                )
-                              : _activePath == '/browser/automation'
-                              ? AutomationPage(
-                                  onOpen: (id) => setState(
-                                    () =>
-                                        _activePath = '/browser/automation/$id',
-                                  ),
-                                  onRun: (id) => setState(
-                                    () => _activePath =
-                                        '/browser/automation/run/$id',
-                                  ),
-                                  onCreate: () => setState(
-                                    () =>
-                                        _activePath = '/browser/automation/new',
-                                  ),
-                                )
-                              : _activePath.startsWith(
-                                  '/browser/automation/run/',
-                                )
-                              ? AutomationScriptDetailPage(
-                                  scriptId: _activePath.split('/').last,
-                                  autoRun: true,
-                                  onBack: () => setState(
-                                    () => _activePath = '/browser/automation',
-                                  ),
-                                  onCreated: (id) => setState(
-                                    () =>
-                                        _activePath = '/browser/automation/$id',
-                                  ),
-                                )
-                              : _activePath.startsWith('/browser/automation/')
-                              ? AutomationScriptDetailPage(
-                                  scriptId: _activePath.split('/').last,
-                                  onBack: () => setState(
-                                    () => _activePath = '/browser/automation',
-                                  ),
-                                  onCreated: (id) => setState(
-                                    () =>
-                                        _activePath = '/browser/automation/$id',
-                                  ),
-                                )
-                              : _activePath == '/system/backup'
-                              ? BackupPage(
-                                  onOpenS3: () => setState(
-                                    () => _activePath = '/system/backup/s3',
-                                  ),
-                                  onOpenOpenList: () => setState(
-                                    () =>
-                                        _activePath = '/system/backup/openlist',
-                                  ),
-                                )
-                              : _activePath == '/system/backup/s3'
-                              ? S3ConfigPage(
-                                  onBack: () => setState(
-                                    () => _activePath = '/system/backup',
-                                  ),
-                                )
-                              : _activePath == '/system/backup/openlist'
-                              ? OpenListConfigPage(
-                                  onBack: () => setState(
-                                    () => _activePath = '/system/backup',
-                                  ),
-                                )
-                              : _activePath == '/system/docs' ||
-                                    _activePath == '/browser/launch-api' ||
-                                    _activePath == '/system/tutorial'
-                              ? const DocsPage()
-                              : _activePath == '/charts'
-                              ? const ChartsPage()
-                              : const BrowserListPage(),
-                        ),
-                      ),
-                    ),
-                  ],
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyK, control: true):
+            _showQuickLaunch,
+      },
+      child: Focus(
+        autofocus: true,
+        child: Container(
+          color: colors.surfaceContainer,
+          padding: const EdgeInsets.all(10),
+          child: Row(
+            children: [
+              AnimatedBuilder(
+                animation: _notificationStore,
+                builder: (context, _) => _Sidebar(
+                  activePath: _activePath,
+                  compact: _compactSidebar,
+                  unreadCount: _notificationStore.unreadCount,
+                  onSelect: (path) => setState(() => _activePath = path),
+                  onToggle: () =>
+                      setState(() => _compactSidebar = !_compactSidebar),
                 ),
               ),
-            ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(26),
+                  child: prism.Surface(
+                    color: prism.ColorScheme.of(context).surface,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _PageHeader(title: _activeTitle),
+                        Expanded(
+                          child: prism.PageTransitionSwitcher(
+                            duration: const Duration(milliseconds: 240),
+                            transitionBuilder:
+                                (child, animation, secondaryAnimation) =>
+                                    prism.FadeThroughTransition(
+                                      animation: animation,
+                                      secondaryAnimation: secondaryAnimation,
+                                      child: child,
+                                    ),
+                            child: KeyedSubtree(
+                              key: ValueKey(_activePath),
+                              child:
+                                  _activePath == '/browser/list' ||
+                                      _activePath == '/browser/monitor'
+                                  ? BrowserListPage(
+                                      onOpenDetails: (id) => setState(
+                                        () =>
+                                            _activePath = '/browser/detail/$id',
+                                      ),
+                                      onOpenExtensionManagement: () => setState(
+                                        () =>
+                                            _activePath = '/browser/extensions',
+                                      ),
+                                    )
+                                  : _activePath.startsWith('/browser/detail/')
+                                  ? BrowserProfileToolsPage(
+                                      profileId: _activePath.split('/').last,
+                                      onBack: () => setState(
+                                        () => _activePath = '/browser/list',
+                                      ),
+                                    )
+                                  : _activePath.startsWith('/browser/edit/') ||
+                                        _activePath.startsWith('/browser/copy/')
+                                  ? BrowserListPage(
+                                      onOpenDetails: (id) => setState(
+                                        () =>
+                                            _activePath = '/browser/detail/$id',
+                                      ),
+                                      onOpenExtensionManagement: () => setState(
+                                        () =>
+                                            _activePath = '/browser/extensions',
+                                      ),
+                                      initialQuery:
+                                          _activePath.split('/').last == 'new'
+                                          ? ''
+                                          : _activePath.split('/').last,
+                                    )
+                                  : _activePath == '/profile'
+                                  ? const AboutPage()
+                                  : _activePath == '/browser/logs'
+                                  ? const LogsPage()
+                                  : _activePath == '/browser/bookmarks'
+                                  ? const BookmarksPage()
+                                  : _activePath == '/notifications'
+                                  ? NotificationsPage(
+                                      store: _notificationStore,
+                                      onNavigate: (path) =>
+                                          setState(() => _activePath = path),
+                                    )
+                                  : _activePath == '/browser/tags'
+                                  ? const TagsPage()
+                                  : _activePath == '/settings'
+                                  ? const SettingsPage()
+                                  : _activePath == '/browser/cores'
+                                  ? const CoresPage()
+                                  : _activePath == '/browser/extensions'
+                                  ? const ExtensionsPage()
+                                  : _activePath == '/browser/proxy-pool'
+                                  ? ProxyPoolPage(
+                                      onOpenGroups: () => setState(
+                                        () => _activePath =
+                                            '/browser/proxy-virtual-groups',
+                                      ),
+                                      onOpenAlign: () => setState(
+                                        () => _activePath =
+                                            '/browser/proxy-align',
+                                      ),
+                                    )
+                                  : _activePath ==
+                                        '/browser/proxy-virtual-groups'
+                                  ? const ProxyGroupsPage()
+                                  : _activePath == '/browser/proxy-align'
+                                  ? ProxyAlignPage(
+                                      onBack: () => setState(
+                                        () =>
+                                            _activePath = '/browser/proxy-pool',
+                                      ),
+                                    )
+                                  : _activePath == '/browser/automation'
+                                  ? AutomationPage(
+                                      onOpen: (id) => setState(
+                                        () => _activePath =
+                                            '/browser/automation/$id',
+                                      ),
+                                      onRun: (id) => setState(
+                                        () => _activePath =
+                                            '/browser/automation/run/$id',
+                                      ),
+                                      onCreate: () => setState(
+                                        () => _activePath =
+                                            '/browser/automation/new',
+                                      ),
+                                    )
+                                  : _activePath.startsWith(
+                                      '/browser/automation/run/',
+                                    )
+                                  ? AutomationScriptDetailPage(
+                                      scriptId: _activePath.split('/').last,
+                                      autoRun: true,
+                                      onBack: () => setState(
+                                        () =>
+                                            _activePath = '/browser/automation',
+                                      ),
+                                      onCreated: (id) => setState(
+                                        () => _activePath =
+                                            '/browser/automation/$id',
+                                      ),
+                                    )
+                                  : _activePath.startsWith(
+                                      '/browser/automation/',
+                                    )
+                                  ? AutomationScriptDetailPage(
+                                      scriptId: _activePath.split('/').last,
+                                      onBack: () => setState(
+                                        () =>
+                                            _activePath = '/browser/automation',
+                                      ),
+                                      onCreated: (id) => setState(
+                                        () => _activePath =
+                                            '/browser/automation/$id',
+                                      ),
+                                    )
+                                  : _activePath == '/system/backup'
+                                  ? BackupPage(
+                                      onOpenS3: () => setState(
+                                        () => _activePath = '/system/backup/s3',
+                                      ),
+                                      onOpenOpenList: () => setState(
+                                        () => _activePath =
+                                            '/system/backup/openlist',
+                                      ),
+                                    )
+                                  : _activePath == '/system/backup/s3'
+                                  ? S3ConfigPage(
+                                      onBack: () => setState(
+                                        () => _activePath = '/system/backup',
+                                      ),
+                                    )
+                                  : _activePath == '/system/backup/openlist'
+                                  ? OpenListConfigPage(
+                                      onBack: () => setState(
+                                        () => _activePath = '/system/backup',
+                                      ),
+                                    )
+                                  : _activePath == '/system/docs' ||
+                                        _activePath == '/browser/launch-api' ||
+                                        _activePath == '/system/tutorial'
+                                  ? const DocsPage()
+                                  : _activePath == '/charts'
+                                  ? const ChartsPage()
+                                  : const BrowserListPage(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -995,7 +1028,6 @@ class _BrowserListPageState extends State<BrowserListPage> {
         .toList();
     final busy = _busyProfile == id;
     return PrismCard(
-      elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
@@ -3462,16 +3494,18 @@ class _BrowserListPageState extends State<BrowserListPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
+          Text(
+            '管理浏览器实例与独立配置',
+            style: TextStyle(
+              color: prism.Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Expanded(
-                child: Text(
-                  '管理浏览器实例与独立配置',
-                  style: TextStyle(
-                    color: prism.Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
               prism.IconButton(
                 tooltip: _viewMode == 'card' ? '切换列表视图' : '切换卡片视图',
                 onPressed: _toggleViewMode,
@@ -3479,37 +3513,44 @@ class _BrowserListPageState extends State<BrowserListPage> {
                   _viewMode == 'card' ? Icons.view_list : Icons.grid_view,
                 ),
               ),
-              const SizedBox(width: 4),
               prism.OutlinedButton.icon(
                 onPressed: _loading ? null : _reload,
                 icon: const Icon(Icons.refresh, size: 18),
                 label: const Text('刷新'),
               ),
-              const SizedBox(width: 8),
               prism.OutlinedButton.icon(
                 onPressed: _showTrash,
                 icon: const Icon(Icons.delete_outline, size: 18),
                 label: const Text('回收站'),
               ),
-              const SizedBox(width: 8),
               prism.OutlinedButton.icon(
                 onPressed: _manageGroups,
                 icon: const Icon(Icons.folder_open_outlined, size: 18),
                 label: const Text('分组'),
               ),
-              const SizedBox(width: 8),
+              prism.IconButton(
+                tooltip: '打开用户数据根目录',
+                onPressed: () async {
+                  try {
+                    await AppBridge.call('OpenUserDataRoot');
+                  } catch (error) {
+                    if (mounted) {
+                      showPrismNotice(context, '打开用户数据根目录失败：$error');
+                    }
+                  }
+                },
+                icon: const Icon(Icons.folder_special_outlined, size: 19),
+              ),
               prism.OutlinedButton.icon(
                 onPressed: _importProfiles,
                 icon: const Icon(Icons.upload_file, size: 18),
                 label: const Text('导入实例'),
               ),
-              const SizedBox(width: 8),
               prism.OutlinedButton.icon(
                 onPressed: _profiles.isEmpty ? null : _exportProfiles,
                 icon: const Icon(Icons.download_outlined, size: 18),
                 label: const Text('导出实例'),
               ),
-              const SizedBox(width: 8),
               prism.FilledButton.icon(
                 onPressed: () => _editProfile(),
                 icon: const Icon(Icons.add, size: 18),
@@ -3540,10 +3581,15 @@ class _BrowserListPageState extends State<BrowserListPage> {
             ],
           ),
           if (_selectedProfileIds.isNotEmpty) ...[
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Text('已选 ${_selectedProfileIds.length} 个实例'),
-                const SizedBox(width: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text('已选 ${_selectedProfileIds.length} 个实例'),
+                ),
                 prism.OutlinedButton.icon(
                   onPressed: _busyProfile == null
                       ? () => _batchToggleProfiles(true)
@@ -3551,7 +3597,6 @@ class _BrowserListPageState extends State<BrowserListPage> {
                   icon: const Icon(Icons.play_arrow, size: 18),
                   label: const Text('批量启动'),
                 ),
-                const SizedBox(width: 8),
                 prism.OutlinedButton.icon(
                   onPressed: _busyProfile == null
                       ? () => _batchToggleProfiles(false)
@@ -3559,7 +3604,6 @@ class _BrowserListPageState extends State<BrowserListPage> {
                   icon: const Icon(Icons.stop, size: 18),
                   label: const Text('批量关闭'),
                 ),
-                const SizedBox(width: 8),
                 prism.OutlinedButton.icon(
                   onPressed: _busyProfile == null
                       ? () => _exportProfiles(_selectedProfileIds.toList())
@@ -3567,7 +3611,6 @@ class _BrowserListPageState extends State<BrowserListPage> {
                   icon: const Icon(Icons.download_outlined, size: 18),
                   label: const Text('导出'),
                 ),
-                const SizedBox(width: 8),
                 prism.TextButton.icon(
                   onPressed: _busyProfile == null ? _batchDeleteProfiles : null,
                   icon: const Icon(Icons.delete_outline, size: 18),
@@ -3722,7 +3765,6 @@ class _BrowserListPageState extends State<BrowserListPage> {
                               .toList() ??
                           const <String>[];
                       return PrismCard(
-                        elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                           side: BorderSide(

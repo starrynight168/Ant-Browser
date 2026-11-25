@@ -144,15 +144,18 @@ class _BookmarksPageState extends State<BookmarksPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
+          const Text('管理默认书签，并同步到浏览器实例。'),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              const Expanded(child: Text('管理默认书签，并同步到浏览器实例。')),
               prism.OutlinedButton.icon(
                 onPressed: _syncing ? null : _sync,
                 icon: const Icon(Icons.sync, size: 18),
                 label: Text(_syncing ? '同步中' : '手动同步'),
               ),
-              const SizedBox(width: 8),
               prism.OutlinedButton.icon(
                 onPressed: _reset,
                 icon: const Icon(Icons.restore, size: 18),
@@ -206,7 +209,6 @@ class _BookmarksPageState extends State<BookmarksPage> {
                             final protected = _isProtected(item);
                             return PrismCard(
                               key: ValueKey('${item['url'] ?? ''}-$index'),
-                              elevation: 0,
                               margin: const EdgeInsets.only(bottom: 8),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),

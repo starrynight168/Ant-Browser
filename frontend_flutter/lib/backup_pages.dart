@@ -318,55 +318,184 @@ class _BackupPageState extends State<BackupPage>
         .where((profile) => (profile['profileId'] ?? '').toString().isNotEmpty)
         .toList();
     final selected = <String>{};
-    return showPrismDialog<List<String>>(
+    final search = TextEditingController();
+    var sortOrder = 'createdAtDesc';
+    final resultIds = await showPrismDialog<List<String>>(
       context: context,
       useRootNavigator: false,
       builder: (context) => StatefulBuilder(
-        builder: (context, setDialog) => PrismDialog(
-          title: const Text('选择要备份的实例'),
-          content: SizedBox(
-            width: 520,
-            height: 420,
-            child: profiles.isEmpty
-                ? const Center(child: Text('没有可备份的实例'))
-                : ListView.builder(
-                    itemCount: profiles.length,
-                    itemBuilder: (context, index) {
-                      final profile = profiles[index];
-                      final id = profile['profileId'].toString();
-                      final running = profile['running'] == true;
-                      return PrismCheckboxTile(
-                        value: selected.contains(id),
-                        title: Text((profile['profileName'] ?? id).toString()),
-                        subtitle: running ? const Text('运行中，请先关闭') : null,
-                        onChanged: running
-                            ? null
-                            : (checked) => setDialog(() {
-                                if (checked == true) {
-                                  selected.add(id);
-                                } else {
-                                  selected.remove(id);
-                                }
-                              }),
-                      );
-                    },
-                  ),
-          ),
-          actions: [
-            prism.TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('取消'),
+        builder: (context, setDialog) {
+          final selectable = profiles
+              .where((profile) => profile['running'] != true)
+              .toList();
+          final allSelected =
+              selectable.isNotEmpty &&
+              selectable.every(
+                (profile) => selected.contains('${profile['profileId']}'),
+              );
+          final query = search.text.trim().toLowerCase();
+          final visible =
+              profiles.where((profile) {
+                final name = '${profile['profileName'] ?? ''}'.toLowerCase();
+                final id = '${profile['profileId'] ?? ''}'.toLowerCase();
+                return query.isEmpty ||
+                    name.contains(query) ||
+                    id.contains(query);
+              }).toList()..sort((left, right) {
+                final leftName =
+                    '${left['profileName'] ?? left['profileId'] ?? ''}'
+                        .toLowerCase();
+                final rightName =
+                    '${right['profileName'] ?? right['profileId'] ?? ''}'
+                        .toLowerCase();
+                if (sortOrder == 'profileNameAsc') {
+                  return leftName.compareTo(rightName);
+                }
+                if (sortOrder == 'profileNameDesc') {
+                  return rightName.compareTo(leftName);
+                }
+                final leftCreated = DateTime.tryParse(
+                  '${left['createdAt'] ?? ''}',
+                );
+                final rightCreated = DateTime.tryParse(
+                  '${right['createdAt'] ?? ''}',
+                );
+                final comparison = leftCreated == null || rightCreated == null
+                    ? leftName.compareTo(rightName)
+                    : leftCreated.compareTo(rightCreated);
+                return sortOrder == 'createdAtAsc' ? comparison : -comparison;
+              });
+
+          return PrismDialog(
+            title: const Text('选择要备份的实例'),
+            content: SizedBox(
+              width: 620,
+              height: 460,
+              child: profiles.isEmpty
+                  ? const Center(child: Text('没有可备份的实例'))
+                  : Column(
+                      children: [
+                        PrismCheckboxTile(
+                          value: allSelected,
+                          title: const Text('全选未运行实例'),
+                          subtitle: Text('已选 ${selected.length} 个'),
+                          onChanged: selectable.isEmpty
+                              ? null
+                              : (checked) => setDialog(() {
+                                  if (checked == true) {
+                                    selected
+                                      ..clear()
+                                      ..addAll(
+                                        selectable.map(
+                                          (profile) =>
+                                              '${profile['profileId']}',
+                                        ),
+                                      );
+                                  } else {
+                                    selected.clear();
+                                  }
+                                }),
+                        ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: PrismTextField(
+                                controller: search,
+                                onChanged: (_) => setDialog(() {}),
+                                decoration: const PrismInputDecoration(
+                                  labelText: '搜索名称或实例 ID',
+                                  isDense: true,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              width: 190,
+                              child: PrismDropdownField<String>(
+                                value: sortOrder,
+                                decoration: const PrismInputDecoration(
+                                  hintText: '排序方式',
+                                  isDense: true,
+                                ),
+                                items: const [
+                                  PrismDropdownItem(
+                                    value: 'createdAtDesc',
+                                    child: Text('创建时间：新到旧'),
+                                  ),
+                                  PrismDropdownItem(
+                                    value: 'createdAtAsc',
+                                    child: Text('创建时间：旧到新'),
+                                  ),
+                                  PrismDropdownItem(
+                                    value: 'profileNameAsc',
+                                    child: Text('名称：A 到 Z'),
+                                  ),
+                                  PrismDropdownItem(
+                                    value: 'profileNameDesc',
+                                    child: Text('名称：Z 到 A'),
+                                  ),
+                                ],
+                                onChanged: (value) {
+                                  if (value != null) {
+                                    setDialog(() => sortOrder = value);
+                                  }
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Expanded(
+                          child: visible.isEmpty
+                              ? const Center(child: Text('没有匹配的实例'))
+                              : ListView.builder(
+                                  itemCount: visible.length,
+                                  itemBuilder: (context, index) {
+                                    final profile = visible[index];
+                                    final id = '${profile['profileId'] ?? ''}';
+                                    final running = profile['running'] == true;
+                                    return PrismCheckboxTile(
+                                      value: selected.contains(id),
+                                      title: Text(
+                                        '${profile['profileName'] ?? id}',
+                                      ),
+                                      subtitle: running
+                                          ? const Text('运行中，不能备份')
+                                          : null,
+                                      onChanged: running
+                                          ? null
+                                          : (checked) => setDialog(() {
+                                              if (checked == true) {
+                                                selected.add(id);
+                                              } else {
+                                                selected.remove(id);
+                                              }
+                                            }),
+                                    );
+                                  },
+                                ),
+                        ),
+                      ],
+                    ),
             ),
-            prism.FilledButton(
-              onPressed: selected.isEmpty
-                  ? null
-                  : () => Navigator.pop(context, selected.toList()),
-              child: Text('备份所选（${selected.length}）'),
-            ),
-          ],
-        ),
+            actions: [
+              prism.TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('取消'),
+              ),
+              prism.FilledButton(
+                onPressed: selected.isEmpty
+                    ? null
+                    : () => Navigator.pop(context, selected.toList()),
+                child: Text('备份所选（${selected.length}）'),
+              ),
+            ],
+          );
+        },
       ),
     );
+    search.dispose();
+    return resultIds;
   }
 
   Future<String?> _askExportPassword() async {
@@ -585,24 +714,30 @@ class _BackupPageState extends State<BackupPage>
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
+        const Text(
+          '备份与恢复',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            const Expanded(
-              child: Text(
-                '备份与恢复',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-              ),
-            ),
             prism.OutlinedButton.icon(
               onPressed: widget.onOpenOpenList,
               icon: const Icon(Icons.cloud_queue_outlined),
               label: const Text('OpenList'),
             ),
-            const SizedBox(width: 8),
             prism.OutlinedButton.icon(
               onPressed: widget.onOpenS3,
               icon: const Icon(Icons.cloud_outlined),
               label: const Text('S3 设置'),
+            ),
+            prism.OutlinedButton.icon(
+              onPressed: widget.onOpenOpenList,
+              icon: const Icon(Icons.schedule),
+              label: const Text('定时备份'),
             ),
             const SizedBox(width: 8),
             prism.IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),

@@ -24,7 +24,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
   @override
   void initState() {
     super.initState();
-    widget.store.markAllRead();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.store.markAllRead();
+    });
   }
 
   Future<void> _clear() async {
@@ -85,11 +87,13 @@ class _NotificationsPageState extends State<NotificationsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
+              Text(unread > 0 ? '通知中心 · $unread 条未读' : '通知中心'),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  Expanded(
-                    child: Text(unread > 0 ? '通知中心 · $unread 条未读' : '通知中心'),
-                  ),
                   if (unread > 0)
                     prism.TextButton.icon(
                       onPressed: widget.store.markAllRead,
@@ -97,7 +101,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
                       label: const Text('全部标为已读'),
                     ),
                   if (all.isNotEmpty) ...[
-                    const SizedBox(width: 6),
                     prism.OutlinedButton.icon(
                       onPressed: _clear,
                       icon: const Icon(Icons.delete_outline, size: 18),

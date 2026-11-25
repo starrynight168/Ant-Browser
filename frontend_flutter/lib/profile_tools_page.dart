@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'prism_widgets.dart';
 
 import 'package:prism_ui/prism_ui.dart' as prism;
+import 'package:flutter/services.dart';
 
 import 'app_bridge.dart';
 
@@ -33,6 +34,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
   String _busy = '';
   String _cookieExport = '';
   int _selectedDetailTab = 0;
+  final List<void Function()> _eventUnsubscribers = [];
 
   bool get _running => _profile?['running'] == true;
 
@@ -40,18 +42,41 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
   void initState() {
     super.initState();
     _reload();
+    _listenInstanceEvents();
+  }
+
+  /// 监听实例状态事件，自动刷新详情数据（旧版 BrowserDetailPage 行为）。
+  void _listenInstanceEvents() {
+    for (final event in const [
+      'browser:instance:started',
+      'browser:instance:stopped',
+      'browser:instance:updated',
+      'browser:instance:crashed',
+    ]) {
+      _eventUnsubscribers.add(
+        AppBridge.onEvent(event, (payload) {
+          final id = payload is Map ? '${payload['profileId'] ?? ''}' : '';
+          if (id.isNotEmpty && id != widget.profileId) return;
+          if (!mounted) return;
+          _reload(silent: true);
+        }),
+      );
+    }
   }
 
   @override
   void dispose() {
+    for (final remove in _eventUnsubscribers) {
+      remove();
+    }
     _url.dispose();
     _cookieFilter.dispose();
     _cookieExportController.dispose();
     super.dispose();
   }
 
-  Future<void> _reload() async {
-    if (mounted) setState(() => _loading = true);
+  Future<void> _reload({bool silent = false}) async {
+    if (mounted && !silent) setState(() => _loading = true);
     try {
       final profiles = await AppBridge.call('BrowserProfileList');
       final rows = (profiles as List? ?? [])
@@ -63,11 +88,19 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
       );
       _profile = matched.isEmpty ? null : matched.first;
       await _loadSnapshots();
-      if (_running) await _loadTabs();
+      if (_running) {
+        await _loadTabs();
+      } else {
+        _tabs = [];
+      }
     } catch (error) {
-      _message(error.toString());
+      if (!silent) _message(error.toString());
     }
-    if (mounted) setState(() => _loading = false);
+    if (mounted) {
+      setState(() {
+        if (!silent) _loading = false;
+      });
+    }
   }
 
   Future<void> _loadSnapshots() async {
@@ -165,6 +198,52 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
       'url',
       () => AppBridge.call('BrowserInstanceOpenUrl', [widget.profileId, value]),
     );
+  }
+
+  Future<void> _copyLaunchCode(Map<String, dynamic> profile) async {
+    final code = '${profile['launchCode'] ?? ''}'.trim();
+    if (code.isEmpty) {
+      _message('此实例没有启动码');
+      return;
+    }
+    try {
+      await Clipboard.setData(ClipboardData(text: code));
+      if (mounted) _message('启动码已复制');
+    } catch (error) {
+      if (mounted) _message('复制启动码失败：$error');
+    }
+  }
+
+  Future<void> _regenerateLaunchCode() async {
+    final accepted = await showPrismDialog<bool>(
+      context: context,
+      useRootNavigator: false,
+      builder: (context) => PrismDialog(
+        title: const Text('重新生成启动码？'),
+        content: const Text('旧启动码将立即失效，使用旧码的接口或脚本需要更新。'),
+        actions: [
+          prism.TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          prism.FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('重新生成'),
+          ),
+        ],
+      ),
+    );
+    if (accepted != true) return;
+    setState(() => _busy = 'launch-code');
+    try {
+      await AppBridge.call('BrowserProfileRegenerateCode', [widget.profileId]);
+      await _reload(silent: true);
+      if (mounted) _message('启动码已重新生成');
+    } catch (error) {
+      if (mounted) _message('重新生成启动码失败：$error');
+    } finally {
+      if (mounted) setState(() => _busy = '');
+    }
   }
 
   Future<void> _createSnapshot() async {
@@ -356,6 +435,11 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
     child: Center(child: Text(text)),
   );
 
+  int _valueCount(dynamic value) {
+    if (value is Map || value is List || value is String) return value.length;
+    return 0;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: PrismProgressIndicator());
@@ -387,6 +471,14 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                   ),
                 ),
               ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
               prism.IconButton(
                 tooltip: '打开用户数据目录',
                 onPressed: _busy.isEmpty ? _openUserDataDir : null,
@@ -397,7 +489,6 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                 icon: const Icon(Icons.restart_alt),
                 label: const Text('重启'),
               ),
-              const SizedBox(width: 8),
               PrismTonalButton.icon(
                 onPressed: _busy.isEmpty ? _toggle : null,
                 icon: Icon(_running ? Icons.stop : Icons.play_arrow),
@@ -411,7 +502,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           prism.SegmentedControl<int>(
             segments: const [(0, '概览与标签页'), (1, '数据快照'), (2, 'Cookie')],
             value: _selectedDetailTab,
@@ -427,8 +518,35 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                     PrismCard(
                       child: Padding(
                         padding: const EdgeInsets.all(16),
-                        child: prism.SelectableText(
-                          '实例编号：${profile['profileId'] ?? ''}\n启动码：${profile['launchCode'] ?? ''}\n浏览器内核：${profile['coreId'] ?? ''}\n代理：${profile['proxyConfig'] ?? '直连'}\n分组：${profile['groupId'] ?? '未分组'}\n用户数据目录：${profile['userDataDir'] ?? ''}',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            prism.SelectableText(
+                              '实例编号：${profile['profileId'] ?? ''}\n浏览器内核：${profile['coreId'] ?? ''}\n代理：${profile['proxyConfig'] ?? '直连'}\n分组：${profile['groupId'] ?? '未分组'}\n标签：${(profile['tags'] as List? ?? const []).join(', ')}\n指纹参数：${_valueCount(profile['fingerprintArgs'])} 项 · 启动参数：${_valueCount(profile['launchArgs'])} 项\n用户数据目录：${profile['userDataDir'] ?? ''}',
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: prism.SelectableText(
+                                    '启动码：${profile['launchCode'] ?? ''}',
+                                  ),
+                                ),
+                                prism.IconButton(
+                                  tooltip: '复制启动码',
+                                  onPressed: () => _copyLaunchCode(profile),
+                                  icon: const Icon(Icons.copy_outlined),
+                                ),
+                                prism.IconButton(
+                                  tooltip: '重新生成启动码',
+                                  onPressed: _busy.isEmpty
+                                      ? _regenerateLaunchCode
+                                      : null,
+                                  icon: const Icon(Icons.refresh),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                     ),

@@ -267,7 +267,6 @@ class _TagsPageState extends State<TagsPage> {
           SizedBox(
             width: 220,
             child: PrismCard(
-              elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
                 side: BorderSide(
@@ -345,7 +344,6 @@ class _TagsPageState extends State<TagsPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 PrismCard(
-                  elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                     side: BorderSide(
@@ -417,7 +415,6 @@ class _TagsPageState extends State<TagsPage> {
                 const SizedBox(height: 12),
                 Expanded(
                   child: PrismCard(
-                    elevation: 0,
                     clipBehavior: Clip.antiAlias,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),

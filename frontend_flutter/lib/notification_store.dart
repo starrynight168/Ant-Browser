@@ -15,6 +15,11 @@ class NotificationStore extends ChangeNotifier {
     _listen('browser:instance:crashed', _onCrash);
     _listen('proxy:bridge:failed', _onBridgeFailed);
     _listen('proxy:bridge:died', _onBridgeDied);
+    _listen('instance:launch:queued', _onLaunchQueued);
+    _listen('instance:launch:admitted', _onLaunchAdmitted);
+    _listen('backup:export:progress', (data) => _onBackupProgress(data, '导出'));
+    _listen('backup:import:progress', (data) => _onBackupProgress(data, '导入'));
+    _listen('automation:runtime:progress', _onRuntimeProgress);
   }
 
   int get unreadCount =>
@@ -78,6 +83,80 @@ class NotificationStore extends ChangeNotifier {
               'path': '/browser/detail/$id',
             },
     );
+  }
+
+  void _onLaunchQueued(Map<String, dynamic> data) {
+    final id = '${data['profileId'] ?? ''}';
+    final position = data['position'];
+    final limit = data['limit'];
+    final positionHint = (position is num && position > 0)
+        ? '（第 $position 位${limit is num && limit > 0 ? '，并发上限 $limit' : ''}）'
+        : '';
+    _add(
+      type: 'info',
+      title: '启动排队',
+      message: '实例 $id 已进入启动队列$positionHint，等待空闲名额后自动启动',
+      source: 'runtime',
+      dedupeKey: 'instance:launch:queued:$id',
+    );
+  }
+
+  void _onLaunchAdmitted(Map<String, dynamic> data) {
+    final id = '${data['profileId'] ?? ''}';
+    _add(
+      type: 'success',
+      title: '开始启动',
+      message: '实例 $id 已获得启动名额，开始启动',
+      source: 'runtime',
+      dedupeKey: 'instance:launch:admitted:$id',
+    );
+  }
+
+  /// 备份导出/导入进度仅在终态（done/error）时记录通知，
+  /// 避免高频进度事件刷屏；过程进度由页面内进度条展示。
+  void _onBackupProgress(Map<String, dynamic> data, String actionLabel) {
+    final phase = '${data['phase'] ?? ''}'.toLowerCase();
+    final message = '${data['message'] ?? ''}'.trim();
+    if (phase == 'done' || phase == 'completed') {
+      _add(
+        type: 'success',
+        title: '备份$actionLabel完成',
+        message: message.isEmpty ? '备份$actionLabel已完成' : message,
+        source: 'backup',
+        dedupeKey: 'backup:$actionLabel:done',
+      );
+    } else if (phase == 'error' || phase == 'failed') {
+      _add(
+        type: 'error',
+        title: '备份$actionLabel失败',
+        message: message.isEmpty ? '备份$actionLabel失败' : message,
+        source: 'backup',
+        dedupeKey: 'backup:$actionLabel:error',
+      );
+    }
+  }
+
+  /// 自动化运行时安装进度仅在终态时记录通知。
+  void _onRuntimeProgress(Map<String, dynamic> data) {
+    final phase = '${data['phase'] ?? ''}'.toLowerCase();
+    final message = '${data['message'] ?? ''}'.trim();
+    if (phase == 'done') {
+      _add(
+        type: 'success',
+        title: '自动化运行时就绪',
+        message: message.isEmpty ? '自动化运行时安装/检查完成' : message,
+        source: 'settings',
+        dedupeKey: 'automation:runtime:done',
+      );
+    } else if (phase == 'error') {
+      _add(
+        type: 'error',
+        title: '自动化运行时异常',
+        message: message.isEmpty ? '自动化运行时安装/检查失败' : message,
+        source: 'settings',
+        dedupeKey: 'automation:runtime:error',
+      );
+    }
   }
 
   void _onBridgeDied(Map<String, dynamic> data) {

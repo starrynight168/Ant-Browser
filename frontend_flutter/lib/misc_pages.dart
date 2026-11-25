@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:math' as math;
+
 import 'prism_widgets.dart';
 
 import 'package:prism_ui/prism_ui.dart' as prism;
@@ -58,6 +61,7 @@ class _DocsPageState extends State<DocsPage> {
       _DocsItem('api-runtime', '运行态与接管', 'runtime session、活动实例和统一 CDP 入口。'),
       _DocsItem('api-automation', '脚本自动化', '自动化接口总览、字段规则和调用顺序。'),
       _DocsItem('api-support', '排障与日志', '调用日志、常见错误码和排查顺序。'),
+      _DocsItem('api-demo', '启动 API 演示', '在应用内直接演练启动 API 的完整链路。'),
     ]),
   ];
 
@@ -174,6 +178,10 @@ class _DocsPageState extends State<DocsPage> {
                       ),
                     ),
                   ),
+                ],
+                if (section.id == 'api-demo') ...[
+                  const SizedBox(height: 14),
+                  const _LaunchApiDemoPanel(),
                 ],
               ],
             ),
@@ -357,17 +365,35 @@ class ChartsPage extends StatelessWidget {
           runSpacing: 16,
           children: [
             _ChartCard(
-              title: '月度访问量',
+              title: '折线图示例',
               child: CustomPaint(
                 size: const Size(420, 220),
                 painter: _LineChartPainter(colors: colors),
               ),
             ),
             _ChartCard(
-              title: '分类数据',
+              title: '柱状图示例',
               child: CustomPaint(
                 size: const Size(420, 220),
                 painter: _BarChartPainter(colors: colors),
+              ),
+            ),
+            _ChartCard(
+              title: '饼图示例',
+              child: _PieChart(colors: colors),
+            ),
+            _ChartCard(
+              title: '面积图示例',
+              child: CustomPaint(
+                size: const Size(420, 220),
+                painter: _AreaChartPainter(colors: colors),
+              ),
+            ),
+            _ChartCard(
+              title: '复合图表示例',
+              child: CustomPaint(
+                size: const Size(420, 220),
+                painter: _ComposedChartPainter(colors: colors),
               ),
             ),
           ],
@@ -468,4 +494,393 @@ class _BarChartPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _BarChartPainter oldDelegate) =>
       oldDelegate.colors != colors;
+}
+
+class _PieChart extends StatelessWidget {
+  const _PieChart({required this.colors});
+
+  final prism.ColorScheme colors;
+
+  @override
+  Widget build(BuildContext context) {
+    final slices = [
+      ('实例', colors.primary),
+      ('代理', colors.secondary),
+      ('脚本', colors.tertiary),
+      ('其他', colors.onSurfaceVariant),
+    ];
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        CustomPaint(
+          size: const Size(210, 180),
+          painter: _PieChartPainter(colors: colors),
+        ),
+        Wrap(
+          spacing: 14,
+          runSpacing: 6,
+          children: [
+            for (final slice in slices)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 9,
+                    height: 9,
+                    decoration: BoxDecoration(
+                      color: slice.$2,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  Text(slice.$1, style: const TextStyle(fontSize: 12)),
+                ],
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _PieChartPainter extends CustomPainter {
+  const _PieChartPainter({required this.colors});
+
+  final prism.ColorScheme colors;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const values = [.36, .28, .21, .15];
+    final palette = [
+      colors.primary,
+      colors.secondary,
+      colors.tertiary,
+      colors.onSurfaceVariant,
+    ];
+    final diameter = math.min(size.width, size.height) - 8;
+    final rect = Rect.fromCenter(
+      center: Offset(size.width / 2, size.height / 2),
+      width: diameter,
+      height: diameter,
+    );
+    var start = -math.pi / 2;
+    for (var i = 0; i < values.length; i++) {
+      final sweep = math.pi * 2 * values[i];
+      canvas.drawArc(rect, start, sweep, true, Paint()..color = palette[i]);
+      start += sweep;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _PieChartPainter oldDelegate) =>
+      oldDelegate.colors != colors;
+}
+
+class _AreaChartPainter extends CustomPainter {
+  const _AreaChartPainter({required this.colors});
+
+  final prism.ColorScheme colors;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final grid = Paint()
+      ..color = colors.outlineVariant
+      ..strokeWidth = 1;
+    for (var i = 0; i < 5; i++) {
+      final y = size.height * i / 4;
+      canvas.drawLine(Offset(12, y), Offset(size.width - 8, y), grid);
+    }
+    const values = [.72, .58, .65, .32, .45, .22, .35, .16];
+    final line = Path();
+    for (var i = 0; i < values.length; i++) {
+      final point = Offset(
+        16 + (size.width - 32) * i / (values.length - 1),
+        size.height * values[i],
+      );
+      if (i == 0) {
+        line.moveTo(point.dx, point.dy);
+      } else {
+        line.lineTo(point.dx, point.dy);
+      }
+    }
+    final fill = Path.from(line)
+      ..lineTo(size.width - 16, size.height)
+      ..lineTo(16, size.height)
+      ..close();
+    canvas.drawPath(
+      fill,
+      Paint()..color = colors.primary.withValues(alpha: 0.18),
+    );
+    canvas.drawPath(
+      line,
+      Paint()
+        ..color = colors.primary
+        ..strokeWidth = 3
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _AreaChartPainter oldDelegate) =>
+      oldDelegate.colors != colors;
+}
+
+class _ComposedChartPainter extends CustomPainter {
+  const _ComposedChartPainter({required this.colors});
+
+  final prism.ColorScheme colors;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final grid = Paint()
+      ..color = colors.outlineVariant
+      ..strokeWidth = 1;
+    for (var i = 0; i < 5; i++) {
+      final y = size.height * i / 4;
+      canvas.drawLine(Offset(12, y), Offset(size.width - 8, y), grid);
+    }
+    const bars = [.42, .72, .55, .9, .63, .36, .78];
+    const lineValues = [.68, .56, .61, .38, .48, .28, .3];
+    final barPaint = Paint()..color = colors.secondary.withValues(alpha: 0.8);
+    final barWidth = size.width / 16;
+    final line = Path();
+    for (var i = 0; i < bars.length; i++) {
+      final centerX = 28 + i * (size.width - 56) / (bars.length - 1);
+      final height = size.height * bars[i];
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(
+            centerX - barWidth / 2,
+            size.height - height,
+            barWidth,
+            height,
+          ),
+          const Radius.circular(4),
+        ),
+        barPaint,
+      );
+      final point = Offset(centerX, size.height * lineValues[i]);
+      if (i == 0) {
+        line.moveTo(point.dx, point.dy);
+      } else {
+        line.lineTo(point.dx, point.dy);
+      }
+    }
+    canvas.drawPath(
+      line,
+      Paint()
+        ..color = colors.primary
+        ..strokeWidth = 3
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _ComposedChartPainter oldDelegate) =>
+      oldDelegate.colors != colors;
+}
+
+/// 启动 API 演示面板：对应旧版文档中心的 LaunchDemoPanel，
+/// 在应用内逐步演练 健康检查 → 创建演示实例 → 启动 → 删除 的完整链路。
+class _LaunchApiDemoPanel extends StatefulWidget {
+  const _LaunchApiDemoPanel();
+
+  @override
+  State<_LaunchApiDemoPanel> createState() => _LaunchApiDemoPanelState();
+}
+
+class _LaunchApiDemoPanelState extends State<_LaunchApiDemoPanel> {
+  final List<String> _logs = [];
+  String _demoProfileId = '';
+  String _demoLaunchCode = '';
+  bool _busy = false;
+
+  void _log(String message) {
+    if (!mounted) return;
+    final now = DateTime.now();
+    final time =
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
+    setState(() {
+      _logs.add('[$time] $message');
+      if (_logs.length > 200) _logs.removeRange(0, _logs.length - 200);
+    });
+  }
+
+  Future<dynamic> _run(
+    String label,
+    String method, [
+    List<Object?> args = const [],
+  ]) async {
+    _log('$label → 调用 $method');
+    try {
+      final value = await AppBridge.call(method, args);
+      final summary = value is Map
+          ? (value['ok'] == true || value['success'] == true ? '成功' : '完成')
+          : '完成';
+      _log('$label ← $summary');
+      return value;
+    } catch (error) {
+      _log('$label ← 失败：$error');
+      if (mounted) showPrismNotice(context, '$label失败：$error');
+      rethrow;
+    }
+  }
+
+  Future<void> _healthCheck() async {
+    setState(() => _busy = true);
+    try {
+      final value = await _run('健康检查', 'AutomationDemoHealthCheck');
+      if (value is Map) _log('健康检查结果：${jsonEncode(value)}');
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _createProfile() async {
+    setState(() => _busy = true);
+    try {
+      final value = await _run('创建演示实例', 'AutomationDemoCreateProfile');
+      if (value is Map) {
+        final profile = value['profile'] is Map
+            ? Map<String, dynamic>.from(value['profile'] as Map)
+            : value;
+        _demoProfileId = '${profile['profileId'] ?? ''}';
+        _demoLaunchCode = '${profile['launchCode'] ?? ''}';
+        _log('演示实例：$_demoProfileId（启动码 $_demoLaunchCode）');
+      }
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _launchProfile() async {
+    if (_demoLaunchCode.isEmpty) {
+      showPrismNotice(context, '请先创建演示实例');
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      final value = await _run('启动演示实例', 'AutomationDemoLaunchProfile', [
+        _demoLaunchCode,
+      ]);
+      if (value is Map) _log('启动结果：${jsonEncode(value)}');
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _deleteProfile() async {
+    if (_demoProfileId.isEmpty) {
+      showPrismNotice(context, '请先创建演示实例');
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      await _run('删除演示实例', 'AutomationDemoDeleteProfile', [_demoProfileId]);
+      _demoProfileId = '';
+      _demoLaunchCode = '';
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
+    return PrismCard(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              '演示会创建一个临时实例并启动，验证启动 API 链路后可一键清理；'
+              '不会影响已有实例。',
+              style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                prism.OutlinedButton.icon(
+                  onPressed: _busy ? null : _healthCheck,
+                  icon: const Icon(Icons.health_and_safety_outlined, size: 18),
+                  label: const Text('健康检查'),
+                ),
+                prism.OutlinedButton.icon(
+                  onPressed: _busy || _demoProfileId.isNotEmpty
+                      ? null
+                      : _createProfile,
+                  icon: const Icon(Icons.add, size: 18),
+                  label: Text(_demoProfileId.isEmpty ? '创建演示实例' : '演示实例已创建'),
+                ),
+                prism.OutlinedButton.icon(
+                  onPressed: _busy || _demoLaunchCode.isEmpty
+                      ? null
+                      : _launchProfile,
+                  icon: const Icon(Icons.play_arrow, size: 18),
+                  label: const Text('启动演示实例'),
+                ),
+                prism.TextButton.icon(
+                  onPressed: _busy || _demoProfileId.isEmpty
+                      ? null
+                      : _deleteProfile,
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  label: const Text('删除演示实例'),
+                ),
+              ],
+            ),
+            if (_demoProfileId.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                '当前演示实例：$_demoProfileId · 启动码 $_demoLaunchCode',
+                style: TextStyle(fontSize: 12, color: colors.tertiary),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Container(
+              height: 220,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: colors.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: _logs.isEmpty
+                  ? Center(
+                      child: Text(
+                        '点击按钮开始演示，调用日志会显示在这里',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                    )
+                  : ListView(
+                      children: [
+                        for (final log in _logs)
+                          prism.SelectableText(
+                            log,
+                            style: const TextStyle(
+                              fontFamily: 'Consolas',
+                              fontSize: 12,
+                              height: 1.5,
+                            ),
+                          ),
+                      ],
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

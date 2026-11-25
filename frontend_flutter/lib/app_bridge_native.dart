@@ -13,6 +13,19 @@ class AppBridge {
   static int _nextSubscriptionId = 0;
   static bool _eventLoopRunning = false;
 
+  /// 前端操作日志埋点（对应旧版 wailsOperationLogger）：
+  /// 变更类方法成功记 info、失败记 error、查询类成功记 debug。
+  static final RegExp _mutationMethodPattern = RegExp(
+    r'(Create|Update|Delete|Save|Set|Import|Export|Install|Uninstall|Download'
+    r'|Start|Stop|Launch|Run|Clear|Move|Copy|Refresh|Sync|Validate|Toggle'
+    r'|Switch|Enable|Disable|Force|Quit|Open|Close|Apply|Bind|Unbind|Restart'
+    r'|Warmup|Probe|Check|Test)',
+  );
+  static const Set<String> _logSkipMethods = {
+    'GetAppLogs',
+    'FrontendOperationLog',
+  };
+
   static String get _baseUrl =>
       Platform.environment['ANT_BROWSER_NATIVE_RPC_URL'] ?? '';
   static String get _token =>
@@ -36,13 +49,52 @@ class AppBridge {
   }
 
   static Future<dynamic> call(String method, [List<Object?> arguments = const []]) async {
-    final response = await _post('/api/v1/invoke', {
-      'method': method,
-      'args': arguments,
-    });
-    final error = response['error'];
-    if (error != null) throw StateError(error.toString());
-    return response['value'];
+    final stopwatch = Stopwatch()..start();
+    dynamic value;
+    try {
+      final response = await _post('/api/v1/invoke', {
+        'method': method,
+        'args': arguments,
+      });
+      final error = response['error'];
+      if (error != null) throw StateError(error.toString());
+      value = response['value'];
+      _logOperation(method, true, stopwatch.elapsedMilliseconds, '');
+      return value;
+    } catch (error) {
+      _logOperation(
+        method,
+        false,
+        stopwatch.elapsedMilliseconds,
+        error.toString(),
+      );
+      rethrow;
+    }
+  }
+
+  /// 记录前端操作日志；日志失败绝不影响用户操作（fire-and-forget）。
+  static void _logOperation(String method, bool success, int durationMs,
+      String message) {
+    if (_logSkipMethods.contains(method)) return;
+    final level = !success
+        ? 'error'
+        : _mutationMethodPattern.hasMatch(method)
+        ? 'info'
+        : 'debug';
+    unawaited(() async {
+      try {
+        await _post('/api/v1/invoke', {
+          'method': 'FrontendOperationLog',
+          'args': [
+            level,
+            method,
+            success,
+            durationMs < 0 ? 0 : durationMs,
+            message.length > 1200 ? message.substring(0, 1200) : message,
+          ],
+        });
+      } catch (_) {}
+    }());
   }
 
   static void Function() onEvent(String eventName, void Function(dynamic) listener) {
