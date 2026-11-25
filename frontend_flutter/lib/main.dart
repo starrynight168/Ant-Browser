@@ -45,6 +45,8 @@ Future<void> main() async {
       if (value is String) setAppThemeMode(value);
       final color = saved['themeColor'];
       if (color is String) setAppThemeColor(color);
+      final style = saved['themeStyle'];
+      if (style is String) setAppThemeStyle(style);
     }
   } catch (_) {}
   runApp(const AntBrowserApp());
@@ -80,22 +82,77 @@ class AntBrowserApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<prism.ThemeMode>(
-      valueListenable: appThemeMode,
-      builder: (context, themeMode, child) {
-        return ValueListenableBuilder<int>(
-          valueListenable: appThemeColor,
-          builder: (context, seedColor, child) => prism.PrismApp(
-            title: 'Ant Browser',
-            debugShowCheckedModeBanner: false,
-            locale: const Locale('zh', 'CN'),
-            supportedLocales: const [Locale('zh', 'CN'), Locale('en', 'US')],
-            localizationsDelegates: [AntPrismLocalizationsDelegate()],
-            themeMode: themeMode,
-            theme: buildAntPrismTheme(Brightness.light, seedColor),
-            darkTheme: buildAntPrismTheme(Brightness.dark, seedColor),
-            home: const AntBrowserShell(),
-          ),
+    return ListenableBuilder(
+      listenable: Listenable.merge([appThemeMode, appThemeColor, appThemeStyle]),
+      builder: (context, _) {
+        final themeMode = appThemeMode.value;
+        final seedColor = appThemeColor.value;
+        final style = appThemeStyle.value;
+        return prism.PrismApp(
+          title: 'Ant Browser',
+          debugShowCheckedModeBanner: false,
+          locale: const Locale('zh', 'CN'),
+          supportedLocales: const [Locale('zh', 'CN'), Locale('en', 'US')],
+          localizationsDelegates: [AntPrismLocalizationsDelegate()],
+          themeMode: themeMode,
+          theme: buildAntPrismTheme(Brightness.light, seedColor, style),
+          darkTheme: buildAntPrismTheme(Brightness.dark, seedColor, style),
+          builder: (context, child) {
+            final size = MediaQuery.sizeOf(context);
+            final cs = prism.Theme.of(context).colorScheme;
+            return prism.ViewScope(
+              size: size,
+              isMobile: size.width < 600,
+              child: prism.ButtonTheme.merge(
+                data: prism.ButtonThemeData(
+                  outlined: prism.ButtonStyle(
+                    backgroundColor: WidgetStateProperty.fromMap({
+                      WidgetState.disabled: cs.surfaceContainerLow.withValues(
+                        alpha: 0.5,
+                      ),
+                      WidgetState.any: cs.surfaceContainerHigh,
+                    }),
+                    foregroundColor: WidgetStateProperty.fromMap({
+                      WidgetState.disabled: cs.onSurface.withValues(
+                        alpha: 0.38,
+                      ),
+                      WidgetState.any: cs.onSurface,
+                    }),
+                    side: WidgetStatePropertyAll(
+                      BorderSide(
+                        color: cs.outlineVariant.withValues(alpha: 0.35),
+                        width: 1,
+                      ),
+                    ),
+                    shape: prism.AppShape.full,
+                    minimumSize: const Size(0, 38),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 0,
+                    ),
+                  ),
+                  filled: prism.ButtonStyle(
+                    shape: prism.AppShape.full,
+                    minimumSize: const Size(0, 38),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 0,
+                    ),
+                  ),
+                  text: prism.ButtonStyle(
+                    shape: prism.AppShape.full,
+                    minimumSize: const Size(0, 36),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 0,
+                    ),
+                  ),
+                ),
+                child: child!,
+              ),
+            );
+          },
+          home: const AntBrowserShell(),
         );
       },
     );
@@ -4269,17 +4326,14 @@ class _BrowserListPageState extends State<BrowserListPage> {
         visibleIds.isNotEmpty && visibleIds.every(_selectedProfileIds.contains);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(28, 12, 28, 24),
+      padding: const EdgeInsets.fromLTRB(24, 6, 24, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          Row(
             children: [
               SizedBox(
-                width: 148,
+                width: 144,
                 child: prism.SegmentedControl<String>(
                   segments: const [('list', '列表'), ('card', '卡片')],
                   value: _viewMode,
@@ -4288,64 +4342,78 @@ class _BrowserListPageState extends State<BrowserListPage> {
                   },
                 ),
               ),
-              prism.OutlinedButton.icon(
-                onPressed: _loading ? null : _reload,
-                icon: const PrismGlyph(AntGlyphs.refresh, size: 16),
-                label: const Text('刷新'),
+              const SizedBox(width: 12),
+              prism.TonalButtonGroup(
+                size: prism.TonalButtonSize.section,
+                children: [
+                  prism.IconButton(
+                    tooltip: '刷新列表',
+                    onPressed: _loading ? null : _reload,
+                    icon: const PrismGlyph(AntGlyphs.refresh, size: 17),
+                  ),
+                  prism.IconButton(
+                    tooltip: _filtersCollapsed ? '展开筛选' : '收起筛选',
+                    onPressed: _toggleFiltersCollapsed,
+                    icon: PrismGlyph(
+                      _filtersCollapsed
+                          ? AntGlyphs.chevronDown
+                          : AntGlyphs.chevronUp,
+                      size: 17,
+                    ),
+                  ),
+                  prism.IconButton(
+                    tooltip: '实例分组',
+                    onPressed: _manageGroups,
+                    icon: const PrismGlyph(AntGlyphs.folder, size: 17),
+                  ),
+                  prism.IconButton(
+                    tooltip: '回收站',
+                    onPressed: _showTrash,
+                    icon: const PrismGlyph(AntGlyphs.delete, size: 17),
+                  ),
+                  prism.IconButton(
+                    tooltip: '打开用户数据根目录',
+                    onPressed: () async {
+                      try {
+                        await AppBridge.call('OpenUserDataRoot');
+                      } catch (error) {
+                        if (mounted) {
+                          showPrismNotice(context, '打开用户数据根目录失败：$error');
+                        }
+                      }
+                    },
+                    icon: const PrismGlyph(AntGlyphs.folderSpecial, size: 17),
+                  ),
+                ],
               ),
-              prism.OutlinedButton.icon(
-                onPressed: _toggleFiltersCollapsed,
-                icon: PrismGlyph(
-                  _filtersCollapsed
-                      ? AntGlyphs.chevronDown
-                      : AntGlyphs.chevronUp,
-                  size: 16,
-                ),
-                label: Text(_filtersCollapsed ? '展开筛选' : '收起筛选'),
-              ),
-              prism.OutlinedButton.icon(
-                onPressed: _showTrash,
-                icon: const PrismGlyph(AntGlyphs.delete, size: 16),
-                label: const Text('回收站'),
-              ),
-              prism.OutlinedButton.icon(
-                onPressed: _manageGroups,
-                icon: const PrismGlyph(AntGlyphs.folder, size: 16),
-                label: const Text('分组'),
-              ),
-              if (widget.onOpenBackup != null)
-                prism.OutlinedButton.icon(
-                  onPressed: widget.onOpenBackup,
-                  icon: const PrismGlyph(AntGlyphs.archive, size: 16),
-                  label: const Text('全局备份'),
-                ),
-              prism.IconButton(
-                tooltip: '打开用户数据根目录',
-                onPressed: () async {
-                  try {
-                    await AppBridge.call('OpenUserDataRoot');
-                  } catch (error) {
-                    if (mounted) {
-                      showPrismNotice(context, '打开用户数据根目录失败：$error');
-                    }
-                  }
-                },
-                icon: const PrismGlyph(AntGlyphs.folderSpecial, size: 18),
-              ),
-              prism.OutlinedButton.icon(
-                onPressed: _importProfiles,
-                icon: const PrismGlyph(AntGlyphs.upload, size: 16),
-                label: const Text('导入实例'),
-              ),
-              prism.OutlinedButton.icon(
-                onPressed: _profiles.isEmpty ? null : _exportProfiles,
-                icon: const PrismGlyph(AntGlyphs.download, size: 16),
-                label: const Text('导出实例'),
-              ),
-              prism.FilledButton.icon(
-                onPressed: () => _editProfile(),
-                icon: const PrismGlyph(AntGlyphs.add, size: 16),
-                label: const Text('新建配置'),
+              const Spacer(),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  if (widget.onOpenBackup != null)
+                    prism.OutlinedButton.icon(
+                      onPressed: widget.onOpenBackup,
+                      icon: const PrismGlyph(AntGlyphs.archive, size: 15),
+                      label: const Text('全局备份'),
+                    ),
+                  prism.OutlinedButton.icon(
+                    onPressed: _importProfiles,
+                    icon: const PrismGlyph(AntGlyphs.upload, size: 15),
+                    label: const Text('导入'),
+                  ),
+                  prism.OutlinedButton.icon(
+                    onPressed: _profiles.isEmpty ? null : _exportProfiles,
+                    icon: const PrismGlyph(AntGlyphs.download, size: 15),
+                    label: const Text('导出'),
+                  ),
+                  prism.FilledButton.icon(
+                    onPressed: () => _editProfile(),
+                    icon: const PrismGlyph(AntGlyphs.add, size: 16),
+                    label: const Text('新建配置'),
+                  ),
+                ],
               ),
             ],
           ),

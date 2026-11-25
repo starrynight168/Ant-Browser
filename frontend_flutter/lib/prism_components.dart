@@ -457,45 +457,59 @@ class PrismCodeSurface extends StatelessWidget {
     return prism.Surface(
       color: colors.surfaceContainerLow,
       shape: prism.AppShape.lg,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (showCopy || (language != null && language!.isNotEmpty))
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 6, 6, 0),
-              child: Row(
-                children: [
-                  if (language != null && language!.isNotEmpty)
-                    Text(
-                      language!.toUpperCase(),
-                      style: prism.AppTextStyle.caption2
-                          .of(context, emphasized: true)
-                          .copyWith(color: colors.onSurfaceVariant),
-                    ),
-                  const Spacer(),
-                  if (showCopy)
-                    prism.IconButton(
-                      tooltip: '复制代码',
-                      onPressed: () {
-                        Clipboard.setData(ClipboardData(text: code));
-                        showPrismNotice(context, '已复制到剪贴板');
-                      },
-                      icon: const PrismGlyph(AntGlyphs.copy, size: 15),
-                    ),
-                ],
-              ),
-            ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
-            child: maxHeight == null
-                ? body
-                : ConstrainedBox(
-                    constraints: BoxConstraints(maxHeight: maxHeight!),
-                    child: SingleChildScrollView(child: body),
+      clipBehavior: Clip.antiAlias,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final bounded = constraints.hasBoundedHeight;
+          final codeChild = bounded
+              ? Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+                    child: body,
                   ),
-          ),
-        ],
+                )
+              : Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+                  child: maxHeight == null
+                      ? body
+                      : ConstrainedBox(
+                          constraints: BoxConstraints(maxHeight: maxHeight!),
+                          child: SingleChildScrollView(child: body),
+                        ),
+                );
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (showCopy || (language != null && language!.isNotEmpty))
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 6, 6, 0),
+                  child: Row(
+                    children: [
+                      if (language != null && language!.isNotEmpty)
+                        Text(
+                          language!.toUpperCase(),
+                          style: prism.AppTextStyle.caption2
+                              .of(context, emphasized: true)
+                              .copyWith(color: colors.onSurfaceVariant),
+                        ),
+                      const Spacer(),
+                      if (showCopy)
+                        prism.IconButton(
+                          tooltip: '复制代码',
+                          onPressed: () {
+                            Clipboard.setData(ClipboardData(text: code));
+                            showPrismNotice(context, '已复制到剪贴板');
+                          },
+                          icon: const PrismGlyph(AntGlyphs.copy, size: 15),
+                        ),
+                    ],
+                  ),
+                ),
+              codeChild,
+            ],
+          );
+        },
       ),
     );
   }
@@ -1036,15 +1050,129 @@ class PrismDialog extends StatelessWidget {
     _ => '',
   };
 
+  List<Widget> _normalizeAlertActions(List<Widget>? raw) {
+    if (raw == null || raw.isEmpty) return const [];
+    return [
+      for (final action in raw)
+        if (action is prism.FilledButton)
+          action.icon == null
+              ? prism.TextButton(
+                  onPressed: action.onPressed,
+                  child: action.child,
+                )
+              : prism.TextButton.icon(
+                  onPressed: action.onPressed,
+                  icon: action.icon!,
+                  label: action.child,
+                )
+        else if (action is prism.OutlinedButton)
+          action.icon == null
+              ? prism.TextButton(
+                  onPressed: action.onPressed,
+                  child: action.child,
+                )
+              : prism.TextButton.icon(
+                  onPressed: action.onPressed,
+                  icon: action.icon!,
+                  label: action.child,
+                )
+        else
+          action,
+    ];
+  }
+
   @override
-  Widget build(BuildContext context) => prism.AlertDialog(
-    title: _titleText,
-    child: content,
-    actions: actions,
-    hasFields: hasFields,
-    destructive: destructive,
-    padding: padding,
-  );
+  Widget build(BuildContext context) {
+    final wideBox = content is SizedBox ? content as SizedBox : null;
+    final requestedWidth = wideBox?.width;
+    if (requestedWidth != null && requestedWidth >= 420) {
+      final colors = prism.Theme.of(context).colorScheme;
+      final screen = MediaQuery.sizeOf(context);
+      final maxW = (requestedWidth + 48).clamp(440.0, screen.width - 72);
+      final maxH = (screen.height - 72).clamp(320.0, 820.0);
+      final innerChild = wideBox?.child ?? content;
+      final requestedHeight = wideBox?.height;
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxW, maxHeight: maxH),
+            child: prism.Surface(
+              color: colors.surface,
+              shape: prism.AppShape.all(prism.AppCorner.xxl),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (_titleText.isNotEmpty) ...[
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 18, 16, 14),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _titleText,
+                              style: prism.AppTextStyle.title3.of(
+                                context,
+                                emphasized: true,
+                              ),
+                            ),
+                          ),
+                          prism.IconButton(
+                            tooltip: '关闭',
+                            onPressed: () => Navigator.of(context).maybePop(),
+                            icon: const PrismGlyph(AntGlyphs.close, size: 18),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const prism.Divider(height: 1),
+                  ],
+                  if (innerChild != null)
+                    Flexible(
+                      child: Padding(
+                        padding:
+                            padding ??
+                            const EdgeInsets.fromLTRB(24, 18, 24, 18),
+                        child: requestedHeight != null
+                            ? ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  maxHeight: requestedHeight,
+                                ),
+                                child: innerChild,
+                              )
+                            : innerChild,
+                      ),
+                    ),
+                  if (actions != null && actions!.isNotEmpty) ...[
+                    const prism.Divider(height: 1),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                      child: Wrap(
+                        alignment: WrapAlignment.end,
+                        spacing: 10,
+                        runSpacing: 8,
+                        children: actions!,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    return prism.AlertDialog(
+      title: _titleText,
+      child: content,
+      actions: _normalizeAlertActions(actions),
+      hasFields: hasFields,
+      destructive: destructive,
+      padding: padding,
+    );
+  }
 }
 
 Future<T?> showPrismDialog<T>({

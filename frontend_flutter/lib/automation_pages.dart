@@ -3056,19 +3056,22 @@ class _AutomationScriptDetailPageState
                 ),
               ),
             ),
-            prism.SegmentedControl<int>(
-              segments: const [(0, '可视化编辑'), (1, 'JSON')],
-              value: _apiVarEditorMode,
-              onChanged: (mode) {
-                setState(() {
-                  if (mode == 1) {
-                    _syncJsonFromVarRows();
-                  } else {
-                    _syncVarRowsFromJson();
-                  }
-                  _apiVarEditorMode = mode;
-                });
-              },
+            SizedBox(
+              width: 220,
+              child: prism.SegmentedControl<int>(
+                segments: const [(0, '可视化编辑'), (1, 'JSON')],
+                value: _apiVarEditorMode,
+                onChanged: (mode) {
+                  setState(() {
+                    if (mode == 1) {
+                      _syncJsonFromVarRows();
+                    } else {
+                      _syncVarRowsFromJson();
+                    }
+                    _apiVarEditorMode = mode;
+                  });
+                },
+              ),
             ),
           ],
         ),

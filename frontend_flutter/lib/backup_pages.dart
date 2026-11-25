@@ -1844,7 +1844,7 @@ class _BackupPageState extends State<BackupPage>
   Widget build(BuildContext context) {
     final colors = prism.Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(24, 6, 24, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1852,39 +1852,48 @@ class _BackupPageState extends State<BackupPage>
             children: [
               Expanded(
                 child: Text(
-                  '备份与恢复',
-                  style: prism.AppTextStyle.title2.of(
-                    context,
-                    emphasized: true,
-                  ),
+                  '管理本地与云端（OpenList / S3）备份包及定时任务',
+                  style: prism.AppTextStyle.footnote
+                      .of(context)
+                      .copyWith(color: colors.onSurfaceVariant),
                 ),
               ),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
+              prism.TonalButtonGroup(
+                size: prism.TonalButtonSize.section,
                 children: [
-                  prism.OutlinedButton.icon(
+                  prism.IconButton(
+                    tooltip: 'OpenList 设置',
                     onPressed: widget.onOpenOpenList,
-                    icon: const PrismGlyph(AntGlyphs.cloud, size: 16),
-                    label: const Text('OpenList'),
+                    icon: const PrismGlyph(AntGlyphs.cloud, size: 17),
                   ),
-                  prism.OutlinedButton.icon(
+                  prism.IconButton(
+                    tooltip: 'S3 设置',
                     onPressed: widget.onOpenS3,
-                    icon: const PrismGlyph(AntGlyphs.cloudUpload, size: 16),
-                    label: const Text('S3 设置'),
+                    icon: const PrismGlyph(AntGlyphs.cloudUpload, size: 17),
                   ),
-                  prism.OutlinedButton.icon(
+                  prism.IconButton(
+                    tooltip: '定时备份',
                     onPressed: _openScheduledBackupModal,
-                    icon: const PrismGlyph(AntGlyphs.schedule, size: 16),
-                    label: const Text('定时备份'),
+                    icon: const PrismGlyph(AntGlyphs.schedule, size: 17),
                   ),
                   prism.IconButton(
                     tooltip: '刷新',
                     onPressed: _loading ? null : _load,
-                    icon: const PrismGlyph(AntGlyphs.refresh, size: 18),
+                    icon: const PrismGlyph(AntGlyphs.refresh, size: 17),
                   ),
                 ],
+              ),
+              const SizedBox(width: 10),
+              prism.OutlinedButton.icon(
+                onPressed: _busy.isEmpty ? _importBackup : null,
+                icon: const PrismGlyph(AntGlyphs.restore, size: 15),
+                label: const Text('导入备份'),
+              ),
+              const SizedBox(width: 8),
+              prism.FilledButton.icon(
+                onPressed: _busy.isEmpty ? _createBackup : null,
+                icon: const PrismGlyph(AntGlyphs.archive, size: 15),
+                label: Text(_busy == 'backup' ? '备份中…' : '立即备份'),
               ),
             ],
           ),
@@ -1940,17 +1949,20 @@ class _BackupPageState extends State<BackupPage>
                   style: prism.AppTextStyle.headline.of(context),
                 ),
               ),
-              prism.SegmentedControl<int>(
-                segments: const [(0, '本地'), (1, 'OpenList'), (2, 'S3')],
-                value: _historyTab,
-                onChanged: (value) {
-                  setState(() => _historyTab = value);
-                  if (value == 1 && _openListConfigured) {
-                    _loadOpenListBackups();
-                  } else if (value == 2 && _s3Configured) {
-                    _loadS3Backups();
-                  }
-                },
+              SizedBox(
+                width: 280,
+                child: prism.SegmentedControl<int>(
+                  segments: const [(0, '本地'), (1, 'OpenList'), (2, 'S3')],
+                  value: _historyTab,
+                  onChanged: (value) {
+                    setState(() => _historyTab = value);
+                    if (value == 1 && _openListConfigured) {
+                      _loadOpenListBackups();
+                    } else if (value == 2 && _s3Configured) {
+                      _loadS3Backups();
+                    }
+                  },
+                ),
               ),
             ],
           ),
