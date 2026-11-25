@@ -115,10 +115,14 @@ class PrismBadge extends StatelessWidget {
       ),
     );
     if (onPressed == null) return content;
-    return prism.PressRegion(
-      onTap: onPressed,
-      shape: prism.AppShape.full,
-      child: content,
+    return PrismHoverMotion(
+      hoverScale: 1.03,
+      pressScale: 0.96,
+      child: prism.PressRegion(
+        onTap: onPressed,
+        shape: prism.AppShape.full,
+        child: content,
+      ),
     );
   }
 }
@@ -262,7 +266,7 @@ class PrismMetricTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = prism.Theme.of(context).colorScheme;
     final palette = PrismToneColors.of(context, tone);
-    return prism.Card(
+    final card = prism.Card(
       radius: prism.AppCorner.lg,
       onPressed: onPressed,
       inert: onPressed == null,
@@ -321,6 +325,8 @@ class PrismMetricTile extends StatelessWidget {
         ],
       ),
     );
+    if (onPressed == null) return card;
+    return PrismHoverMotion(hoverScale: 1.02, pressScale: 0.98, child: card);
   }
 }
 
@@ -922,16 +928,21 @@ class PrismChip extends StatelessWidget {
   final VoidCallback? onDeleted;
 
   @override
-  Widget build(BuildContext context) => prism.Chip(
-    label: switch (label) {
-      Text(:final data) => data ?? '',
-      _ => '',
-    },
-    selected: selected,
-    onPressed:
-        onPressed ?? (onSelected == null ? null : () => onSelected!(!selected)),
-    onDeleted: onDeleted,
-  );
+  Widget build(BuildContext context) {
+    final effectiveOnPressed =
+        onPressed ?? (onSelected == null ? null : () => onSelected!(!selected));
+    final chip = prism.Chip(
+      label: switch (label) {
+        Text(:final data) => data ?? '',
+        _ => '',
+      },
+      selected: selected,
+      onPressed: effectiveOnPressed,
+      onDeleted: onDeleted,
+    );
+    if (effectiveOnPressed == null && onDeleted == null) return chip;
+    return PrismHoverMotion(hoverScale: 1.03, pressScale: 0.96, child: chip);
+  }
 }
 
 class _PrismDropdownFieldState<T> extends State<PrismDropdownField<T>> {
@@ -1208,6 +1219,58 @@ class PrismProgressIndicator extends StatelessWidget {
   Widget build(BuildContext context) => prism.ActivityIndicator(size: size);
 }
 
+class PrismHoverMotion extends StatefulWidget {
+  const PrismHoverMotion({
+    super.key,
+    required this.child,
+    this.enabled = true,
+    this.hoverScale = 1.025,
+    this.pressScale = 0.97,
+  });
+
+  final Widget child;
+  final bool enabled;
+  final double hoverScale;
+  final double pressScale;
+
+  @override
+  State<PrismHoverMotion> createState() => _PrismHoverMotionState();
+}
+
+class _PrismHoverMotionState extends State<PrismHoverMotion> {
+  bool _hovered = false;
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.enabled) return widget.child;
+    final scale = _pressed
+        ? widget.pressScale
+        : _hovered
+        ? widget.hoverScale
+        : 1.0;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() {
+        _hovered = false;
+        _pressed = false;
+      }),
+      child: Listener(
+        onPointerDown: (_) => setState(() => _pressed = true),
+        onPointerUp: (_) => setState(() => _pressed = false),
+        onPointerCancel: (_) => setState(() => _pressed = false),
+        child: AnimatedScale(
+          scale: scale,
+          duration: Duration(milliseconds: _pressed ? 90 : 180),
+          curve: Curves.easeOutCubic,
+          child: widget.child,
+        ),
+      ),
+    );
+  }
+}
+
 class PrismTonalButton extends StatelessWidget {
   const PrismTonalButton({
     super.key,
@@ -1230,17 +1293,40 @@ class PrismTonalButton extends StatelessWidget {
   final prism.ButtonStyle? style;
 
   @override
-  Widget build(BuildContext context) => prism.TonalButtonTheme(
-    size: prism.TonalButtonSize.section,
-    child: icon == null
-        ? prism.FilledButton(onPressed: onPressed, style: style, child: child)
+  Widget build(BuildContext context) {
+    final cs = prism.Theme.of(context).colorScheme;
+    final tonalStyle = prism.ButtonStyle(
+      backgroundColor: WidgetStateProperty.fromMap({
+        WidgetState.disabled: cs.surfaceContainerHigh.withValues(alpha: 0.5),
+        WidgetState.hovered: cs.primaryContainer,
+        WidgetState.any: cs.secondaryContainer,
+      }),
+      foregroundColor: WidgetStateProperty.fromMap({
+        WidgetState.disabled: cs.onSurface.withValues(alpha: 0.38),
+        WidgetState.any: cs.onSecondaryContainer,
+      }),
+      overlayColor: WidgetStateProperty.fromMap({
+        WidgetState.hovered: cs.onSecondaryContainer.withValues(alpha: 0.08),
+        WidgetState.pressed: cs.onSecondaryContainer.withValues(alpha: 0.14),
+        WidgetState.any: const Color(0x00000000),
+      }),
+      shape: prism.AppShape.full,
+      minimumSize: const Size(0, 38),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+    ).merge(style);
+    return icon == null
+        ? prism.FilledButton(
+            onPressed: onPressed,
+            style: tonalStyle,
+            child: child,
+          )
         : prism.FilledButton.icon(
             onPressed: onPressed,
-            style: style,
+            style: tonalStyle,
             icon: icon!,
             label: child,
-          ),
-  );
+          );
+  }
 }
 
 class PrismSwitchTile extends StatelessWidget {

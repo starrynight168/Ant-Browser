@@ -723,25 +723,38 @@ class _StyledButtonState extends State<_StyledButton> {
     if (widget.tooltip case final tooltip?) {
       content = Tooltip(message: tooltip, child: content);
     }
-    return PressSurface(
-      fill: fill,
-      shape: _resolve((style) => style?.shape)!,
-      look: _resolve((style) => style?.pressLook)!,
-      side: _resolveFor((style) => style?.side) ?? BorderSide.none,
-      ringStandsOff: _resolve((style) => style?.ringStandsOff)!,
-      foreground: _resolveFor((style) => style?.foregroundColor),
-      iconSize: _resolve((style) => style?.iconSize),
-      textStyle: _resolve((style) => style?.textStyle),
-      minimum: _constraintsOf(density),
-      tapTarget: tapTarget,
-      onPressed: widget.onPressed,
-      selected: widget.selected,
-      statesController: _states,
-      reportsHover: true,
-      showsHover: !_stylesHover,
-      childFills: true,
-      clipsChild: backgroundBuilder != null,
-      child: content,
+    final enabled = widget.onPressed != null;
+    final pressed = enabled && _states.value.contains(WidgetState.pressed);
+    final hovered = enabled && _states.value.contains(WidgetState.hovered);
+    final scale = pressed
+        ? 0.965
+        : hovered
+        ? 1.025
+        : 1.0;
+    return AnimatedScale(
+      scale: scale,
+      duration: Duration(milliseconds: pressed ? 85 : 170),
+      curve: Curves.easeOutCubic,
+      child: PressSurface(
+        fill: fill,
+        shape: _resolve((style) => style?.shape)!,
+        look: _resolve((style) => style?.pressLook)!,
+        side: _resolveFor((style) => style?.side) ?? BorderSide.none,
+        ringStandsOff: _resolve((style) => style?.ringStandsOff)!,
+        foreground: _resolveFor((style) => style?.foregroundColor),
+        iconSize: _resolve((style) => style?.iconSize),
+        textStyle: _resolve((style) => style?.textStyle),
+        minimum: _constraintsOf(density),
+        tapTarget: tapTarget,
+        onPressed: widget.onPressed,
+        selected: widget.selected,
+        statesController: _states,
+        reportsHover: true,
+        showsHover: !_stylesHover,
+        childFills: true,
+        clipsChild: backgroundBuilder != null,
+        child: content,
+      ),
     );
   }
 }

@@ -107,31 +107,42 @@ class AntBrowserApp extends StatelessWidget {
                 data: prism.ButtonThemeData(
                   outlined: prism.ButtonStyle(
                     backgroundColor: WidgetStateProperty.fromMap({
-                      WidgetState.disabled: cs.surfaceContainerLow.withValues(
-                        alpha: 0.5,
+                      WidgetState.disabled: cs.surfaceContainerHigh.withValues(
+                        alpha: 0.45,
                       ),
-                      WidgetState.any: cs.surfaceContainerHigh,
+                      WidgetState.hovered: cs.primaryContainer,
+                      WidgetState.any: cs.secondaryContainer,
                     }),
                     foregroundColor: WidgetStateProperty.fromMap({
                       WidgetState.disabled: cs.onSurface.withValues(
                         alpha: 0.38,
                       ),
-                      WidgetState.any: cs.onSurface,
+                      WidgetState.hovered: cs.onPrimaryContainer,
+                      WidgetState.any: cs.onSecondaryContainer,
                     }),
-                    side: WidgetStatePropertyAll(
-                      BorderSide(
-                        color: cs.outlineVariant.withValues(alpha: 0.35),
-                        width: 1,
+                    overlayColor: WidgetStateProperty.fromMap({
+                      WidgetState.hovered: cs.onSecondaryContainer.withValues(
+                        alpha: 0.08,
                       ),
-                    ),
+                      WidgetState.pressed: cs.onSecondaryContainer.withValues(
+                        alpha: 0.14,
+                      ),
+                      WidgetState.any: const Color(0x00000000),
+                    }),
+                    side: const WidgetStatePropertyAll(BorderSide.none),
                     shape: prism.AppShape.full,
                     minimumSize: const Size(0, 38),
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
+                      horizontal: 15,
                       vertical: 0,
                     ),
                   ),
                   filled: prism.ButtonStyle(
+                    overlayColor: WidgetStateProperty.fromMap({
+                      WidgetState.hovered: cs.onPrimary.withValues(alpha: 0.14),
+                      WidgetState.pressed: cs.onPrimary.withValues(alpha: 0.22),
+                      WidgetState.any: const Color(0x00000000),
+                    }),
                     shape: prism.AppShape.full,
                     minimumSize: const Size(0, 38),
                     padding: const EdgeInsets.symmetric(
@@ -140,12 +151,42 @@ class AntBrowserApp extends StatelessWidget {
                     ),
                   ),
                   text: prism.ButtonStyle(
+                    backgroundColor: WidgetStateProperty.fromMap({
+                      WidgetState.disabled: const Color(0x00000000),
+                      WidgetState.hovered: cs.secondaryContainer,
+                      WidgetState.any: cs.surfaceContainerHigh.withValues(
+                        alpha: 0.72,
+                      ),
+                    }),
+                    foregroundColor: WidgetStateProperty.fromMap({
+                      WidgetState.disabled: cs.onSurface.withValues(
+                        alpha: 0.38,
+                      ),
+                      WidgetState.hovered: cs.onSecondaryContainer,
+                      WidgetState.any: cs.onSurface,
+                    }),
+                    overlayColor: WidgetStateProperty.fromMap({
+                      WidgetState.hovered: cs.onSecondaryContainer.withValues(
+                        alpha: 0.08,
+                      ),
+                      WidgetState.pressed: cs.onSecondaryContainer.withValues(
+                        alpha: 0.14,
+                      ),
+                      WidgetState.any: const Color(0x00000000),
+                    }),
                     shape: prism.AppShape.full,
-                    minimumSize: const Size(0, 36),
+                    minimumSize: const Size(0, 38),
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
+                      horizontal: 14,
                       vertical: 0,
                     ),
+                  ),
+                  icon: prism.ButtonStyle(
+                    overlayColor: WidgetStateProperty.fromMap({
+                      WidgetState.hovered: cs.onSurface.withValues(alpha: 0.10),
+                      WidgetState.pressed: cs.onSurface.withValues(alpha: 0.16),
+                      WidgetState.any: const Color(0x00000000),
+                    }),
                   ),
                 ),
                 child: child!,
@@ -375,7 +416,7 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
               const SizedBox(width: 10),
               Expanded(
                 child: prism.Surface(
-                  color: prism.ColorScheme.of(context).surface,
+                  color: prism.SurfaceLevel.page.colorOf(colors),
                   shape: prism.AppShape.xxl,
                   clipBehavior: Clip.antiAlias,
                   child: Column(

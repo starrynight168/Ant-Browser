@@ -577,93 +577,90 @@ class _SettingsPageState extends State<SettingsPage> {
           // ── Left Category Rail (macOS / iPadOS Prism Settings) ──
           SizedBox(
             width: 244,
-            child: prism.Surface(
-              color: colors.surfaceContainerLow,
-              shape: prism.AppShape.xl,
-              clipBehavior: Clip.antiAlias,
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
-                      child: Text(
-                        '设置分类',
-                        style: prism.AppTextStyle.caption1
-                            .of(context, emphasized: true)
-                            .copyWith(color: colors.onSurfaceVariant),
-                      ),
+            child: prism.Card(
+              radius: prism.AppCorner.xl,
+              inert: true,
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
+                    child: Text(
+                      '设置分类',
+                      style: prism.AppTextStyle.caption1
+                          .of(context, emphasized: true)
+                          .copyWith(color: colors.onSurfaceVariant),
                     ),
-                    for (final section in _SettingsSection.values) ...[
-                      _CategoryRailTile(
-                        section: section,
-                        selected: _activeSection == section,
-                        statusTone: switch (section) {
-                          _SettingsSection.automation =>
-                            automationReady
-                                ? PrismTone.success
-                                : automationInstalling
-                                ? PrismTone.warning
-                                : PrismTone.danger,
-                          _SettingsSection.launchApi =>
-                            launchReady ? PrismTone.success : PrismTone.neutral,
-                          _ => null,
-                        },
-                        onTap: () => setState(() => _activeSection = section),
-                      ),
-                      const SizedBox(height: 4),
-                    ],
-                    const Spacer(),
-                    const prism.Divider(height: 16),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              _hasChanges ? '有未保存更改' : '配置已同步',
-                              style: prism.AppTextStyle.caption1
-                                  .of(context, emphasized: _hasChanges)
-                                  .copyWith(
-                                    color: _hasChanges
-                                        ? PrismToneColors.of(
-                                            context,
-                                            PrismTone.warning,
-                                          ).fg
-                                        : colors.onSurfaceVariant,
-                                  ),
-                            ),
-                          ),
-                          prism.TonalButtonGroup(
-                            size: prism.TonalButtonSize.compact,
-                            children: [
-                              prism.IconButton(
-                                tooltip: '恢复默认',
-                                onPressed: _saving ? null : _reset,
-                                icon: const PrismGlyph(
-                                  AntGlyphs.restore,
-                                  size: 16,
-                                ),
-                              ),
-                              prism.IconButton(
-                                tooltip: '重新加载',
-                                onPressed: _loading || _saving ? null : _load,
-                                icon: const PrismGlyph(
-                                  AntGlyphs.refresh,
-                                  size: 16,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                  ),
+                  for (final section in _SettingsSection.values) ...[
+                    _CategoryRailTile(
+                      section: section,
+                      selected: _activeSection == section,
+                      statusTone: switch (section) {
+                        _SettingsSection.automation =>
+                          automationReady
+                              ? PrismTone.success
+                              : automationInstalling
+                              ? PrismTone.warning
+                              : PrismTone.danger,
+                        _SettingsSection.launchApi =>
+                          launchReady ? PrismTone.success : PrismTone.neutral,
+                        _ => null,
+                      },
+                      onTap: () => setState(() => _activeSection = section),
                     ),
+                    const SizedBox(height: 4),
                   ],
-                ),
+                  const Spacer(),
+                  const prism.Divider(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _hasChanges ? '有未保存更改' : '配置已同步',
+                            style: prism.AppTextStyle.caption1
+                                .of(context, emphasized: _hasChanges)
+                                .copyWith(
+                                  color: _hasChanges
+                                      ? PrismToneColors.of(
+                                          context,
+                                          PrismTone.warning,
+                                        ).fg
+                                      : colors.onSurfaceVariant,
+                                ),
+                          ),
+                        ),
+                        prism.TonalButtonGroup(
+                          size: prism.TonalButtonSize.compact,
+                          children: [
+                            prism.IconButton(
+                              tooltip: '恢复默认',
+                              onPressed: _saving ? null : _reset,
+                              icon: const PrismGlyph(
+                                AntGlyphs.restore,
+                                size: 16,
+                              ),
+                            ),
+                            prism.IconButton(
+                              tooltip: '重新加载',
+                              onPressed: _loading || _saving ? null : _load,
+                              icon: const PrismGlyph(
+                                AntGlyphs.refresh,
+                                size: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -719,10 +716,13 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                         const SizedBox(width: 10),
                       ],
-                      prism.FilledButton.icon(
-                        onPressed: _saving || !_hasChanges ? null : _save,
-                        icon: const PrismGlyph(AntGlyphs.save, size: 16),
-                        label: Text(_saving ? '保存中…' : '保存更改'),
+                      PrismHoverMotion(
+                        enabled: !_saving && _hasChanges,
+                        child: prism.FilledButton.icon(
+                          onPressed: _saving || !_hasChanges ? null : _save,
+                          icon: const PrismGlyph(AntGlyphs.save, size: 16),
+                          label: Text(_saving ? '保存中…' : '保存更改'),
+                        ),
                       ),
                     ],
                   ),
@@ -735,13 +735,17 @@ class _SettingsPageState extends State<SettingsPage> {
                 Expanded(
                   child: prism.PageTransitionSwitcher(
                     duration: const Duration(milliseconds: 220),
+                    layoutBuilder: (entries) => Stack(
+                      alignment: Alignment.topLeft,
+                      children: entries,
+                    ),
                     transitionBuilder: (child, animation, secondaryAnimation) =>
                         prism.FadeThroughTransition(
                           animation: animation,
                           secondaryAnimation: secondaryAnimation,
                           child: child,
                         ),
-                    child: KeyedSubtree(
+                    child: SizedBox.expand(
                       key: ValueKey(_activeSection),
                       child: SingleChildScrollView(
                         padding: const EdgeInsets.only(bottom: 24),
@@ -826,8 +830,19 @@ class _SettingsPageState extends State<SettingsPage> {
                 spacing: 8,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  prism.FilledButton(onPressed: () {}, child: const Text('主按钮')),
+                  PrismHoverMotion(
+                    child: prism.FilledButton(
+                      onPressed: () {},
+                      child: const Text('主按钮'),
+                    ),
+                  ),
                   PrismTonalButton(onPressed: () {}, child: const Text('柔和按钮')),
+                  PrismHoverMotion(
+                    child: prism.OutlinedButton(
+                      onPressed: () {},
+                      child: const Text('次按钮'),
+                    ),
+                  ),
                   prism.Switch(value: true, onChanged: (_) {}),
                 ],
               ),
@@ -1443,72 +1458,76 @@ class _CategoryRailTile extends StatelessWidget {
     final dotColor = statusTone == null
         ? null
         : PrismToneColors.of(context, statusTone!).fg;
-    return prism.PressRegion(
-      onTap: onTap,
-      shape: prism.AppShape.lg,
-      child: prism.Surface(
-        color: selected ? colors.primaryContainer : const Color(0x00000000),
+    return PrismHoverMotion(
+      hoverScale: 1.015,
+      pressScale: 0.985,
+      child: prism.PressRegion(
+        onTap: onTap,
         shape: prism.AppShape.lg,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
-            children: [
-              PrismGlyph(
-                section.glyph,
-                size: 18,
-                color: selected
-                    ? colors.onPrimaryContainer
-                    : colors.onSurfaceVariant,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      section.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: prism.AppTextStyle.subheadline
-                          .of(context, emphasized: selected)
-                          .copyWith(
-                            color: selected
-                                ? colors.onPrimaryContainer
-                                : colors.onSurface,
-                          ),
-                    ),
-                    Text(
-                      section.subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: prism.AppTextStyle.caption2
-                          .of(context)
-                          .copyWith(
-                            color: selected
-                                ? colors.onPrimaryContainer.withValues(
-                                    alpha: 0.78,
-                                  )
-                                : colors.onSurfaceVariant,
-                          ),
-                    ),
-                  ],
+        child: prism.Surface(
+          color: selected ? colors.primaryContainer : const Color(0x00000000),
+          shape: prism.AppShape.lg,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                PrismGlyph(
+                  section.glyph,
+                  size: 18,
+                  color: selected
+                      ? colors.onPrimaryContainer
+                      : colors.onSurfaceVariant,
                 ),
-              ),
-              if (dotColor != null) ...[
-                const SizedBox(width: 6),
-                SizedBox(
-                  width: 7,
-                  height: 7,
-                  child: DecoratedBox(
-                    decoration: ShapeDecoration(
-                      color: dotColor,
-                      shape: const CircleBorder(),
-                    ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        section.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: prism.AppTextStyle.subheadline
+                            .of(context, emphasized: selected)
+                            .copyWith(
+                              color: selected
+                                  ? colors.onPrimaryContainer
+                                  : colors.onSurface,
+                            ),
+                      ),
+                      Text(
+                        section.subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: prism.AppTextStyle.caption2
+                            .of(context)
+                            .copyWith(
+                              color: selected
+                                  ? colors.onPrimaryContainer.withValues(
+                                      alpha: 0.78,
+                                    )
+                                  : colors.onSurfaceVariant,
+                            ),
+                      ),
+                    ],
                   ),
                 ),
+                if (dotColor != null) ...[
+                  const SizedBox(width: 6),
+                  SizedBox(
+                    width: 7,
+                    height: 7,
+                    child: DecoratedBox(
+                      decoration: ShapeDecoration(
+                        color: dotColor,
+                        shape: const CircleBorder(),
+                      ),
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -1532,48 +1551,52 @@ class _ColorSwatchPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = prism.Theme.of(context).colorScheme;
-    return prism.PressRegion(
-      onTap: onTap,
-      shape: prism.AppShape.full,
-      child: prism.Surface(
-        color: selected ? colors.primaryContainer : colors.surfaceContainerLow,
+    return PrismHoverMotion(
+      hoverScale: 1.04,
+      pressScale: 0.96,
+      child: prism.PressRegion(
+        onTap: onTap,
         shape: prism.AppShape.full,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(6, 6, 12, 6),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            spacing: 8,
-            children: [
-              SizedBox(
-                width: 22,
-                height: 22,
-                child: DecoratedBox(
-                  decoration: ShapeDecoration(
-                    color: color,
-                    shape: const CircleBorder(),
-                  ),
-                  child: selected
-                      ? const Center(
-                          child: PrismGlyph(
-                            AntGlyphs.check,
-                            size: 13,
-                            color: Color(0xFFFFFFFF),
-                          ),
-                        )
-                      : null,
-                ),
-              ),
-              Text(
-                label,
-                style: prism.AppTextStyle.footnote
-                    .of(context, emphasized: selected)
-                    .copyWith(
-                      color: selected
-                          ? colors.onPrimaryContainer
-                          : colors.onSurface,
+        child: prism.Surface(
+          color: selected ? colors.primaryContainer : colors.surfaceContainerLow,
+          shape: prism.AppShape.full,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(6, 6, 12, 6),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              spacing: 8,
+              children: [
+                SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: DecoratedBox(
+                    decoration: ShapeDecoration(
+                      color: color,
+                      shape: const CircleBorder(),
                     ),
-              ),
-            ],
+                    child: selected
+                        ? const Center(
+                            child: PrismGlyph(
+                              AntGlyphs.check,
+                              size: 13,
+                              color: Color(0xFFFFFFFF),
+                            ),
+                          )
+                        : null,
+                  ),
+                ),
+                Text(
+                  label,
+                  style: prism.AppTextStyle.footnote
+                      .of(context, emphasized: selected)
+                      .copyWith(
+                        color: selected
+                            ? colors.onPrimaryContainer
+                            : colors.onSurface,
+                      ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
