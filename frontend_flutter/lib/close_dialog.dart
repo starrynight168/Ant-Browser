@@ -29,6 +29,7 @@ class CloseDialog extends StatelessWidget {
             children: [
               Text(
                 '关闭 Ant Browser？',
+                textAlign: TextAlign.center,
                 style: prism.AppTextStyle.title3.of(context, emphasized: true),
               ),
               const SizedBox(height: 6),

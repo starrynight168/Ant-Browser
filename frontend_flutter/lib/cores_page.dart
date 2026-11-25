@@ -193,6 +193,8 @@ class _CoresPageState extends State<CoresPage> {
             height: 580,
             child: SingleChildScrollView(
               child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   PrismTextField(
                     controller: root,
@@ -440,6 +442,7 @@ class _CoresPageState extends State<CoresPage> {
                   ),
                   const SizedBox(height: 8),
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       prism.TextButton.icon(
                         onPressed: validating
@@ -830,6 +833,8 @@ class _CoresPageState extends State<CoresPage> {
                       const SizedBox(height: 4),
                       Text(
                         '已匹配 ${recommendation['assetName']}（${recommendation['releaseTag']}）',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: prism.AppTextStyle.caption1
                             .of(dialogContext)
                             .copyWith(color: colors.onSurfaceVariant),
@@ -1305,9 +1310,10 @@ class _CoresPageState extends State<CoresPage> {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final wide = constraints.maxWidth >= 880;
+          final wide = constraints.maxWidth >= 940;
           if (wide) {
             return Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
                   child: PrismSearchBar(
@@ -1392,11 +1398,14 @@ class _CoresPageState extends State<CoresPage> {
             width: 112,
             child: Text(
               label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: prism.AppTextStyle.caption1
                   .of(context, emphasized: true)
                   .copyWith(color: colors.onSurfaceVariant),
             ),
           ),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               value,
@@ -1549,6 +1558,7 @@ class _CoresPageState extends State<CoresPage> {
       child: PrismCard(
         padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 14),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             prism.Surface(
               color: iconTone.bg,
@@ -1608,6 +1618,8 @@ class _CoresPageState extends State<CoresPage> {
                   Text(
                     '使用实例 ${((core['instanceCount'] as num?) ?? 0).toInt()} 个'
                     ' · Chrome ${core['chromeVersion'] ?? '版本未知'}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: prism.AppTextStyle.caption2
                         .of(context)
                         .copyWith(color: colors.onSurfaceVariant),
@@ -1616,6 +1628,8 @@ class _CoresPageState extends State<CoresPage> {
                     const SizedBox(height: 2),
                     Text(
                       '${validation['message'] ?? '路径无效'}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: prism.AppTextStyle.caption2
                           .of(context)
                           .copyWith(color: statusTone.fg),
@@ -1625,13 +1639,15 @@ class _CoresPageState extends State<CoresPage> {
               ),
             ),
             const SizedBox(width: 10),
-            if (!isDefault)
+            if (!isDefault) ...[
               prism.TextButton(
                 onPressed: _busy
                     ? null
                     : () => _setDefault('${core['coreId'] ?? ''}'),
                 child: const Text('设为默认'),
               ),
+              const SizedBox(width: 4),
+            ],
             prism.IconButton(
               tooltip: '打开所在位置',
               onPressed: () async {

@@ -624,22 +624,55 @@ class _LogsPageState extends State<LogsPage> {
                   ],
                 );
               }
+              if (constraints.maxWidth >= 560) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: PrismSearchBar(
+                            controller: _searchController,
+                            hintText: '搜索消息、组件或方法',
+                            height: 36,
+                            onChanged: (value) =>
+                                setState(() => _keyword = value),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        levelControl,
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      alignment: WrapAlignment.end,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: actionWidgets,
+                    ),
+                  ],
+                );
+              }
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: PrismSearchBar(
-                          controller: _searchController,
-                          hintText: '搜索消息、组件或方法',
-                          height: 36,
-                          onChanged: (value) =>
-                              setState(() => _keyword = value),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      levelControl,
+                  PrismSearchBar(
+                    controller: _searchController,
+                    hintText: '搜索消息、组件或方法',
+                    height: 36,
+                    onChanged: (value) => setState(() => _keyword = value),
+                  ),
+                  const SizedBox(height: 8),
+                  prism.SegmentedControl<String>(
+                    value: _level,
+                    onChanged: (value) => setState(() => _level = value),
+                    segments: const [
+                      ('ALL', '全部'),
+                      ('DEBUG', 'DEBUG'),
+                      ('INFO', 'INFO'),
+                      ('WARN', 'WARN'),
+                      ('ERROR', 'ERROR'),
                     ],
                   ),
                   const SizedBox(height: 8),

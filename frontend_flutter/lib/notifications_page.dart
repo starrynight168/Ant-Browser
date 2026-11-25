@@ -196,6 +196,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
       staggerIndex: 4,
       staggerDelay: const Duration(milliseconds: 45),
       radius: prism.AppCorner.xl,
+      lift: false,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -215,8 +216,37 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 filterControl,
                 const SizedBox(width: 10),
                 Wrap(
-                  spacing: 6,
+                  spacing: 8,
                   runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: actionWidgets,
+                ),
+              ],
+            );
+          }
+          if (constraints.maxWidth >= 580) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: PrismSearchBar(
+                        controller: _searchController,
+                        hintText: '搜索通知标题、内容或来源…',
+                        height: 36,
+                        onChanged: (_) => setState(() {}),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    filterControl,
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  alignment: WrapAlignment.end,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: actionWidgets,
                 ),
@@ -226,23 +256,26 @@ class _NotificationsPageState extends State<NotificationsPage> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: PrismSearchBar(
-                      controller: _searchController,
-                      hintText: '搜索通知标题、内容或来源…',
-                      height: 36,
-                      onChanged: (_) => setState(() {}),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  filterControl,
+              PrismSearchBar(
+                controller: _searchController,
+                hintText: '搜索通知标题、内容或来源…',
+                height: 36,
+                onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: 8),
+              prism.SegmentedControl<String>(
+                value: _filter,
+                onChanged: (value) => setState(() => _filter = value),
+                segments: [
+                  ('all', '全部 ($total)'),
+                  ('unread', '未读 ($unread)'),
+                  ('error', '错误 ($errorCount)'),
+                  ('warning', '警告 ($warningCount)'),
                 ],
               ),
               const SizedBox(height: 8),
               Wrap(
-                spacing: 6,
+                spacing: 8,
                 runSpacing: 6,
                 alignment: WrapAlignment.end,
                 crossAxisAlignment: WrapCrossAlignment.center,
@@ -316,6 +349,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
                     Expanded(
                       child: Text(
                         '${item['title'] ?? '通知'}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: prism.AppTextStyle.subheadline.of(
                           context,
                           emphasized: !isRead,
@@ -327,6 +362,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 const SizedBox(height: 4),
                 Text(
                   '$source · ${item['time'] ?? ''}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: prism.AppTextStyle.caption1
                       .of(context)
                       .copyWith(color: colors.onSurfaceVariant),
@@ -352,12 +389,14 @@ class _NotificationsPageState extends State<NotificationsPage> {
               ],
             ),
           ),
-          if (!isRead)
+          if (!isRead) ...[
+            const SizedBox(width: 8),
             prism.IconButton(
               tooltip: '标记为已读',
               onPressed: () => widget.store.markRead(id),
               icon: const PrismGlyph(AntGlyphs.check, size: 18),
             ),
+          ],
         ],
       ),
     );

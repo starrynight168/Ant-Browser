@@ -363,58 +363,67 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                     ),
                   ),
                 const SizedBox(height: 6),
-                SizedBox(
-                  height: 340,
-                  child: _loading
-                      ? const Center(child: PrismProgressIndicator())
-                      : _loadError.isNotEmpty
-                      ? Center(
-                          child: PrismBanner(
-                            tone: PrismTone.danger,
-                            title: '加载实例失败',
-                            message: _loadError,
-                            trailing: prism.OutlinedButton.icon(
-                              onPressed: _load,
-                              icon: const PrismGlyph(
-                                AntGlyphs.refresh,
-                                size: 15,
+                Flexible(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 340),
+                    child: _loading
+                        ? const Center(child: PrismProgressIndicator())
+                        : _loadError.isNotEmpty
+                        ? Center(
+                            child: PrismBanner(
+                              tone: PrismTone.danger,
+                              title: '加载实例失败',
+                              message: _loadError,
+                              trailing: prism.OutlinedButton.icon(
+                                onPressed: _load,
+                                icon: const PrismGlyph(
+                                  AntGlyphs.refresh,
+                                  size: 15,
+                                ),
+                                label: const Text('重试'),
                               ),
-                              label: const Text('重试'),
                             ),
-                          ),
-                        )
-                      : filtered.isEmpty
-                      ? PrismEmptyState(
-                          glyph: AntGlyphs.browser,
-                          title: _profiles.isEmpty ? '暂无实例' : '没有匹配的实例',
-                          subtitle: _profiles.isEmpty
-                              ? '请先在实例管理中创建浏览器实例'
-                              : '尝试切换分组筛选或修改搜索关键词',
-                        )
-                      : ListView(
-                          controller: _listController,
-                          padding: kPrismListPadding,
-                          children: [
-                            for (final section in sections) ...[
-                              Padding(
-                                key: _sectionKey(section.key),
-                                padding: const EdgeInsets.fromLTRB(4, 10, 4, 6),
-                                child: Text(
-                                  '${section.key} · ${section.value.length} 个实例',
-                                  style: prism.AppTextStyle.footnote
-                                      .of(context, emphasized: true)
-                                      .copyWith(color: colors.onSurfaceVariant),
+                          )
+                        : filtered.isEmpty
+                        ? PrismEmptyState(
+                            glyph: AntGlyphs.browser,
+                            title: _profiles.isEmpty ? '暂无实例' : '没有匹配的实例',
+                            subtitle: _profiles.isEmpty
+                                ? '请先在实例管理中创建浏览器实例'
+                                : '尝试切换分组筛选或修改搜索关键词',
+                          )
+                        : ListView(
+                            controller: _listController,
+                            padding: kPrismListPadding,
+                            children: [
+                              for (final section in sections) ...[
+                                Padding(
+                                  key: _sectionKey(section.key),
+                                  padding: const EdgeInsets.fromLTRB(
+                                    4,
+                                    10,
+                                    4,
+                                    6,
+                                  ),
+                                  child: Text(
+                                    '${section.key} · ${section.value.length} 个实例',
+                                    style: prism.AppTextStyle.footnote
+                                        .of(context, emphasized: true)
+                                        .copyWith(
+                                          color: colors.onSurfaceVariant,
+                                        ),
+                                  ),
                                 ),
-                              ),
-                              for (final profile in section.value)
-                                _buildProfileCard(
-                                  context,
-                                  profile,
-                                  filtered,
-                                ),
+                                for (final profile in section.value)
+                                  _buildProfileCard(
+                                    context,
+                                    profile,
+                                    filtered,
+                                  ),
+                              ],
                             ],
-                          ],
-                        ),
+                          ),
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Wrap(
@@ -504,104 +513,107 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
               ),
             ),
             child: prism.PressRegion(
-            onTap: _starting ? null : () => _selectProfile(index, filtered),
-            shape: prism.AppShape.lg,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              child: Row(
-                children: [
-                  prism.Surface(
-                    color: running ? successTone.bg : primaryTone.bg,
-                    shape: prism.AppShape.md,
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: PrismGlyph(
-                        running ? AntGlyphs.play : AntGlyphs.bolt,
-                        size: 16,
-                        color: running ? successTone.fg : primaryTone.fg,
+              onTap: _starting ? null : () => _selectProfile(index, filtered),
+              shape: prism.AppShape.lg,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                child: Row(
+                  children: [
+                    prism.Surface(
+                      color: running ? successTone.bg : primaryTone.bg,
+                      shape: prism.AppShape.md,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: PrismGlyph(
+                          running ? AntGlyphs.play : AntGlyphs.bolt,
+                          size: 16,
+                          color: running ? successTone.fg : primaryTone.fg,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                '${profile['profileName'] ?? ''}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: prism.AppTextStyle.subheadline.of(
-                                  context,
-                                  emphasized: true,
-                                ),
-                              ),
-                            ),
-                            if (running) ...[
-                              const SizedBox(width: 6),
-                              const PrismBadge(
-                                label: '运行中',
-                                tone: PrismTone.success,
-                                dot: true,
-                              ),
-                            ],
-                          ],
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          '启动码 ${launchCode.isEmpty ? '未分配' : launchCode} · ${_groupLabel(profile)}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: prism.AppTextStyle.caption1
-                              .of(context)
-                              .copyWith(color: colors.onSurfaceVariant),
-                        ),
-                        if (tags.isNotEmpty) ...[
-                          const SizedBox(height: 5),
-                          Wrap(
-                            spacing: 4,
-                            runSpacing: 4,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
                             children: [
-                              for (final tag in tags.take(4))
-                                PrismBadge(
-                                  label: tag,
-                                  tone: PrismTone.info,
-                                  glyph: AntGlyphs.tag,
+                              Flexible(
+                                child: Text(
+                                  '${profile['profileName'] ?? ''}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: prism.AppTextStyle.subheadline.of(
+                                    context,
+                                    emphasized: true,
+                                  ),
                                 ),
-                              if (tags.length > 4)
-                                PrismBadge(
-                                  label: '+${tags.length - 4}',
-                                  tone: PrismTone.neutral,
+                              ),
+                              if (running) ...[
+                                const SizedBox(width: 6),
+                                const PrismBadge(
+                                  label: '运行中',
+                                  tone: PrismTone.success,
+                                  dot: true,
                                 ),
+                              ],
                             ],
                           ),
+                          const SizedBox(height: 3),
+                          Text(
+                            '启动码 ${launchCode.isEmpty ? '未分配' : launchCode} · ${_groupLabel(profile)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: prism.AppTextStyle.caption1
+                                .of(context)
+                                .copyWith(color: colors.onSurfaceVariant),
+                          ),
+                          if (tags.isNotEmpty) ...[
+                            const SizedBox(height: 5),
+                            Wrap(
+                              spacing: 4,
+                              runSpacing: 4,
+                              children: [
+                                for (final tag in tags.take(4))
+                                  PrismBadge(
+                                    label: tag,
+                                    tone: PrismTone.info,
+                                    glyph: AntGlyphs.tag,
+                                  ),
+                                if (tags.length > 4)
+                                  PrismBadge(
+                                    label: '+${tags.length - 4}',
+                                    tone: PrismTone.neutral,
+                                  ),
+                              ],
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  if (isStartingThis)
-                    const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: PrismProgressIndicator(size: 18),
-                    )
-                  else
-                    prism.OutlinedButton.icon(
-                      onPressed: _starting || launchCode.isEmpty
-                          ? null
-                          : () => _startProfile(profile),
-                      icon: const PrismGlyph(AntGlyphs.play, size: 14),
-                      label: const Text('启动'),
-                    ),
-                ],
+                    const SizedBox(width: 10),
+                    if (isStartingThis)
+                      const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: PrismProgressIndicator(size: 18),
+                      )
+                    else
+                      prism.OutlinedButton.icon(
+                        onPressed: _starting || launchCode.isEmpty
+                            ? null
+                            : () => _startProfile(profile),
+                        icon: const PrismGlyph(AntGlyphs.play, size: 14),
+                        label: const Text('启动'),
+                      ),
+                  ],
+                ),
               ),
             ),
-          ),
         ),
         ),
       ),

@@ -209,7 +209,7 @@ class _AboutPageState extends State<AboutPage> {
         .map((channel) => Map<String, dynamic>.from(channel))
         .toList();
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
+      padding: const EdgeInsets.fromLTRB(24, 6, 24, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -222,17 +222,19 @@ class _AboutPageState extends State<AboutPage> {
                   : constraints.maxWidth < 850
                   ? 2
                   : 3;
-              return GridView.count(
-                crossAxisCount: columns,
-                shrinkWrap: true,
-                clipBehavior: Clip.none,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: columns == 1 ? 3.2 : 1.75,
+              final cardWidth = columns == 1
+                  ? constraints.maxWidth
+                  : ((constraints.maxWidth - 12 * (columns - 1)) / columns)
+                        .floorToDouble();
+              return Wrap(
+                spacing: 12,
+                runSpacing: 12,
                 children: [
                   for (var i = 0; i < channels.length; i++)
-                    _channelCard(channels[i], staggerIndex: 1 + i),
+                    SizedBox(
+                      width: cardWidth,
+                      child: _channelCard(channels[i], staggerIndex: 1 + i),
+                    ),
                 ],
               );
             },
@@ -284,6 +286,8 @@ class _AboutPageState extends State<AboutPage> {
                   children: [
                     Text(
                       name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: prism.AppTextStyle.title2.of(
                         context,
                         emphasized: true,
@@ -292,6 +296,8 @@ class _AboutPageState extends State<AboutPage> {
                     const SizedBox(height: 4),
                     Text(
                       (_author['title'] ?? '').toString(),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: prism.AppTextStyle.subheadline
                           .of(context)
                           .copyWith(color: colors.onSurfaceVariant),
@@ -380,61 +386,69 @@ class _AboutPageState extends State<AboutPage> {
       onPressed: href.isEmpty ? null : () => AppBridge.openExternal(href),
       inert: href.isEmpty,
       padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          prism.Surface(
-            color: primaryTone.bg,
-            shape: prism.AppShape.md,
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: PrismGlyph(
-                _profileGlyph((channel['icon'] ?? '').toString(), title),
-                size: 20,
-                color: primaryTone.fg,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 60),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            prism.Surface(
+              color: primaryTone.bg,
+              shape: prism.AppShape.md,
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: PrismGlyph(
+                  _profileGlyph((channel['icon'] ?? '').toString(), title),
+                  size: 20,
+                  color: primaryTone.fg,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: prism.AppTextStyle.headline.of(
-                    context,
-                    emphasized: true,
-                  ),
-                ),
-                if ((channel['description'] ?? '').toString().isNotEmpty)
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    channel['description'].toString(),
+                    title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: prism.AppTextStyle.footnote
-                        .of(context)
-                        .copyWith(color: colors.onSurfaceVariant),
+                    style: prism.AppTextStyle.headline.of(
+                      context,
+                      emphasized: true,
+                    ),
                   ),
-                if (detail.isNotEmpty)
-                  Text(
-                    detail,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: prism.AppTextStyle.caption1
-                        .of(context)
-                        .copyWith(color: colors.onSurfaceVariant),
-                  ),
-              ],
+                  if ((channel['description'] ?? '').toString().isNotEmpty)
+                    Text(
+                      channel['description'].toString(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: prism.AppTextStyle.footnote
+                          .of(context)
+                          .copyWith(color: colors.onSurfaceVariant),
+                    ),
+                  if (detail.isNotEmpty)
+                    Text(
+                      detail,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: prism.AppTextStyle.caption1
+                          .of(context)
+                          .copyWith(color: colors.onSurfaceVariant),
+                    ),
+                ],
+              ),
             ),
-          ),
-          if (href.isNotEmpty)
-            PrismGlyph(
-              AntGlyphs.openInNew,
-              size: 16,
-              color: colors.onSurfaceVariant,
-            ),
-        ],
+            if (href.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              PrismGlyph(
+                AntGlyphs.openInNew,
+                size: 16,
+                color: colors.onSurfaceVariant,
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -575,12 +589,15 @@ class _AboutPageState extends State<AboutPage> {
               Expanded(
                 child: Text(
                   '当前版本：$_version',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: prism.AppTextStyle.subheadline.of(
                     context,
                     emphasized: true,
                   ),
                 ),
               ),
+              const SizedBox(width: 12),
               PrismTonalButton(
                 onPressed: _checking ? null : _checkUpdate,
                 child: _checking

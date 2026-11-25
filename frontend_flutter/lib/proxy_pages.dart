@@ -1109,6 +1109,8 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                             directEditMode
                                 ? '结构化直连表单（HTTP / HTTPS / SOCKS5）'
                                 : '原始代理配置（URL / JSON / YAML）',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: prism.AppTextStyle.footnote
                                 .of(context, emphasized: true)
                                 .copyWith(
@@ -1118,6 +1120,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                                 ),
                           ),
                         ),
+                        const SizedBox(width: 8),
                         prism.TextButton(
                           onPressed: () {
                             setDialog(() {
@@ -3697,6 +3700,7 @@ socks5://user:password@proxy.example.com:1080''',
         onChanged: (value) => setState(() => _filterGroup = value ?? 'all'),
       ),
       Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Expanded(
             child: PrismDropdownField<String>(
@@ -3965,6 +3969,8 @@ socks5://user:password@proxy.example.com:1080''',
               ),
               Text(
                 endpoint,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: prism.AppTextStyle.caption1
                     .of(context)
                     .copyWith(
@@ -3999,13 +4005,16 @@ socks5://user:password@proxy.example.com:1080''',
             ],
           ),
         ),
-        trailing: Wrap(
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             prism.IconButton(
               tooltip: '检查代理 IP',
               onPressed: _busy.isEmpty ? () => _testIpHealth(item) : null,
               icon: const PrismGlyph(AntGlyphs.globe, size: 18),
             ),
+            const SizedBox(width: 2),
             prism.IconButton(
               tooltip: '测试连接',
               onPressed: _busy.isEmpty && !isDirect ? () => _test(item) : null,
@@ -4017,6 +4026,7 @@ socks5://user:password@proxy.example.com:1080''',
                     )
                   : const PrismGlyph(AntGlyphs.speed, size: 18),
             ),
+            const SizedBox(width: 2),
             prism.IconButton(
               tooltip: '桥接预热',
               onPressed: _busy.isEmpty && !isDirect
@@ -4030,6 +4040,7 @@ socks5://user:password@proxy.example.com:1080''',
                     )
                   : const PrismGlyph(AntGlyphs.fire, size: 18),
             ),
+            const SizedBox(width: 6),
             PrismPopupMenuButton<String>(
               tooltip: '更多操作',
               enabled: _busy.isEmpty,
@@ -4622,6 +4633,7 @@ class _ProxySourceRefreshModalState extends State<_ProxySourceRefreshModal> {
                                 ],
                               ),
                             ),
+                            const SizedBox(width: 8),
                             prism.IconButton(
                               tooltip: '编辑刷新配置',
                               onPressed: _busy.isEmpty
@@ -5829,10 +5841,13 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
         children: [
           Row(
             children: [
-              prism.IconButton(
-                tooltip: '返回代理池',
-                onPressed: widget.onBack,
-                icon: const PrismGlyph(AntGlyphs.arrowBack, size: 18),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: prism.IconButton(
+                  tooltip: '返回代理池',
+                  onPressed: widget.onBack,
+                  icon: const PrismGlyph(AntGlyphs.arrowBack, size: 18),
+                ),
               ),
               const SizedBox(width: 6),
               Expanded(
@@ -5970,7 +5985,13 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
                           ),
                           title: Row(
                             children: [
-                              Text(isAuto ? '自动刷新记录' : '手动匹配记录'),
+                              Expanded(
+                                child: Text(
+                                  isAuto ? '自动刷新记录' : '手动匹配记录',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
                               const SizedBox(width: 8),
                               PrismBadge(
                                 label: isAuto ? '自动' : '手动',
@@ -6740,6 +6761,8 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
                                   state?['proxyName'] ??
                                   proxyId)
                               .toString(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -7104,12 +7127,15 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
             Expanded(
               child: Text(
                 (group['groupName'] ?? id).toString(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: prism.AppTextStyle.subheadline.of(
                   context,
                   emphasized: true,
                 ),
               ),
             ),
+            const SizedBox(width: 8),
             PrismBadge(
               label: group['strategy'] == 'sticky' ? '固定节点' : '轮询',
               tone: PrismTone.primary,
@@ -7123,7 +7149,9 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
           ],
         ),
         subtitle: Text('$members 个成员'),
-        trailing: Wrap(
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             prism.IconButton(
               tooltip: '探测',
@@ -7136,16 +7164,19 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
                     )
                   : const PrismGlyph(AntGlyphs.health, size: 18),
             ),
+            const SizedBox(width: 4),
             prism.IconButton(
               tooltip: '重置健康',
               onPressed: _busy.isEmpty ? () => _resetHealth(group) : null,
               icon: const PrismGlyph(AntGlyphs.restart, size: 18),
             ),
+            const SizedBox(width: 4),
             prism.IconButton(
               tooltip: '编辑',
               onPressed: () => _edit(group),
               icon: const PrismGlyph(AntGlyphs.edit, size: 18),
             ),
+            const SizedBox(width: 4),
             prism.IconButton(
               tooltip: '删除',
               onPressed: () => _delete(group),

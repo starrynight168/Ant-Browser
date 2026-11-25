@@ -261,6 +261,8 @@ mixin _BackupProfileImportFlow<T extends StatefulWidget> on State<T> {
                                   children: [
                                     Text(
                                       sourceName,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                       style: prism.AppTextStyle.subheadline.of(
                                         context,
                                         emphasized: true,
@@ -287,6 +289,8 @@ mixin _BackupProfileImportFlow<T extends StatefulWidget> on State<T> {
                                   const SizedBox(height: 4),
                                   Text(
                                     '匹配到本机实例：$targetName',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                     style: prism.AppTextStyle.caption1
                                         .of(context)
                                         .copyWith(color: colors.onSurfaceVariant),
@@ -357,6 +361,8 @@ mixin _BackupProfileImportFlow<T extends StatefulWidget> on State<T> {
                                 const SizedBox(height: 6),
                                 Text(
                                   resultPreview,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                   style: prism.AppTextStyle.caption1
                                       .of(context, emphasized: true)
                                       .copyWith(
@@ -458,7 +464,7 @@ mixin _BackupProfileImportFlow<T extends StatefulWidget> on State<T> {
                   ),
                   const SizedBox(height: 12),
                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
                         child: PrismTextField(
@@ -473,14 +479,17 @@ mixin _BackupProfileImportFlow<T extends StatefulWidget> on State<T> {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      prism.IconButton(
-                        tooltip: obscure ? '显示密码' : '隐藏密码',
-                        onPressed: submitting
-                            ? null
-                            : () => setDialog(() => obscure = !obscure),
-                        icon: PrismGlyph(
-                          obscure ? AntGlyphs.eye : AntGlyphs.eyeOff,
-                          size: 18,
+                      Padding(
+                        padding: const EdgeInsets.only(top: 21),
+                        child: prism.IconButton(
+                          tooltip: obscure ? '显示密码' : '隐藏密码',
+                          onPressed: submitting
+                              ? null
+                              : () => setDialog(() => obscure = !obscure),
+                          icon: PrismGlyph(
+                            obscure ? AntGlyphs.eye : AntGlyphs.eyeOff,
+                            size: 18,
+                          ),
                         ),
                       ),
                     ],
@@ -941,6 +950,8 @@ class _BackupPageState extends State<BackupPage>
                               const SizedBox(height: 4),
                               Text(
                                 '最近上传：$lastRemoteName',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: prism.AppTextStyle.caption1
                                     .of(dialogContext)
                                     .copyWith(color: colors.onSurfaceVariant),
@@ -1186,6 +1197,7 @@ class _BackupPageState extends State<BackupPage>
                       glyph: AntGlyphs.browser,
                     )
                   : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         PrismCheckboxTile(
                           value: allSelected,
@@ -1270,6 +1282,8 @@ class _BackupPageState extends State<BackupPage>
                                       value: selected.contains(id),
                                       title: Text(
                                         '${profile['profileName'] ?? id}',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                       subtitle: running
                                           ? const Text('运行中，不能备份')
@@ -1678,6 +1692,8 @@ class _BackupPageState extends State<BackupPage>
                       children: [
                         Text(
                           name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: prism.AppTextStyle.subheadline.of(
                             context,
                             emphasized: true,
@@ -1701,6 +1717,8 @@ class _BackupPageState extends State<BackupPage>
                         profileNames.isNotEmpty
                             ? '包含 ${profileCount > 0 ? profileCount : profileNames.length} 个实例：${profileNames.take(5).join('、')}${profileNames.length > 5 ? ' 等' : ''}'
                             : '包含 $profileCount 个实例',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: prism.AppTextStyle.caption1
                             .of(context)
                             .copyWith(color: colors.onSurfaceVariant),
@@ -1747,6 +1765,7 @@ class _BackupPageState extends State<BackupPage>
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   if (isLocal)
                     prism.IconButton(
@@ -2473,10 +2492,13 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
       children: [
         Row(
           children: [
-            prism.IconButton(
-              onPressed: widget.onBack,
-              tooltip: '返回',
-              icon: const PrismGlyph(AntGlyphs.arrowBack, size: 18),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: prism.IconButton(
+                onPressed: widget.onBack,
+                tooltip: '返回',
+                icon: const PrismGlyph(AntGlyphs.arrowBack, size: 18),
+              ),
             ),
             const SizedBox(width: 4),
             Expanded(
@@ -2650,12 +2672,19 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
           PrismCard(
             margin: const EdgeInsets.only(bottom: 8),
             child: PrismListTile(
-              title: Text((file['name'] ?? '').toString()),
+              title: Text(
+                (file['name'] ?? '').toString(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
               subtitle: Text(
                 '${_formatFileSize(file['size'])} · ${_formatTimestamp(file['modifiedAt'])}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
               trailing: Wrap(
                 spacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   prism.IconButton(
                     tooltip: '下载到本地',
@@ -2984,10 +3013,13 @@ class _S3ConfigPageState extends State<S3ConfigPage>
       children: [
         Row(
           children: [
-            prism.IconButton(
-              onPressed: widget.onBack,
-              tooltip: '返回',
-              icon: const PrismGlyph(AntGlyphs.arrowBack, size: 18),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: prism.IconButton(
+                onPressed: widget.onBack,
+                tooltip: '返回',
+                icon: const PrismGlyph(AntGlyphs.arrowBack, size: 18),
+              ),
             ),
             const SizedBox(width: 4),
             Expanded(
@@ -3159,12 +3191,19 @@ class _S3ConfigPageState extends State<S3ConfigPage>
           PrismCard(
             margin: const EdgeInsets.only(bottom: 8),
             child: PrismListTile(
-              title: Text((file['name'] ?? '').toString()),
+              title: Text(
+                (file['name'] ?? '').toString(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
               subtitle: Text(
                 '${_formatFileSize(file['size'])} · ${_formatTimestamp(file['modifiedAt'])}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
               trailing: Wrap(
                 spacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   prism.IconButton(
                     tooltip: '下载到本地',

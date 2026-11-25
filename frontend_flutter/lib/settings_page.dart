@@ -577,22 +577,25 @@ class _SettingsPageState extends State<SettingsPage> {
             shape: prism.AppShape.full,
             child: SizedBox(
               height: 32,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                spacing: 5,
-                children: [
-                  PrismGlyph(glyph, size: 14, color: fg),
-                  Flexible(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: prism.AppTextStyle.caption1
-                          .of(context, emphasized: true)
-                          .copyWith(color: fg),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  spacing: 5,
+                  children: [
+                    PrismGlyph(glyph, size: 14, color: fg),
+                    Flexible(
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: prism.AppTextStyle.caption1
+                            .of(context, emphasized: true)
+                            .copyWith(color: fg),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -624,6 +627,8 @@ class _SettingsPageState extends State<SettingsPage> {
                   children: [
                     Text(
                       title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: prism.AppTextStyle.subheadline.of(
                         context,
                         emphasized: true,
@@ -632,6 +637,8 @@ class _SettingsPageState extends State<SettingsPage> {
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: prism.AppTextStyle.caption1
                           .of(context)
                           .copyWith(color: colors.onSurfaceVariant),
@@ -690,36 +697,39 @@ class _SettingsPageState extends State<SettingsPage> {
                     trailing: '${_SettingsSection.values.length}',
                     padding: const EdgeInsets.fromLTRB(10, 4, 10, 8),
                   ),
-                  PrismSlidingRail<_SettingsSection>(
-                    itemHeight: 44,
-                    gap: 2,
-                    items: [
-                      for (final section in _SettingsSection.values)
-                        PrismSlidingRailItem<_SettingsSection>(
-                          value: section,
-                          title: section.title,
-                          subtitle: section.subtitle,
-                          glyph: section.glyph,
-                          statusTone: switch (section) {
-                            _SettingsSection.automation =>
-                              automationReady
-                                  ? PrismTone.success
-                                  : automationInstalling
-                                  ? PrismTone.warning
-                                  : PrismTone.danger,
-                            _SettingsSection.launchApi =>
-                              launchReady
-                                  ? PrismTone.success
-                                  : PrismTone.neutral,
-                            _ => null,
-                          },
-                        ),
-                    ],
-                    selectedValue: _activeSection,
-                    onSelected: (section) =>
-                        setState(() => _activeSection = section),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: PrismSlidingRail<_SettingsSection>(
+                        itemHeight: 44,
+                        gap: 2,
+                        items: [
+                          for (final section in _SettingsSection.values)
+                            PrismSlidingRailItem<_SettingsSection>(
+                              value: section,
+                              title: section.title,
+                              subtitle: section.subtitle,
+                              glyph: section.glyph,
+                              statusTone: switch (section) {
+                                _SettingsSection.automation =>
+                                  automationReady
+                                      ? PrismTone.success
+                                      : automationInstalling
+                                      ? PrismTone.warning
+                                      : PrismTone.danger,
+                                _SettingsSection.launchApi =>
+                                  launchReady
+                                      ? PrismTone.success
+                                      : PrismTone.neutral,
+                                _ => null,
+                              },
+                            ),
+                        ],
+                        selectedValue: _activeSection,
+                        onSelected: (section) =>
+                            setState(() => _activeSection = section),
+                      ),
+                    ),
                   ),
-                  const Spacer(),
                   const SizedBox(height: 10),
                   prism.Surface(
                     color: colors.surfaceContainerLow,
@@ -873,6 +883,8 @@ class _SettingsPageState extends State<SettingsPage> {
                                     children: [
                                       Text(
                                         _activeSection.title,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                         style: prism.AppTextStyle.title3.of(
                                           context,
                                           emphasized: true,
@@ -880,6 +892,8 @@ class _SettingsPageState extends State<SettingsPage> {
                                       ),
                                       Text(
                                         _activeSection.subtitle,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                         style: prism.AppTextStyle.footnote
                                             .of(context)
                                             .copyWith(
@@ -894,6 +908,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           ),
                         ),
                       ),
+                      const SizedBox(width: 12),
                       AnimatedSize(
                         duration: PrismMotionSpec.current.enabled
                             ? const Duration(milliseconds: 220)
@@ -1001,44 +1016,46 @@ class _SettingsPageState extends State<SettingsPage> {
                   horizontal: 18,
                   vertical: 14,
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            spacing: 8,
-                            children: [
-                              const PrismBadge(
-                                label: 'Prism UI 实时预览',
-                                glyph: AntGlyphs.sparkles,
-                                tone: PrismTone.primary,
-                              ),
-                              PrismBadge(
-                                label: switch (currentStyle) {
-                                  'vivid' => '鲜明 Vivid',
-                                  'soft' => '柔和 Soft',
-                                  'monochrome' => '单色 Monochrome',
-                                  _ => '浸润 Tinted',
-                                },
-                                tone: PrismTone.info,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            '主色与色彩风格实时联动全站界面',
-                            style: prism.AppTextStyle.footnote
-                                .of(context)
-                                .copyWith(color: colors.onSurfaceVariant),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Wrap(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final info = Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            const PrismBadge(
+                              label: 'Prism UI 实时预览',
+                              glyph: AntGlyphs.sparkles,
+                              tone: PrismTone.primary,
+                            ),
+                            PrismBadge(
+                              label: switch (currentStyle) {
+                                'vivid' => '鲜明 Vivid',
+                                'soft' => '柔和 Soft',
+                                'monochrome' => '单色 Monochrome',
+                                _ => '浸润 Tinted',
+                              },
+                              tone: PrismTone.info,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '主色与色彩风格实时联动全站界面',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: prism.AppTextStyle.footnote
+                              .of(context)
+                              .copyWith(color: colors.onSurfaceVariant),
+                        ),
+                      ],
+                    );
+                    final actions = Wrap(
                       spacing: 8,
+                      runSpacing: 8,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         PrismHoverMotion(
@@ -1059,8 +1076,21 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                         prism.Switch(value: true, onChanged: (_) {}),
                       ],
-                    ),
-                  ],
+                    );
+                    if (constraints.maxWidth >= 680) {
+                      return Row(
+                        children: [
+                          Expanded(child: info),
+                          const SizedBox(width: 16),
+                          actions,
+                        ],
+                      );
+                    }
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [info, const SizedBox(height: 12), actions],
+                    );
+                  },
                 ),
               ),
             ),
@@ -1579,7 +1609,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             .copyWith(color: colors.onSurfaceVariant),
                       ),
                       trailing: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 480),
+                        constraints: const BoxConstraints(maxWidth: 360),
                         child: Text(
                           runtimeDetails[i].$2,
                           textAlign: TextAlign.end,

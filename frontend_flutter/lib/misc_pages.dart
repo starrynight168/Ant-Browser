@@ -437,34 +437,51 @@ class _DocsPageState extends State<DocsPage> {
                                 const prism.Divider(height: 1),
                                 const SizedBox(height: 16),
                                 Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     if (prevItem != null)
-                                      PrismHoverMotion(
-                                        child: prism.OutlinedButton.icon(
-                                          onPressed: () => setState(
-                                            () => _selected = prevItem.id,
+                                      Flexible(
+                                        child: PrismHoverMotion(
+                                          child: prism.OutlinedButton.icon(
+                                            onPressed: () => setState(
+                                              () => _selected = prevItem.id,
+                                            ),
+                                            icon: const PrismGlyph(
+                                              AntGlyphs.chevronBack,
+                                              size: 16,
+                                            ),
+                                            label: Text(
+                                              '上一篇：${prevItem.label}',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
                                           ),
-                                          icon: const PrismGlyph(
-                                            AntGlyphs.chevronBack,
-                                            size: 16,
+                                        ),
+                                      )
+                                    else
+                                      const SizedBox.shrink(),
+                                    if (nextItem != null) ...[
+                                      const SizedBox(width: 12),
+                                      Flexible(
+                                        child: PrismHoverMotion(
+                                          child: PrismTonalButton.icon(
+                                            onPressed: () => setState(
+                                              () => _selected = nextItem.id,
+                                            ),
+                                            icon: const PrismGlyph(
+                                              AntGlyphs.chevronForward,
+                                              size: 16,
+                                            ),
+                                            child: Text(
+                                              '下一篇：${nextItem.label}',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
                                           ),
-                                          label: Text('上一篇：${prevItem.label}'),
                                         ),
                                       ),
-                                    const Spacer(),
-                                    if (nextItem != null)
-                                      PrismHoverMotion(
-                                        child: PrismTonalButton.icon(
-                                          onPressed: () => setState(
-                                            () => _selected = nextItem.id,
-                                          ),
-                                          icon: const PrismGlyph(
-                                            AntGlyphs.chevronForward,
-                                            size: 16,
-                                          ),
-                                          child: Text('下一篇：${nextItem.label}'),
-                                        ),
-                                      ),
+                                    ],
                                   ],
                                 ),
                               ],
@@ -719,7 +736,7 @@ class ChartsPage extends StatelessWidget {
           builder: (context, constraints) {
             final twoColumns = constraints.maxWidth >= 920;
             final cardWidth = twoColumns
-                ? (constraints.maxWidth - 16) / 2
+                ? ((constraints.maxWidth - 16) / 2).floorToDouble()
                 : constraints.maxWidth;
             return Wrap(
               spacing: 16,
@@ -956,36 +973,43 @@ class _ChartCard extends StatelessWidget {
         staggerIndex: staggerIndex,
         staggerDelay: const Duration(milliseconds: 45),
         title: title,
-        actions: [
-          Wrap(
-            spacing: 10,
-            runSpacing: 4,
-            children: [
-              for (final (label, color) in legend)
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SizedBox.square(
-                      dimension: 8,
-                      child: prism.Surface(
-                        color: color,
-                        shape: prism.AppShape.circle,
-                        child: const SizedBox.shrink(),
-                      ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (legend.isNotEmpty) ...[
+              Wrap(
+                spacing: 12,
+                runSpacing: 6,
+                alignment: WrapAlignment.end,
+                children: [
+                  for (final (label, color) in legend)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox.square(
+                          dimension: 8,
+                          child: prism.Surface(
+                            color: color,
+                            shape: prism.AppShape.circle,
+                            child: const SizedBox.shrink(),
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          label,
+                          style: prism.AppTextStyle.caption2
+                              .of(context)
+                              .copyWith(color: colors.onSurfaceVariant),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 5),
-                    Text(
-                      label,
-                      style: prism.AppTextStyle.caption2
-                          .of(context)
-                          .copyWith(color: colors.onSurfaceVariant),
-                    ),
-                  ],
-                ),
+                ],
+              ),
+              const SizedBox(height: 10),
             ],
-          ),
-        ],
-        child: child,
+            child,
+          ],
+        ),
       ),
     );
   }
@@ -1287,14 +1311,17 @@ class _LaunchApiDemoPanelState extends State<_LaunchApiDemoPanel> {
               glyph: AntGlyphs.api,
             ),
             actions: [
-              PrismBadge(
-                label: serverReady
-                    ? (baseUrl.isNotEmpty
-                          ? 'LaunchServerReady · $baseUrl'
-                          : 'LaunchServerReady')
-                    : 'LaunchServer 未就绪',
-                tone: serverReady ? PrismTone.success : PrismTone.warning,
-                dot: true,
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 280),
+                child: PrismBadge(
+                  label: serverReady
+                      ? (baseUrl.isNotEmpty
+                            ? 'LaunchServerReady · $baseUrl'
+                            : 'LaunchServerReady')
+                      : 'LaunchServer 未就绪',
+                  tone: serverReady ? PrismTone.success : PrismTone.warning,
+                  dot: true,
+                ),
               ),
             ],
             padding: const EdgeInsets.fromLTRB(16, 14, 14, 10),
@@ -1305,126 +1332,129 @@ class _LaunchApiDemoPanelState extends State<_LaunchApiDemoPanel> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-          Text(
-            '演示会创建一个临时实例并启动，验证启动 API 链路后可一键清理；不会影响已有实例。',
-            style: prism.AppTextStyle.footnote
-                .of(context)
-                .copyWith(color: colors.onSurfaceVariant),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              prism.OutlinedButton.icon(
-                onPressed: _busy ? null : _healthCheck,
-                icon: const PrismGlyph(AntGlyphs.health, size: 17),
-                label: const Text('健康检查'),
-              ),
-              prism.OutlinedButton.icon(
-                onPressed: _busy || _demoProfileId.isNotEmpty
-                    ? null
-                    : _createProfile,
-                icon: const PrismGlyph(AntGlyphs.add, size: 17),
-                label: Text(_demoProfileId.isEmpty ? '创建演示实例' : '演示实例已创建'),
-              ),
-              prism.OutlinedButton.icon(
-                onPressed: _busy || _demoLaunchCode.isEmpty
-                    ? null
-                    : _launchProfile,
-                icon: const PrismGlyph(AntGlyphs.play, size: 17),
-                label: const Text('启动演示实例'),
-              ),
-              prism.TextButton.icon(
-                onPressed: _busy || _demoProfileId.isEmpty
-                    ? null
-                    : _deleteProfile,
-                icon: const PrismGlyph(AntGlyphs.delete, size: 17),
-                label: const Text('删除演示实例'),
-              ),
-            ],
-          ),
-          if (_demoProfileId.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            PrismBanner(
-              tone: PrismTone.info,
-              message: '当前演示实例：$_demoProfileId · 启动码 $_demoLaunchCode',
-            ),
-          ],
-          if (_cdpUrl.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            prism.Surface(
-              color: colors.surfaceContainerLow,
-              shape: prism.AppShape.lg,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
+                Text(
+                  '演示会创建一个临时实例并启动，验证启动 API 链路后可一键清理；不会影响已有实例。',
+                  style: prism.AppTextStyle.footnote
+                      .of(context)
+                      .copyWith(color: colors.onSurfaceVariant),
                 ),
-                child: Row(
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
-                    const PrismBadge(
-                      label: 'CDP URL',
-                      tone: PrismTone.success,
+                    prism.OutlinedButton.icon(
+                      onPressed: _busy ? null : _healthCheck,
+                      icon: const PrismGlyph(AntGlyphs.health, size: 17),
+                      label: const Text('健康检查'),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: prism.SelectableText(
-                        _cdpUrl,
-                        style: const TextStyle(
-                          fontFamily: 'Consolas',
-                          fontSize: 12.5,
-                        ),
+                    prism.OutlinedButton.icon(
+                      onPressed: _busy || _demoProfileId.isNotEmpty
+                          ? null
+                          : _createProfile,
+                      icon: const PrismGlyph(AntGlyphs.add, size: 17),
+                      label: Text(
+                        _demoProfileId.isEmpty ? '创建演示实例' : '演示实例已创建',
                       ),
                     ),
-                    prism.IconButton(
-                      tooltip: '复制 CDP URL',
-                      onPressed: () {
-                        Clipboard.setData(ClipboardData(text: _cdpUrl));
-                        showPrismNotice(context, '已复制 CDP URL');
-                      },
-                      icon: const PrismGlyph(AntGlyphs.copy, size: 15),
+                    prism.OutlinedButton.icon(
+                      onPressed: _busy || _demoLaunchCode.isEmpty
+                          ? null
+                          : _launchProfile,
+                      icon: const PrismGlyph(AntGlyphs.play, size: 17),
+                      label: const Text('启动演示实例'),
+                    ),
+                    prism.TextButton.icon(
+                      onPressed: _busy || _demoProfileId.isEmpty
+                          ? null
+                          : _deleteProfile,
+                      icon: const PrismGlyph(AntGlyphs.delete, size: 17),
+                      label: const Text('删除演示实例'),
                     ),
                   ],
                 ),
-              ),
-            ),
-          ],
-          const SizedBox(height: 12),
-          prism.Surface(
-            color: colors.surfaceContainerLow,
-            shape: prism.AppShape.lg,
-            child: SizedBox(
-              height: 220,
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: _logs.isEmpty
-                    ? Center(
-                        child: Text(
-                          '点击按钮开始演示，调用日志会显示在这里',
-                          style: prism.AppTextStyle.caption1
-                              .of(context)
-                              .copyWith(color: colors.onSurfaceVariant),
-                        ),
-                      )
-                    : ListView(
+                if (_demoProfileId.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  PrismBanner(
+                    tone: PrismTone.info,
+                    message: '当前演示实例：$_demoProfileId · 启动码 $_demoLaunchCode',
+                  ),
+                ],
+                if (_cdpUrl.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  prism.Surface(
+                    color: colors.surfaceContainerLow,
+                    shape: prism.AppShape.lg,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      child: Row(
                         children: [
-                          for (final log in _logs)
-                            prism.SelectableText(
-                              log,
+                          const PrismBadge(
+                            label: 'CDP URL',
+                            tone: PrismTone.success,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: prism.SelectableText(
+                              _cdpUrl,
                               style: const TextStyle(
                                 fontFamily: 'Consolas',
-                                fontSize: 12,
-                                height: 1.5,
+                                fontSize: 12.5,
                               ),
                             ),
+                          ),
+                          const SizedBox(width: 8),
+                          prism.IconButton(
+                            tooltip: '复制 CDP URL',
+                            onPressed: () {
+                              Clipboard.setData(ClipboardData(text: _cdpUrl));
+                              showPrismNotice(context, '已复制 CDP URL');
+                            },
+                            icon: const PrismGlyph(AntGlyphs.copy, size: 15),
+                          ),
                         ],
                       ),
-              ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                prism.Surface(
+                  color: colors.surfaceContainerLow,
+                  shape: prism.AppShape.lg,
+                  child: SizedBox(
+                    height: 220,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: _logs.isEmpty
+                          ? Center(
+                              child: Text(
+                                '点击按钮开始演示，调用日志会显示在这里',
+                                style: prism.AppTextStyle.caption1
+                                    .of(context)
+                                    .copyWith(color: colors.onSurfaceVariant),
+                              ),
+                            )
+                          : ListView(
+                              children: [
+                                for (final log in _logs)
+                                  prism.SelectableText(
+                                    log,
+                                    style: const TextStyle(
+                                      fontFamily: 'Consolas',
+                                      fontSize: 12,
+                                      height: 1.5,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
           ),
         ],
       ),

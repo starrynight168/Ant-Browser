@@ -223,17 +223,19 @@ class _BookmarksPageState extends State<BookmarksPage> {
     _BookmarkEntry entry, {
     required bool protected,
     int? dragIndex,
+    EdgeInsetsGeometry margin = const EdgeInsets.only(bottom: 8),
   }) {
     final colors = prism.Theme.of(context).colorScheme;
     return Padding(
       key: ValueKey('bookmark-entry-${entry.id}'),
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: margin,
       child: prism.Surface(
         color: colors.surfaceContainerLow,
         shape: prism.AppShape.lg,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               if (protected)
                 const Padding(
@@ -244,7 +246,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
                     glyph: AntGlyphs.shield,
                   ),
                 )
-              else if (dragIndex != null)
+              else if (dragIndex != null) ...[
                 prism.ReorderDragStartListener(
                   index: dragIndex,
                   child: Padding(
@@ -256,6 +258,8 @@ class _BookmarksPageState extends State<BookmarksPage> {
                     ),
                   ),
                 ),
+                const SizedBox(width: 6),
+              ],
               Expanded(
                 flex: 2,
                 child: PrismTextField(
@@ -294,12 +298,14 @@ class _BookmarksPageState extends State<BookmarksPage> {
                   ),
                 ],
               ),
-              if (!protected)
+              if (!protected) ...[
+                const SizedBox(width: 6),
                 prism.IconButton(
                   tooltip: '删除',
                   onPressed: () => _removeEntry(entry),
                   icon: const PrismGlyph(AntGlyphs.delete, size: 18),
                 ),
+              ],
             ],
           ),
         ),
@@ -417,6 +423,11 @@ class _BookmarksPageState extends State<BookmarksPage> {
           child: Text(_saving ? '保存中' : '保存'),
         ),
       ),
+      prism.IconButton(
+        tooltip: '刷新',
+        onPressed: _loading ? null : _load,
+        icon: const PrismGlyph(AntGlyphs.refresh, size: 17),
+      ),
       PrismPopupMenuButton<String>(
         tooltip: '更多操作',
         enabled: !_loading,
@@ -437,17 +448,13 @@ class _BookmarksPageState extends State<BookmarksPage> {
           const PrismMenuItem(value: 'reset', child: Text('恢复默认')),
         ],
       ),
-      prism.IconButton(
-        tooltip: '刷新',
-        onPressed: _loading ? null : _load,
-        icon: const PrismGlyph(AntGlyphs.refresh, size: 17),
-      ),
     ];
 
     return PrismHoverCard(
       staggerIndex: 4,
       staggerDelay: const Duration(milliseconds: 45),
       radius: prism.AppCorner.xl,
+      lift: false,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -465,7 +472,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
                 ),
                 const SizedBox(width: 10),
                 Wrap(
-                  spacing: 6,
+                  spacing: 8,
                   runSpacing: 6,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: actionWidgets,
@@ -484,7 +491,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
               ),
               const SizedBox(height: 8),
               Wrap(
-                spacing: 6,
+                spacing: 8,
                 runSpacing: 6,
                 alignment: WrapAlignment.end,
                 crossAxisAlignment: WrapCrossAlignment.center,
@@ -536,8 +543,14 @@ class _BookmarksPageState extends State<BookmarksPage> {
                           ],
                           child: Column(
                             children: [
-                              for (final entry in filteredProtected)
-                                _buildBookmarkRow(entry, protected: true),
+                              for (var i = 0; i < filteredProtected.length; i++)
+                                _buildBookmarkRow(
+                                  filteredProtected[i],
+                                  protected: true,
+                                  margin: i == filteredProtected.length - 1
+                                      ? EdgeInsets.zero
+                                      : const EdgeInsets.only(bottom: 8),
+                                ),
                             ],
                           ),
                         ),

@@ -458,7 +458,7 @@ class _TagsPageState extends State<TagsPage> {
                             padding: const EdgeInsets.all(8),
                             children: [
                               PrismSlidingRail<String>(
-                                itemHeight: 42,
+                                itemHeight: 44,
                                 gap: 2,
                                 showDividers: true,
                                 selectedValue: _selectedTag ?? '',
@@ -496,9 +496,17 @@ class _TagsPageState extends State<TagsPage> {
                                                 ? PrismTone.primary
                                                 : PrismTone.neutral,
                                           ),
-                                          const SizedBox(width: 2),
+                                          const SizedBox(width: 4),
                                           prism.IconButton(
                                             tooltip: '重命名',
+                                            style: const prism.ButtonStyle(
+                                              minimumSize: Size.square(28),
+                                              maximumSize: Size.square(28),
+                                              padding: EdgeInsets.zero,
+                                              tapTargetSize: prism
+                                                  .TapTargetSize
+                                                  .shrinkWrap,
+                                            ),
                                             onPressed: () =>
                                                 _renameTag(tags[i]),
                                             icon: const PrismGlyph(
@@ -543,67 +551,82 @@ class _TagsPageState extends State<TagsPage> {
                         staggerDelay: const Duration(milliseconds: 45),
                         hoverGlow: true,
                         lift: false,
-                        child: Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          crossAxisAlignment: WrapCrossAlignment.center,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            PrismBadge(
-                              label: '${_selectedIds.length} 个已选',
-                              tone: _selectedIds.isEmpty
-                                  ? PrismTone.neutral
-                                  : PrismTone.primary,
-                            ),
-                            PrismHoverMotion(
-                              enabled: !_saving,
-                              child: prism.FilledButton.icon(
-                                onPressed: _saving ? null : _addTags,
-                                icon: const PrismGlyph(AntGlyphs.add, size: 16),
-                                label: const Text('添加标签'),
-                              ),
-                            ),
-                            if (tags.isNotEmpty)
-                              SizedBox(
-                                width: 180,
-                                child: PrismDropdownField<String>(
-                                  value: activeRemoveTag,
-                                  decoration: const PrismInputDecoration(
-                                    hintText: '选择要移除的标签',
-                                    isDense: true,
+                            Expanded(
+                              child: Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  PrismBadge(
+                                    label: '${_selectedIds.length} 个已选',
+                                    tone: _selectedIds.isEmpty
+                                        ? PrismTone.neutral
+                                        : PrismTone.primary,
                                   ),
-                                  items: tags
-                                      .map(
-                                        (tag) => PrismDropdownItem(
-                                          value: tag,
-                                          child: Text(tag),
+                                  PrismHoverMotion(
+                                    enabled: !_saving,
+                                    child: prism.FilledButton.icon(
+                                      onPressed: _saving ? null : _addTags,
+                                      icon: const PrismGlyph(
+                                        AntGlyphs.add,
+                                        size: 16,
+                                      ),
+                                      label: const Text('添加标签'),
+                                    ),
+                                  ),
+                                  if (tags.isNotEmpty)
+                                    SizedBox(
+                                      width: 180,
+                                      child: PrismDropdownField<String>(
+                                        value: activeRemoveTag,
+                                        decoration: const PrismInputDecoration(
+                                          hintText: '选择要移除的标签',
+                                          isDense: true,
                                         ),
-                                      )
-                                      .toList(),
-                                  onChanged: (value) => setState(
-                                    () => _removeTagValue = value ?? '',
+                                        items: tags
+                                            .map(
+                                              (tag) => PrismDropdownItem(
+                                                value: tag,
+                                                child: Text(tag),
+                                              ),
+                                            )
+                                            .toList(),
+                                        onChanged: (value) => setState(
+                                          () => _removeTagValue = value ?? '',
+                                        ),
+                                      ),
+                                    ),
+                                  PrismHoverMotion(
+                                    enabled: !_saving && activeRemoveTag != null,
+                                    child: prism.OutlinedButton.icon(
+                                      onPressed:
+                                          _saving || activeRemoveTag == null
+                                          ? null
+                                          : _removeSelectedTag,
+                                      icon: const PrismGlyph(
+                                        AntGlyphs.removeCircle,
+                                        size: 16,
+                                      ),
+                                      label: const Text('移除'),
+                                    ),
                                   ),
-                                ),
-                              ),
-                            PrismHoverMotion(
-                              enabled: !_saving && activeRemoveTag != null,
-                              child: prism.OutlinedButton.icon(
-                                onPressed: _saving || activeRemoveTag == null
-                                    ? null
-                                    : _removeSelectedTag,
-                                icon: const PrismGlyph(
-                                  AntGlyphs.removeCircle,
-                                  size: 16,
-                                ),
-                                label: const Text('移除'),
+                                  prism.TextButton.icon(
+                                    onPressed: _selectedIds.isEmpty
+                                        ? null
+                                        : () => setState(_selectedIds.clear),
+                                    icon: const PrismGlyph(
+                                      AntGlyphs.close,
+                                      size: 16,
+                                    ),
+                                    label: const Text('清除选择'),
+                                  ),
+                                ],
                               ),
                             ),
-                            prism.TextButton.icon(
-                              onPressed: _selectedIds.isEmpty
-                                  ? null
-                                  : () => setState(_selectedIds.clear),
-                              icon: const PrismGlyph(AntGlyphs.close, size: 16),
-                              label: const Text('清除选择'),
-                            ),
+                            const SizedBox(width: 8),
                             prism.IconButton(
                               tooltip: '刷新',
                               onPressed: _saving ? null : _load,
@@ -699,10 +722,17 @@ class _TagsPageState extends State<TagsPage> {
                                                                     _toggleAll(),
                                                               ),
                                                             ),
+                                                            const SizedBox(
+                                                              width: 8,
+                                                            ),
                                                             Expanded(
                                                               flex: 5,
                                                               child: Text(
                                                                 '实例名称',
+                                                                maxLines: 1,
+                                                                overflow:
+                                                                    TextOverflow
+                                                                        .ellipsis,
                                                                 style: prism
                                                                     .AppTextStyle
                                                                     .footnote
@@ -712,11 +742,18 @@ class _TagsPageState extends State<TagsPage> {
                                                                           true,
                                                                     ),
                                                               ),
+                                                            ),
+                                                            const SizedBox(
+                                                              width: 12,
                                                             ),
                                                             Expanded(
                                                               flex: 5,
                                                               child: Text(
                                                                 '当前标签',
+                                                                maxLines: 1,
+                                                                overflow:
+                                                                    TextOverflow
+                                                                        .ellipsis,
                                                                 style: prism
                                                                     .AppTextStyle
                                                                     .footnote
@@ -727,10 +764,17 @@ class _TagsPageState extends State<TagsPage> {
                                                                     ),
                                                               ),
                                                             ),
+                                                            const SizedBox(
+                                                              width: 12,
+                                                            ),
                                                             SizedBox(
-                                                              width: 90,
+                                                              width: 96,
                                                               child: Text(
                                                                 '状态',
+                                                                maxLines: 1,
+                                                                overflow:
+                                                                    TextOverflow
+                                                                        .ellipsis,
                                                                 style: prism
                                                                     .AppTextStyle
                                                                     .footnote
@@ -811,6 +855,9 @@ class _TagsPageState extends State<TagsPage> {
                                                                             ),
                                                                       ),
                                                                     ),
+                                                                    const SizedBox(
+                                                                      width: 8,
+                                                                    ),
                                                                     Expanded(
                                                                       flex: 5,
                                                                       child: Text(
@@ -827,6 +874,9 @@ class _TagsPageState extends State<TagsPage> {
                                                                               context,
                                                                             ),
                                                                       ),
+                                                                    ),
+                                                                    const SizedBox(
+                                                                      width: 12,
                                                                     ),
                                                                     Expanded(
                                                                       flex: 5,
@@ -858,8 +908,11 @@ class _TagsPageState extends State<TagsPage> {
                                                                                   .toList(),
                                                                       ),
                                                                     ),
+                                                                    const SizedBox(
+                                                                      width: 12,
+                                                                    ),
                                                                     SizedBox(
-                                                                      width: 90,
+                                                                      width: 96,
                                                                       child: Align(
                                                                         alignment:
                                                                             Alignment

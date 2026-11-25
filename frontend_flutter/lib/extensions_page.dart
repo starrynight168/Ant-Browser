@@ -443,6 +443,8 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                               : (extId.isNotEmpty
                                                     ? extId
                                                     : queryText),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                           style: prism.AppTextStyle.subheadline
                                               .of(context, emphasized: true),
                                         ),
@@ -456,6 +458,8 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                           record['createdAt'],
                                         ),
                                       ].where((s) => s.isNotEmpty).join(' · '),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                       style: prism.AppTextStyle.caption1
                                           .of(context)
                                           .copyWith(
@@ -484,6 +488,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                               const SizedBox(width: 8),
                               Wrap(
                                 spacing: 2,
+                                crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   prism.TextButton(
                                     onPressed: () {
@@ -629,8 +634,16 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                               final isImporting = importingFile == fileName;
                               return PrismCard(
                                 child: PrismListTile(
-                                  title: Text(fileName),
-                                  subtitle: Text('$sizeText · $updatedAt'),
+                                  title: Text(
+                                    fileName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  subtitle: Text(
+                                    '$sizeText · $updatedAt',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                   trailing: prism.FilledButton(
                                     onPressed: importingFile.isNotEmpty
                                         ? null
@@ -821,6 +834,8 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                         Text(
                                           (profile['profileName'] ?? id)
                                               .toString(),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                         PrismBadge(
                                           label: running ? '运行中' : '已停止',
@@ -944,7 +959,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
               title: const Text('手动安装插件'),
               content: SizedBox(
                 width: 600,
-                height: 480,
+                height: 540,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -1052,9 +1067,13 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                     const SizedBox(height: 6),
                     Expanded(
                       child: files.isEmpty
-                          ? const PrismEmptyState(
-                              title: '目录中还没有插件包',
-                              glyph: AntGlyphs.folder,
+                          ? const Center(
+                              child: SingleChildScrollView(
+                                child: PrismEmptyState(
+                                  title: '目录中还没有插件包',
+                                  glyph: AntGlyphs.folder,
+                                ),
+                              ),
                             )
                           : ListView.separated(
                               padding: kPrismListPadding,
@@ -1070,9 +1089,15 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                 );
                                 return PrismCard(
                                   child: PrismListTile(
-                                    title: Text(name),
+                                    title: Text(
+                                      name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                     subtitle: Text(
                                       '$sizeText · ${file['updatedAt'] ?? ''}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                     trailing: prism.FilledButton(
                                       onPressed: () async {
@@ -1318,7 +1343,11 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                     runSpacing: 4,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Text((profile['profileName'] ?? id).toString()),
+                      Text(
+                        (profile['profileName'] ?? id).toString(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       if (running)
                         const PrismBadge(
                           label: '运行中',
@@ -1471,6 +1500,9 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                                               : (groupNames[section
                                                                         .key] ??
                                                                     '分组 ${section.key}'),
+                                                          maxLines: 1,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
                                                           style: prism
                                                               .AppTextStyle
                                                               .subheadline
@@ -1882,6 +1914,8 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                           Text(
                             '${result['name'] ?? extId}'
                             '${(result['version'] ?? '').toString().isNotEmpty ? '  v${result['version']}' : ''}',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                             style: prism.AppTextStyle.subheadline.of(
                               context,
                               emphasized: true,
@@ -2006,6 +2040,16 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
       ),
     );
     final actionWidgets = <Widget>[
+      prism.IconButton(
+        tooltip: '历史记录',
+        onPressed: _showHistory,
+        icon: const PrismGlyph(AntGlyphs.history, size: 17),
+      ),
+      prism.IconButton(
+        tooltip: '刷新',
+        onPressed: _loading ? null : _refresh,
+        icon: const PrismGlyph(AntGlyphs.refresh, size: 17),
+      ),
       PrismTonalButton.icon(
         onPressed: _busy.isEmpty ? _openDownloadDirectoryInstallModal : null,
         icon: const PrismGlyph(AntGlyphs.folderSpecial, size: 15),
@@ -2036,16 +2080,6 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
           PrismMenuItem(value: 'download-dir', child: Text('下载目录安装')),
         ],
       ),
-      prism.IconButton(
-        tooltip: '历史记录',
-        onPressed: _showHistory,
-        icon: const PrismGlyph(AntGlyphs.history, size: 17),
-      ),
-      prism.IconButton(
-        tooltip: '刷新',
-        onPressed: _loading ? null : _refresh,
-        icon: const PrismGlyph(AntGlyphs.refresh, size: 17),
-      ),
     ];
 
     return PrismHoverCard(
@@ -2059,9 +2093,10 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
         children: [
           LayoutBuilder(
             builder: (context, constraints) {
-              final wide = constraints.maxWidth >= 900;
+              final wide = constraints.maxWidth >= 940;
               if (wide) {
                 return Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Expanded(
                       child: PrismSearchBar(
@@ -2330,6 +2365,8 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                       children: [
                         Text(
                           (item['name'] ?? id).toString(),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: prism.AppTextStyle.subheadline.of(
                             context,
                             emphasized: true,
@@ -2405,6 +2442,8 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                           if (installedAt.isNotEmpty) '安装于 $installedAt',
                           if (updatedAt.isNotEmpty) '更新于 $updatedAt',
                         ].join(' · '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: prism.AppTextStyle.caption2
                             .of(context)
                             .copyWith(color: colors.onSurfaceVariant),

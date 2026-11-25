@@ -626,11 +626,14 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
             width: 108,
             child: Text(
               label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: prism.AppTextStyle.footnote
                   .of(context, emphasized: true)
                   .copyWith(color: colors.onSurfaceVariant),
             ),
           ),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               value.isEmpty ? '-' : value,
@@ -678,10 +681,13 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
         children: [
           Row(
             children: [
-              prism.IconButton(
-                tooltip: '返回',
-                onPressed: widget.onBack,
-                icon: const PrismGlyph(AntGlyphs.arrowBack, size: 18),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: prism.IconButton(
+                  tooltip: '返回',
+                  onPressed: widget.onBack,
+                  icon: const PrismGlyph(AntGlyphs.arrowBack, size: 18),
+                ),
               ),
               const SizedBox(width: 6),
               Expanded(
@@ -772,52 +778,81 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                         ),
                         const SizedBox(height: 10),
                       ],
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: [
-                          PrismMetricTile(
-                            label: '运行状态',
-                            value: statusInfo.label,
-                            glyph: AntGlyphs.browser,
-                            tone: statusInfo.tone,
-                            staggerIndex: 0,
-                            staggerDelay: const Duration(milliseconds: 45),
-                          ),
-                          PrismMetricTile(
-                            label: '进程 PID',
-                            value: pid > 0 ? '$pid' : '-',
-                            glyph: AntGlyphs.cpu,
-                            tone: pid > 0 ? PrismTone.info : PrismTone.neutral,
-                            staggerIndex: 1,
-                            staggerDelay: const Duration(milliseconds: 45),
-                          ),
-                          PrismMetricTile(
-                            label: '调试端口',
-                            value: debugPort > 0 ? '$debugPort' : '-',
-                            subtitle: _running
-                                ? (_debugReady ? 'CDP 已就绪' : '等待 CDP 就绪')
-                                : '未启动',
-                            glyph: AntGlyphs.api,
-                            tone: _debugReady
-                                ? PrismTone.success
-                                : _running
-                                ? PrismTone.warning
-                                : PrismTone.neutral,
-                            staggerIndex: 2,
-                            staggerDelay: const Duration(milliseconds: 45),
-                          ),
-                          PrismMetricTile(
-                            label: '最近启动',
-                            value: _formatDateTime(profile['lastStartAt']),
-                            subtitle:
-                                '最近停止：${_formatDateTime(profile['lastStopAt'])}',
-                            glyph: AntGlyphs.schedule,
-                            tone: PrismTone.neutral,
-                            staggerIndex: 3,
-                            staggerDelay: const Duration(milliseconds: 45),
-                          ),
-                        ],
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final tiles = [
+                            PrismMetricTile(
+                              label: '运行状态',
+                              value: statusInfo.label,
+                              glyph: AntGlyphs.browser,
+                              tone: statusInfo.tone,
+                              staggerIndex: 0,
+                              staggerDelay: const Duration(milliseconds: 45),
+                            ),
+                            PrismMetricTile(
+                              label: '进程 PID',
+                              value: pid > 0 ? '$pid' : '-',
+                              glyph: AntGlyphs.cpu,
+                              tone: pid > 0 ? PrismTone.info : PrismTone.neutral,
+                              staggerIndex: 1,
+                              staggerDelay: const Duration(milliseconds: 45),
+                            ),
+                            PrismMetricTile(
+                              label: '调试端口',
+                              value: debugPort > 0 ? '$debugPort' : '-',
+                              subtitle: _running
+                                  ? (_debugReady ? 'CDP 已就绪' : '等待 CDP 就绪')
+                                  : '未启动',
+                              glyph: AntGlyphs.api,
+                              tone: _debugReady
+                                  ? PrismTone.success
+                                  : _running
+                                  ? PrismTone.warning
+                                  : PrismTone.neutral,
+                              staggerIndex: 2,
+                              staggerDelay: const Duration(milliseconds: 45),
+                            ),
+                            PrismMetricTile(
+                              label: '最近启动',
+                              value: _formatDateTime(profile['lastStartAt']),
+                              subtitle:
+                                  '最近停止：${_formatDateTime(profile['lastStopAt'])}',
+                              glyph: AntGlyphs.schedule,
+                              tone: PrismTone.neutral,
+                              staggerIndex: 3,
+                              staggerDelay: const Duration(milliseconds: 45),
+                            ),
+                          ];
+                          if (constraints.maxWidth >= 760) {
+                            return Row(
+                              children: [
+                                for (var i = 0; i < tiles.length; i++) ...[
+                                  if (i > 0) const SizedBox(width: 12),
+                                  Expanded(child: tiles[i]),
+                                ],
+                              ],
+                            );
+                          }
+                          return Column(
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(child: tiles[0]),
+                                  const SizedBox(width: 10),
+                                  Expanded(child: tiles[1]),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(child: tiles[2]),
+                                  const SizedBox(width: 10),
+                                  Expanded(child: tiles[3]),
+                                ],
+                              ),
+                            ],
+                          );
+                        },
                       ),
                       const SizedBox(height: 14),
                       PrismSectionCard(
@@ -888,12 +923,15 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                                   Expanded(
                                     child: Text(
                                       '启动码：${profile['launchCode'] ?? '未分配'}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                       style: prism.AppTextStyle.subheadline.of(
                                         context,
                                         emphasized: true,
                                       ),
                                     ),
                                   ),
+                                  const SizedBox(width: 8),
                                   prism.IconButton(
                                     tooltip: '复制启动码',
                                     onPressed: () => _copyLaunchCode(profile),
@@ -902,6 +940,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                                       size: 16,
                                     ),
                                   ),
+                                  const SizedBox(width: 4),
                                   prism.IconButton(
                                     tooltip: '重新生成启动码',
                                     onPressed: _busy.isEmpty
@@ -1017,6 +1056,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                   ],
                 ),
                   1 => Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Padding(
                       padding: const EdgeInsets.only(top: 16, bottom: 10),
@@ -1067,15 +1107,21 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                                       title: Text(
                                         (snapshot['name'] ?? '未命名快照')
                                             .toString(),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                         style: prism.AppTextStyle.subheadline
                                             .of(context, emphasized: true),
                                       ),
                                       subtitle: Text(
                                         '${_formatDateTime(snapshot['createdAt'])} · '
                                         '${_formatSnapshotSize(snapshot['sizeMB'])}',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                       trailing: Wrap(
                                         spacing: 4,
+                                        crossAxisAlignment:
+                                            WrapCrossAlignment.center,
                                         children: [
                                           prism.IconButton(
                                             tooltip: '恢复快照',
@@ -1184,12 +1230,15 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                           Expanded(
                             child: Text(
                               '导出的 Netscape Cookie',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: prism.AppTextStyle.footnote.of(
                                 context,
                                 emphasized: true,
                               ),
                             ),
                           ),
+                          const SizedBox(width: 8),
                           prism.OutlinedButton.icon(
                             onPressed: _saveCookieExportToFile,
                             icon: const PrismGlyph(AntGlyphs.save, size: 14),
@@ -1276,6 +1325,9 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                                                         child: Text(
                                                           (cookie['name'] ?? '')
                                                               .toString(),
+                                                          maxLines: 1,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
                                                           style: prism
                                                               .AppTextStyle
                                                               .subheadline
@@ -1317,6 +1369,9 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                                                   const SizedBox(height: 4),
                                                   Text(
                                                     '${cookie['domain'] ?? ''} · ${cookie['path'] ?? '/'} · ${_cookieExpiry(cookie['expires'])}',
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
                                                     style: prism
                                                         .AppTextStyle
                                                         .caption1

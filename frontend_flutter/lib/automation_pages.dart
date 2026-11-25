@@ -413,6 +413,7 @@ Future<void> _showPublicApiQuickDialog(
                           ),
                         ),
                       ),
+                      const SizedBox(width: 8),
                       prism.OutlinedButton.icon(
                         onPressed: () {
                           Clipboard.setData(ClipboardData(text: url));
@@ -934,16 +935,13 @@ class _AutomationScriptRunModalState extends State<AutomationScriptRunModal> {
                           : PrismTone.danger,
                       dot: true,
                     ),
-                    if (result != null) ...[
-                      const SizedBox(width: 6),
+                    if (result != null)
                       PrismBadge(
                         label: _formatDuration(result['durationMs']),
                         glyph: AntGlyphs.schedule,
                         tone: PrismTone.neutral,
                       ),
-                    ],
-                    if (logText.isNotEmpty) ...[
-                      const SizedBox(width: 6),
+                    if (logText.isNotEmpty)
                       prism.OutlinedButton.icon(
                         onPressed: () => _showLogViewerDialog(
                           context,
@@ -953,9 +951,7 @@ class _AutomationScriptRunModalState extends State<AutomationScriptRunModal> {
                         icon: const PrismGlyph(AntGlyphs.logs, size: 14),
                         label: const Text('查看日志'),
                       ),
-                    ],
-                    if (formattedResult.isNotEmpty) ...[
-                      const SizedBox(width: 6),
+                    if (formattedResult.isNotEmpty)
                       prism.OutlinedButton.icon(
                         onPressed: () {
                           Clipboard.setData(
@@ -966,7 +962,6 @@ class _AutomationScriptRunModalState extends State<AutomationScriptRunModal> {
                         icon: const PrismGlyph(AntGlyphs.copy, size: 14),
                         label: const Text('复制结果'),
                       ),
-                    ],
                   ],
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1524,6 +1519,7 @@ class _AutomationPageState extends State<AutomationPage> {
                         ),
                       ),
                     ),
+                    const SizedBox(width: 8),
                     prism.OutlinedButton.icon(
                       onPressed: () => _showLogViewerDialog(
                         context,
@@ -1588,12 +1584,15 @@ class _AutomationPageState extends State<AutomationPage> {
                       Expanded(
                         child: Text(
                           '共 ${runs.length} 条记录 · 覆盖 $scriptCount 个脚本',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: prism.AppTextStyle.subheadline.of(
                             context,
                             emphasized: true,
                           ),
                         ),
                       ),
+                      const SizedBox(width: 8),
                       prism.OutlinedButton.icon(
                         onPressed: refreshing
                             ? null
@@ -1721,7 +1720,7 @@ class _AutomationPageState extends State<AutomationPage> {
                                       ),
                                       title: Row(
                                         children: [
-                                          Flexible(
+                                          Expanded(
                                             child: Text(
                                               (run['scriptName'] ??
                                                       run['scriptId'] ??
@@ -1757,8 +1756,10 @@ class _AutomationPageState extends State<AutomationPage> {
                                       isThreeLine: true,
                                       trailing: Row(
                                         mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
                                         children: [
-                                          if (logText.isNotEmpty)
+                                          if (logText.isNotEmpty) ...[
                                             prism.OutlinedButton.icon(
                                               onPressed: () =>
                                                   _showLogViewerDialog(
@@ -1773,7 +1774,8 @@ class _AutomationPageState extends State<AutomationPage> {
                                               ),
                                               label: const Text('执行日志'),
                                             ),
-                                          const SizedBox(width: 6),
+                                            const SizedBox(width: 6),
+                                          ],
                                           PrismGlyph(
                                             expanded
                                                 ? AntGlyphs.chevronUp
@@ -1941,6 +1943,8 @@ class _AutomationPageState extends State<AutomationPage> {
                               ),
                             Text(
                               name,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                               style: prism.AppTextStyle.headline.of(
                                 context,
                                 emphasized: true,
@@ -2037,7 +2041,19 @@ class _AutomationPageState extends State<AutomationPage> {
               spacing: 8,
               runSpacing: 6,
               alignment: WrapAlignment.end,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
+                if (!isLaunchApi)
+                  PrismTonalButton.icon(
+                    onPressed: isDisabled ? null : () => _openRunModal(script),
+                    icon: const PrismGlyph(AntGlyphs.play, size: 14),
+                    child: const Text('运行脚本'),
+                  ),
+                prism.TextButton.icon(
+                  onPressed: () => widget.onOpen(id),
+                  icon: const PrismGlyph(AntGlyphs.edit, size: 14),
+                  label: const Text('编辑'),
+                ),
                 // 接口调试工具收进菜单，保持卡片操作行克制。
                 PrismPopupMenuButton<String>(
                   tooltip: '接口调试',
@@ -2084,17 +2100,6 @@ class _AutomationPageState extends State<AutomationPage> {
                       child: Text('接口调试窗口'),
                     ),
                   ],
-                ),
-                if (!isLaunchApi)
-                  PrismTonalButton.icon(
-                    onPressed: isDisabled ? null : () => _openRunModal(script),
-                    icon: const PrismGlyph(AntGlyphs.play, size: 14),
-                    child: const Text('运行脚本'),
-                  ),
-                prism.TextButton.icon(
-                  onPressed: () => widget.onOpen(id),
-                  icon: const PrismGlyph(AntGlyphs.edit, size: 14),
-                  label: const Text('编辑'),
                 ),
               ],
             ),
@@ -2536,6 +2541,7 @@ class _AutomationPageState extends State<AutomationPage> {
                         );
                       }
                       return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Expanded(flex: 3, child: scriptsSection),
                           const SizedBox(height: 12),
@@ -3394,6 +3400,7 @@ class _AutomationScriptDetailPageState
                 ),
               ),
             ),
+            const SizedBox(width: 8),
             SizedBox(
               width: 220,
               child: prism.SegmentedControl<int>(
@@ -3554,10 +3561,13 @@ class _AutomationScriptDetailPageState
       children: [
         Row(
           children: [
-            prism.IconButton(
-              tooltip: '返回',
-              onPressed: _busy.isEmpty ? _leavePage : null,
-              icon: const PrismGlyph(AntGlyphs.arrowBack, size: 18),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: prism.IconButton(
+                tooltip: '返回',
+                onPressed: _busy.isEmpty ? _leavePage : null,
+                icon: const PrismGlyph(AntGlyphs.arrowBack, size: 18),
+              ),
             ),
             const SizedBox(width: 6),
             Expanded(
@@ -3579,6 +3589,20 @@ class _AutomationScriptDetailPageState
                   PrismBadge(
                     label: _statusLabel(_status),
                     tone: _statusTone(_status),
+                  ),
+                  if (!_isLaunchApi)
+                    prism.OutlinedButton.icon(
+                      onPressed: canRun ? _openRunModal : null,
+                      icon: const PrismGlyph(AntGlyphs.play, size: 15),
+                      label: const Text('运行脚本'),
+                    ),
+                  PrismHoverMotion(
+                    enabled: _busy.isEmpty,
+                    child: prism.FilledButton.icon(
+                      onPressed: _busy.isEmpty ? _save : null,
+                      icon: const PrismGlyph(AntGlyphs.save, size: 15),
+                      label: Text(_busy == 'save' ? '保存中…' : '保存'),
+                    ),
                   ),
                   PrismPopupMenuButton<String>(
                     tooltip: '更多操作',
@@ -3695,20 +3719,6 @@ class _AutomationScriptDetailPageState
                         child: Text('删除脚本'),
                       ),
                     ],
-                  ),
-                  if (!_isLaunchApi)
-                    prism.OutlinedButton.icon(
-                      onPressed: canRun ? _openRunModal : null,
-                      icon: const PrismGlyph(AntGlyphs.play, size: 15),
-                      label: const Text('运行脚本'),
-                    ),
-                  PrismHoverMotion(
-                    enabled: _busy.isEmpty,
-                    child: prism.FilledButton.icon(
-                      onPressed: _busy.isEmpty ? _save : null,
-                      icon: const PrismGlyph(AntGlyphs.save, size: 15),
-                      label: Text(_busy == 'save' ? '保存中…' : '保存'),
-                    ),
                   ),
                 ],
               ),
@@ -3894,6 +3904,7 @@ class _AutomationScriptDetailPageState
                           .copyWith(color: colors.onSurfaceVariant),
                     ),
                   ),
+                  const SizedBox(width: 8),
                   prism.IconButton(
                     tooltip: '参数格式说明',
                     onPressed: _showParamsHelp,
