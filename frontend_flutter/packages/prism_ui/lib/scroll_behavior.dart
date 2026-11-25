@@ -48,12 +48,10 @@ class BaseScrollBehavior extends ScrollBehavior {
         !showScrollbar(context)) {
       return child;
     }
-    return _SmoothWheelScroll(
-      child: Scrollbar.ambient(
-        controller: details.controller,
-        padding: scrollbarPadding,
-        child: child,
-      ),
+    return Scrollbar.ambient(
+      controller: details.controller,
+      padding: scrollbarPadding,
+      child: child,
     );
   }
 
@@ -63,21 +61,27 @@ class BaseScrollBehavior extends ScrollBehavior {
     Widget child,
     ScrollableDetails details,
   ) {
-    return switch (getPlatform(context)) {
+    final platform = getPlatform(context);
+    final wrapped =
+        axisDirectionToAxis(details.direction) == Axis.vertical &&
+            !isTouchPlatform(platform)
+        ? _SmoothWheelScroll(child: child)
+        : child;
+    return switch (platform) {
       TargetPlatform.android => StretchingOverscrollIndicator(
         axisDirection: details.direction,
         clipBehavior: details.decorationClipBehavior ?? Clip.hardEdge,
-        child: child,
+        child: wrapped,
       ),
       TargetPlatform.fuchsia => GlowingOverscrollIndicator(
         axisDirection: details.direction,
         color: Theme.of(context).colorScheme.secondary,
-        child: child,
+        child: wrapped,
       ),
       TargetPlatform.iOS ||
       TargetPlatform.linux ||
       TargetPlatform.macOS ||
-      TargetPlatform.windows => child,
+      TargetPlatform.windows => wrapped,
     };
   }
 
