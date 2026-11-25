@@ -1,10 +1,123 @@
 import 'dart:convert';
 
-import 'prism_widgets.dart';
-
 import 'package:prism_ui/prism_ui.dart' as prism;
 
 import 'app_bridge.dart';
+import 'prism_widgets.dart';
+
+String _formatFileSize(dynamic rawBytes) {
+  final bytes = (rawBytes is num)
+      ? rawBytes.toDouble()
+      : double.tryParse('$rawBytes') ?? 0;
+  if (bytes <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  var value = bytes;
+  var unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex++;
+  }
+  final digits = unitIndex == 0 ? 0 : (value >= 100 ? 0 : (value >= 10 ? 1 : 2));
+  return '${value.toStringAsFixed(digits)} ${units[unitIndex]}';
+}
+
+String _formatTransferRate(dynamic rawBps) {
+  final bps = (rawBps is num)
+      ? rawBps.toDouble()
+      : double.tryParse('$rawBps') ?? 0;
+  if (bps <= 0) return '';
+  return '${_formatFileSize(bps)}/s';
+}
+
+String _formatTimestamp(dynamic raw) {
+  final text = (raw ?? '').toString().trim();
+  if (text.isEmpty) return '';
+  final parsed = DateTime.tryParse(text);
+  if (parsed == null) return text;
+  final local = parsed.toLocal();
+  String two(int v) => v.toString().padLeft(2, '0');
+  return '${local.year}-${two(local.month)}-${two(local.day)} '
+      '${two(local.hour)}:${two(local.minute)}:${two(local.second)}';
+}
+
+String _formatBackupResultSummary(Map<String, dynamic> result) {
+  final parts = <String>[];
+  final baseMessage = (result['message'] ?? '').toString().trim();
+  if (baseMessage.isNotEmpty) {
+    parts.add(baseMessage);
+  }
+
+  final created = (result['createdCount'] as num?)?.toInt() ?? 0;
+  final overwritten = (result['overwrittenCount'] as num?)?.toInt() ?? 0;
+  final renamed = (result['renamedCount'] as num?)?.toInt() ?? 0;
+  if (created > 0 || overwritten > 0 || renamed > 0) {
+    parts.add('实例导入统计：新建 $created · 覆盖 $overwritten · 重命名 $renamed');
+  }
+
+  final failedComponents = (result['failedComponents'] as List? ?? [])
+      .whereType<Map>()
+      .map((row) => Map<String, dynamic>.from(row))
+      .toList();
+  if (failedComponents.isNotEmpty) {
+    final items = failedComponents.take(3).map((item) {
+      final name = (item['componentName'] ?? item['componentId'] ?? '未知组件')
+          .toString();
+      final err = (item['error'] ?? '').toString();
+      return err.isEmpty ? name : '$name（$err）';
+    }).join('；');
+    final suffix = failedComponents.length > 3
+        ? ' 等 ${failedComponents.length} 项'
+        : '';
+    parts.add('部分组件失败：$items$suffix');
+  }
+
+  final warnings = (result['warnings'] as List? ?? [])
+      .map((item) => item.toString().trim())
+      .where((item) => item.isNotEmpty)
+      .toList();
+  if (warnings.isNotEmpty) {
+    final preview = warnings.take(2).join('；');
+    final suffix = warnings.length > 2 ? ' 等 ${warnings.length} 条警告' : '';
+    parts.add('提示：$preview$suffix');
+  }
+
+  return parts.isEmpty ? '操作完成' : parts.join('\n');
+}
+
+(String, PrismTone) _scheduleStatusInfo(String status) => switch (status) {
+  'running' => ('运行中', PrismTone.info),
+  'success' => ('成功', PrismTone.success),
+  'skipped' => ('已跳过', PrismTone.warning),
+  'failed' => ('失败', PrismTone.danger),
+  _ => ('从未执行', PrismTone.neutral),
+};
+
+(String, PrismTone) _backupPackageBadge(
+  Map<String, dynamic> backup, {
+  required bool isLocal,
+}) {
+  if (backup['metadataOrphan'] == true) {
+    return ('备份文件缺失', PrismTone.danger);
+  }
+  if (isLocal && backup.containsKey('metadataAvailable') &&
+      backup['metadataAvailable'] == false) {
+    return ('信息不可用', PrismTone.warning);
+  }
+  final packageType = (backup['packageType'] ?? '').toString().trim();
+  final profileCount = (backup['profileCount'] as num?)?.toInt() ?? 0;
+  return switch (packageType) {
+    'full' => ('全量', PrismTone.primary),
+    'profile' => (profileCount > 1 ? '多实例' : '单实例', PrismTone.info),
+    _ => ('信息不可用', PrismTone.neutral),
+  };
+}
+
+class _TestResultState {
+  const _TestResultState({required this.ok, required this.message});
+
+  final bool ok;
+  final String message;
+}
 
 class BackupPage extends StatefulWidget {
   const BackupPage({
@@ -12,8 +125,10 @@ class BackupPage extends StatefulWidget {
     required this.onOpenS3,
     required this.onOpenOpenList,
   });
+
   final VoidCallback onOpenS3;
   final VoidCallback onOpenOpenList;
+
   @override
   State<BackupPage> createState() => _BackupPageState();
 }
@@ -26,6 +141,7 @@ mixin _BackupProfileImportFlow<T extends StatefulWidget> on State<T> {
         .whereType<Map>()
         .map((row) => Map<String, dynamic>.from(row))
         .toList();
+    final conflictCount = (preview['conflictCount'] as num?)?.toInt() ?? 0;
     final actions = profiles.map((profile) {
       return <String, dynamic>{
         'sourceProfileId': profile['sourceProfileId'],
@@ -37,141 +153,370 @@ mixin _BackupProfileImportFlow<T extends StatefulWidget> on State<T> {
             '',
       };
     }).toList();
+
     return showPrismDialog<List<Map<String, dynamic>>>(
       context: context,
       useRootNavigator: false,
       builder: (context) => StatefulBuilder(
-        builder: (context, setDialog) => PrismDialog(
-          title: Text('导入 ${preview['profileCount'] ?? profiles.length} 个实例'),
-          content: SizedBox(
-            width: 560,
-            height: 420,
-            child: ListView.separated(
-              itemCount: profiles.length,
-              separatorBuilder: (_, __) => const prism.Divider(height: 1),
-              itemBuilder: (context, index) {
-                final profile = profiles[index];
-                final action = actions[index];
-                final canOverwrite = profile['canOverwrite'] == true;
-                final choices = <String>[
-                  'new',
-                  if (canOverwrite) 'overwrite',
-                  'rename',
-                ];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+        builder: (context, setDialog) {
+          final colors = prism.Theme.of(context).colorScheme;
+          final hasOverwrite = actions.any((a) => a['mode'] == 'overwrite');
+          return PrismDialog(
+            title: Text('导入 ${preview['profileCount'] ?? profiles.length} 个实例'),
+            content: SizedBox(
+              width: 620,
+              height: 480,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
                     children: [
-                      Text(
-                        (profile['sourceProfileName'] ?? '未命名实例').toString(),
+                      PrismBadge(
+                        label: '共 ${preview['profileCount'] ?? profiles.length} 个实例',
+                        tone: PrismTone.info,
+                        glyph: AntGlyphs.browser,
                       ),
-                      if ((profile['targetProfileName'] ?? '')
-                          .toString()
-                          .isNotEmpty)
-                        Text('匹配到本机实例：${profile['targetProfileName']}'),
-                      PrismDropdownField<String>(
-                        value: choices.contains(action['mode'])
-                            ? action['mode'] as String
-                            : 'new',
-                        items: [
-                          const PrismDropdownItem(
-                            value: 'new',
-                            child: Text('新建实例'),
-                          ),
-                          if (canOverwrite)
-                            const PrismDropdownItem(
-                              value: 'overwrite',
-                              child: Text('覆盖匹配实例'),
-                            ),
-                          const PrismDropdownItem(
-                            value: 'rename',
-                            child: Text('重命名导入'),
-                          ),
-                        ],
-                        decoration: const PrismInputDecoration(
-                          labelText: '导入方式',
-                        ),
-                        onChanged: (value) {
-                          if (value == null) return;
-                          setDialog(() {
-                            action['mode'] = value;
-                            if (value == 'rename') {
-                              action['profileName'] =
-                                  profile['suggestedProfileName'] ??
-                                  '${profile['sourceProfileName'] ?? '实例'}-副本';
-                            }
-                          });
-                        },
-                      ),
-                      if (action['mode'] == 'rename')
-                        PrismTextFormField(
-                          key: ValueKey('backup-import-name-$index'),
-                          initialValue: (action['profileName'] ?? '')
-                              .toString(),
-                          decoration: const PrismInputDecoration(
-                            labelText: '导入后的名称',
-                          ),
-                          onChanged: (value) => action['profileName'] = value,
+                      if (conflictCount > 0)
+                        PrismBadge(
+                          label: '$conflictCount 个冲突需确认',
+                          tone: PrismTone.warning,
+                          glyph: AntGlyphs.warning,
+                        )
+                      else
+                        const PrismBadge(
+                          label: '无冲突',
+                          tone: PrismTone.success,
+                          glyph: AntGlyphs.checkCircle,
                         ),
                     ],
                   ),
-                );
-              },
+                  if (hasOverwrite) ...[
+                    const SizedBox(height: 10),
+                    const PrismBanner(
+                      tone: PrismTone.warning,
+                      title: '覆盖提示',
+                      message: '选择「覆盖匹配实例」时，原实例数据会先移入回收站，再由备份包数据替换。',
+                    ),
+                  ],
+                  const SizedBox(height: 10),
+                  Expanded(
+                    child: ListView.separated(
+                      itemCount: profiles.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
+                        final profile = profiles[index];
+                        final action = actions[index];
+                        final canOverwrite = profile['canOverwrite'] == true;
+                        final matchType = (profile['matchType'] ?? '')
+                            .toString()
+                            .trim();
+                        final sourceNameCollision =
+                            profile['sourceNameCollision'] == true;
+                        final sourceTargetCollision =
+                            profile['sourceTargetCollision'] == true;
+                        final ambiguous = profile['ambiguous'] == true;
+                        final targetRunning = profile['targetRunning'] == true;
+                        final targetName =
+                            (profile['targetProfileName'] ?? '').toString();
+                        final sourceName =
+                            (profile['sourceProfileName'] ?? '未命名实例')
+                                .toString();
+                        final choices = <String>[
+                          'new',
+                          if (canOverwrite) 'overwrite',
+                          'rename',
+                        ];
+                        final currentMode = choices.contains(action['mode'])
+                            ? action['mode'] as String
+                            : 'new';
+                        final resultPreview = switch (currentMode) {
+                          'overwrite' =>
+                            '最终结果：覆盖本机实例「${targetName.isEmpty ? sourceName : targetName}」',
+                          'rename' =>
+                            '最终结果：以新名称「${(action['profileName'] ?? '').toString().trim()}」导入',
+                          _ =>
+                            '最终结果：新建实例「${(profile['suggestedProfileName'] ?? sourceName).toString()}」',
+                        };
+                        final conflictReasons = <String>[
+                          if (sourceNameCollision) '备份包内存在重名实例',
+                          if (sourceTargetCollision) '多个导入实例匹配到同一本机实例',
+                          if (ambiguous) '本机存在多个同名实例（匹配不唯一）',
+                          if (targetRunning) '本机目标实例正在运行，无法覆盖',
+                        ];
+
+                        return prism.Surface(
+                          color: colors.surfaceContainerLow,
+                          shape: prism.AppShape.lg,
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 6,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    Text(
+                                      sourceName,
+                                      style: prism.AppTextStyle.subheadline.of(
+                                        context,
+                                        emphasized: true,
+                                      ),
+                                    ),
+                                    if (matchType == 'id')
+                                      const PrismBadge(
+                                        label: 'ID 匹配',
+                                        tone: PrismTone.info,
+                                      )
+                                    else if (matchType == 'name')
+                                      const PrismBadge(
+                                        label: '名称匹配',
+                                        tone: PrismTone.warning,
+                                      ),
+                                    if (targetRunning)
+                                      const PrismBadge(
+                                        label: '运行中',
+                                        tone: PrismTone.danger,
+                                      ),
+                                  ],
+                                ),
+                                if (targetName.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '匹配到本机实例：$targetName',
+                                    style: prism.AppTextStyle.caption1
+                                        .of(context)
+                                        .copyWith(color: colors.onSurfaceVariant),
+                                  ),
+                                ],
+                                if (conflictReasons.isNotEmpty) ...[
+                                  const SizedBox(height: 6),
+                                  Wrap(
+                                    spacing: 6,
+                                    runSpacing: 4,
+                                    children: [
+                                      for (final reason in conflictReasons)
+                                        PrismBadge(
+                                          label: reason,
+                                          tone: PrismTone.warning,
+                                          glyph: AntGlyphs.warning,
+                                        ),
+                                    ],
+                                  ),
+                                ],
+                                const SizedBox(height: 8),
+                                PrismDropdownField<String>(
+                                  value: currentMode,
+                                  items: [
+                                    const PrismDropdownItem(
+                                      value: 'new',
+                                      child: Text('新建实例'),
+                                    ),
+                                    if (canOverwrite)
+                                      const PrismDropdownItem(
+                                        value: 'overwrite',
+                                        child: Text('覆盖匹配实例'),
+                                      ),
+                                    const PrismDropdownItem(
+                                      value: 'rename',
+                                      child: Text('重命名导入'),
+                                    ),
+                                  ],
+                                  decoration: const PrismInputDecoration(
+                                    labelText: '导入方式',
+                                  ),
+                                  onChanged: (value) {
+                                    if (value == null) return;
+                                    setDialog(() {
+                                      action['mode'] = value;
+                                      if (value == 'rename') {
+                                        action['profileName'] =
+                                            profile['suggestedProfileName'] ??
+                                            '$sourceName-副本';
+                                      }
+                                    });
+                                  },
+                                ),
+                                if (currentMode == 'rename') ...[
+                                  const SizedBox(height: 8),
+                                  PrismTextFormField(
+                                    key: ValueKey('backup-import-name-$index'),
+                                    initialValue: (action['profileName'] ?? '')
+                                        .toString(),
+                                    decoration: const PrismInputDecoration(
+                                      labelText: '导入后的名称',
+                                    ),
+                                    onChanged: (value) => setDialog(
+                                      () => action['profileName'] = value,
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(height: 6),
+                                Text(
+                                  resultPreview,
+                                  style: prism.AppTextStyle.caption1
+                                      .of(context, emphasized: true)
+                                      .copyWith(
+                                        color: currentMode == 'overwrite'
+                                            ? PrismToneColors.of(
+                                                context,
+                                                PrismTone.warning,
+                                              ).fg
+                                            : colors.primary,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          actions: [
-            prism.TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('取消'),
-            ),
-            prism.FilledButton(
-              onPressed:
-                  actions.any(
-                    (action) =>
-                        action['mode'] == 'rename' &&
-                        (action['profileName'] ?? '').toString().trim().isEmpty,
-                  )
-                  ? null
-                  : () => Navigator.pop(context, actions),
-              child: const Text('继续导入'),
-            ),
-          ],
-        ),
+            actions: [
+              prism.TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('取消'),
+              ),
+              prism.FilledButton(
+                onPressed:
+                    actions.any(
+                      (action) =>
+                          action['mode'] == 'rename' &&
+                          (action['profileName'] ?? '')
+                              .toString()
+                              .trim()
+                              .isEmpty,
+                    )
+                    ? null
+                    : () => Navigator.pop(context, actions),
+                child: const Text('继续导入'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Future<String?> _askImportPassword() async {
+  Future<Map<String, dynamic>?> _importWithPasswordDialog(
+    Future<Map<String, dynamic>> Function(String password) performImport,
+  ) async {
     final password = TextEditingController();
-    final result = await showPrismDialog<String>(
+    var obscure = true;
+    var submitting = false;
+    var error = '';
+
+    final result = await showPrismDialog<Map<String, dynamic>>(
       context: context,
+      barrierDismissible: false,
       useRootNavigator: false,
-      builder: (context) => PrismDialog(
-        title: const Text('恢复登录态'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('输入导出时设置的迁移密码；留空可跳过登录态恢复。'),
-            const SizedBox(height: 12),
-            PrismTextField(
-              controller: password,
-              obscureText: true,
-              decoration: const PrismInputDecoration(labelText: '迁移密码'),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialog) {
+          Future<void> submit({required bool skipPassword}) async {
+            final value = skipPassword ? '' : password.text;
+            if (!skipPassword && value.isNotEmpty && value.runes.length < 8) {
+              setDialog(() => error = '迁移密码至少需要 8 个字符，或留空跳过登录态恢复');
+              return;
+            }
+            setDialog(() {
+              submitting = true;
+              error = '';
+            });
+            try {
+              final imported = await performImport(value);
+              if (dialogContext.mounted) {
+                Navigator.pop(dialogContext, imported);
+              }
+            } catch (err) {
+              final text = err.toString();
+              if (dialogContext.mounted) {
+                setDialog(() {
+                  submitting = false;
+                  error = text;
+                });
+              }
+            }
+          }
+
+          return PrismDialog(
+            title: const Text('恢复登录态'),
+            content: SizedBox(
+              width: 440,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    '此备份包包含加密的跨设备登录态。输入导出时设置的迁移密码即可恢复 Cookie；留空或点击「跳过登录态」仅恢复配置。',
+                    style: prism.AppTextStyle.footnote.of(dialogContext),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: PrismTextField(
+                          controller: password,
+                          obscureText: obscure,
+                          enabled: !submitting,
+                          onSubmitted: (_) => submit(skipPassword: false),
+                          decoration: PrismInputDecoration(
+                            labelText: '迁移密码（至少 8 个字符，可留空）',
+                            errorText: error.isEmpty ? null : error,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      prism.IconButton(
+                        tooltip: obscure ? '显示密码' : '隐藏密码',
+                        onPressed: submitting
+                            ? null
+                            : () => setDialog(() => obscure = !obscure),
+                        icon: PrismGlyph(
+                          obscure ? AntGlyphs.eye : AntGlyphs.eyeOff,
+                          size: 18,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (error.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    PrismBanner(
+                      tone: PrismTone.danger,
+                      message: error,
+                    ),
+                  ],
+                ],
+              ),
             ),
-          ],
-        ),
-        actions: [
-          prism.TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          prism.FilledButton(
-            onPressed: () => Navigator.pop(context, password.text),
-            child: const Text('继续'),
-          ),
-        ],
+            actions: [
+              prism.TextButton(
+                onPressed: submitting
+                    ? null
+                    : () => Navigator.pop(dialogContext),
+                child: const Text('取消'),
+              ),
+              prism.OutlinedButton(
+                onPressed: submitting
+                    ? null
+                    : () => submit(skipPassword: true),
+                child: const Text('跳过登录态'),
+              ),
+              prism.FilledButton(
+                onPressed: submitting
+                    ? null
+                    : () => submit(skipPassword: false),
+                child: Text(submitting ? '恢复中…' : '确认并导入'),
+              ),
+            ],
+          );
+        },
       ),
     );
     password.dispose();
@@ -192,43 +537,107 @@ mixin _BackupProfileImportFlow<T extends StatefulWidget> on State<T> {
     if (actions == null) {
       return {'cancelled': true, 'message': '已取消导入'};
     }
-    var password = '';
+
+    Future<Map<String, dynamic>> invokeImport(String password) async {
+      final imported = await AppBridge.call(
+        'BrowserProfilePackageImportWithOptions',
+        [
+          preview['zipPath'] ?? result['zipPath'],
+          {
+            'conflictMode': 'new',
+            'confirmConflict': true,
+            'actions': actions,
+            'portableSessionPassword': password,
+          },
+        ],
+      );
+      return imported is Map
+          ? Map<String, dynamic>.from(imported)
+          : <String, dynamic>{'message': imported?.toString() ?? '导入完成'};
+    }
+
     if (preview['portableSessionAvailable'] == true) {
-      final value = await _askImportPassword();
-      if (value == null) {
+      final imported = await _importWithPasswordDialog(invokeImport);
+      if (imported == null) {
         return {'cancelled': true, 'message': '已取消导入'};
       }
-      password = value;
+      return imported;
     }
-    final imported = await AppBridge.call(
-      'BrowserProfilePackageImportWithOptions',
-      [
-        preview['zipPath'] ?? result['zipPath'],
-        {
-          'conflictMode': 'new',
-          'confirmConflict': true,
-          'actions': actions,
-          'portableSessionPassword': password,
-        },
-      ],
-    );
-    return imported is Map
-        ? Map<String, dynamic>.from(imported)
-        : <String, dynamic>{'message': imported?.toString() ?? '导入完成'};
+    return invokeImport('');
   }
 }
 
 class _BackupPageState extends State<BackupPage>
     with _BackupProfileImportFlow<BackupPage> {
+  int _historyTab = 0; // 0: local, 1: openlist, 2: s3
   String _directory = '';
-  List<Map<String, dynamic>> _backups = [];
+  List<Map<String, dynamic>> _localBackups = [];
+  List<Map<String, dynamic>> _openListBackups = [];
+  List<Map<String, dynamic>> _s3Backups = [];
+  bool _openListConfigured = false;
+  bool _s3Configured = false;
+  Map<String, String> _openListPayload = {};
+  Map<String, String> _s3Payload = {};
   bool _loading = true;
+  bool _loadingRemote = false;
   String _busy = '';
+
+  Map<String, dynamic>? _activeProgress;
+  String _progressKind = '';
+  final List<String> _progressLogs = [];
+  late final void Function() _removeExportProgressListener;
+  late final void Function() _removeImportProgressListener;
 
   @override
   void initState() {
     super.initState();
+    _removeExportProgressListener = AppBridge.onEvent(
+      'backup:export:progress',
+      (payload) => _onProgressEvent('export', payload),
+    );
+    _removeImportProgressListener = AppBridge.onEvent(
+      'backup:import:progress',
+      (payload) => _onProgressEvent('import', payload),
+    );
     _load();
+  }
+
+  @override
+  void dispose() {
+    _removeExportProgressListener();
+    _removeImportProgressListener();
+    super.dispose();
+  }
+
+  void _onProgressEvent(String kind, dynamic payload) {
+    if (!mounted || payload is! Map) return;
+    final event = Map<String, dynamic>.from(payload);
+    final ts = (event['timestamp'] ?? '').toString().trim();
+    final msg = (event['message'] ?? '').toString().trim();
+    final comp = (event['componentName'] ?? '').toString().trim();
+    final idx = (event['entryIndex'] as num?)?.toInt() ?? 0;
+    final total = (event['entryTotal'] as num?)?.toInt() ?? 0;
+    final rate = _formatTransferRate(event['bytesPerSecond']);
+    final parts = <String>[
+      if (ts.isNotEmpty) '[$ts]',
+      if (comp.isNotEmpty) comp,
+      if (msg.isNotEmpty) msg,
+      if (idx > 0 && total > 0) '($idx/$total)',
+      if (rate.isNotEmpty) rate,
+    ];
+    setState(() {
+      _progressKind = kind;
+      _activeProgress = event;
+      if (parts.isNotEmpty) {
+        final line = parts.join(' ');
+        if (_progressLogs.isEmpty || _progressLogs.last != line) {
+          _progressLogs.add(line);
+          if (_progressLogs.length > 200) {
+            _progressLogs.removeAt(0);
+          }
+        }
+      }
+    });
   }
 
   Future<void> _load() async {
@@ -239,26 +648,129 @@ class _BackupPageState extends State<BackupPage>
       final result = await AppBridge.call('BackupListLocalBackups', [
         _directory,
       ]);
-      _backups = (result as List? ?? [])
+      _localBackups = (result as List? ?? [])
           .whereType<Map>()
           .map((row) => Map<String, dynamic>.from(row))
           .toList();
+      await _loadRemoteMetadata();
     } catch (error) {
       if (mounted) _message(error.toString());
     }
     if (mounted) setState(() => _loading = false);
   }
 
-  void _message(String message) {
-    showPrismNotice(context, (message).toString());
+  Future<void> _loadRemoteMetadata() async {
+    try {
+      final ol = await AppBridge.call('BackupOpenListGetSettings');
+      if (ol is Map) {
+        final map = Map<String, dynamic>.from(ol);
+        _openListConfigured =
+            (map['baseURL'] ?? '').toString().trim().isNotEmpty &&
+            map['authConfigured'] == true;
+        _openListPayload = {
+          'baseURL': (map['baseURL'] ?? '').toString(),
+          'remotePath': (map['remotePath'] ?? 'ant-chrome/backups').toString(),
+          'authMode': (map['authMode'] ?? 'token').toString(),
+          'username': (map['username'] ?? '').toString(),
+          'password': '',
+          'token': '',
+          'uploadRateLimitMBps': (map['uploadRateLimitMBps'] ?? 0).toString(),
+        };
+      }
+    } catch (_) {
+      _openListConfigured = false;
+    }
+
+    try {
+      final s3 = await AppBridge.call('BackupS3GetSettings');
+      if (s3 is Map) {
+        final map = Map<String, dynamic>.from(s3);
+        _s3Configured =
+            (map['endpoint'] ?? '').toString().trim().isNotEmpty &&
+            (map['bucket'] ?? '').toString().trim().isNotEmpty &&
+            map['credentialsConfigured'] == true;
+        _s3Payload = {
+          'endpoint': (map['endpoint'] ?? '').toString(),
+          'region': (map['region'] ?? 'us-east-1').toString(),
+          'bucket': (map['bucket'] ?? '').toString(),
+          'prefix': (map['prefix'] ?? '').toString(),
+          'forcePathStyle': '${map['forcePathStyle'] == true}',
+          'accessKeyID': '',
+          'secretAccessKey': '',
+          'sessionToken': '',
+        };
+      }
+    } catch (_) {
+      _s3Configured = false;
+    }
+
+    if (_historyTab == 1 && _openListConfigured) {
+      await _loadOpenListBackups();
+    } else if (_historyTab == 2 && _s3Configured) {
+      await _loadS3Backups();
+    }
   }
 
-  Future<void> _run(String key, Future<dynamic> Function() action) async {
-    setState(() => _busy = key);
+  Future<void> _loadOpenListBackups() async {
+    if (!_openListConfigured) return;
+    if (mounted) setState(() => _loadingRemote = true);
+    try {
+      final value = await AppBridge.call('BackupOpenListList', [
+        _openListPayload,
+      ]);
+      _openListBackups = (value as List? ?? [])
+          .whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList();
+    } catch (error) {
+      if (mounted) _message('读取 OpenList 备份失败：$error');
+    } finally {
+      if (mounted) setState(() => _loadingRemote = false);
+    }
+  }
+
+  Future<void> _loadS3Backups() async {
+    if (!_s3Configured) return;
+    if (mounted) setState(() => _loadingRemote = true);
+    try {
+      final value = await AppBridge.call('BackupS3List', [_s3Payload]);
+      _s3Backups = (value as List? ?? [])
+          .whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList();
+    } catch (error) {
+      if (mounted) _message('读取 S3 备份失败：$error');
+    } finally {
+      if (mounted) setState(() => _loadingRemote = false);
+    }
+  }
+
+  void _message(String message) {
+    if (mounted) showPrismNotice(context, message);
+  }
+
+  Future<void> _run(
+    String key,
+    Future<dynamic> Function() action, {
+    bool resetProgress = false,
+  }) async {
+    setState(() {
+      _busy = key;
+      if (resetProgress) {
+        _activeProgress = null;
+        _progressLogs.clear();
+      }
+    });
     try {
       final result = await action();
-      if (result is Map && result['message'] != null)
-        _message(result['message'].toString());
+      if (result is Map) {
+        final summary = _formatBackupResultSummary(
+          Map<String, dynamic>.from(result),
+        );
+        if (result['cancelled'] != true) {
+          _message(summary);
+        }
+      }
       await _load();
     } catch (error) {
       if (mounted) _message(error.toString());
@@ -273,19 +785,240 @@ class _BackupPageState extends State<BackupPage>
       final selectedMap = selected as Map?;
       if (selectedMap?['cancelled'] == true) return null;
       _directory = selectedMap?['localDirectory']?.toString() ?? '';
-      if (_directory.isNotEmpty)
+      if (_directory.isNotEmpty) {
         await AppBridge.call('BackupSaveLocalDirectory', [_directory]);
+      }
       return null;
     });
   }
 
-  Future<void> _restore(Map<String, dynamic> backup) async {
+  Future<void> _openScheduledBackupModal() async {
+    Map<String, dynamic> schedule = {};
+    try {
+      final raw = await AppBridge.call('BackupScheduledGetSettings');
+      if (raw is Map) schedule = Map<String, dynamic>.from(raw);
+    } catch (error) {
+      _message('读取定时备份设置失败：$error');
+      return;
+    }
+    if (!mounted) return;
+
+    var enabled = schedule['enabled'] == true;
+    var dailyTime = (schedule['dailyTime'] ?? '03:00').toString();
+    var saving = false;
+    final timeController = TextEditingController(text: dailyTime);
+    var timeError = '';
+
+    await showPrismDialog<void>(
+      context: context,
+      useRootNavigator: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialog) {
+          final authConfigured = schedule['authConfigured'] == true;
+          final status = (schedule['status'] ?? 'never').toString();
+          final (statusLabel, statusTone) = _scheduleStatusInfo(status);
+          final lastSuccessAt = _formatTimestamp(schedule['lastSuccessAt']);
+          final lastError = (schedule['lastError'] ?? '').toString().trim();
+          final lastRemoteName =
+              (schedule['lastRemoteName'] ?? '').toString().trim();
+          final recentTimes = (schedule['recentBackupTimes'] as List? ?? [])
+              .map(_formatTimestamp)
+              .where((item) => item.isNotEmpty)
+              .toList();
+          final colors = prism.Theme.of(dialogContext).colorScheme;
+
+          return PrismDialog(
+            title: const Text('定时备份'),
+            content: SizedBox(
+              width: 520,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (!authConfigured) ...[
+                      PrismBanner(
+                        tone: PrismTone.warning,
+                        title: '尚未配置 OpenList',
+                        message: '定时备份会自动上传到 OpenList，请先完成连接与认证配置。',
+                        trailing: prism.OutlinedButton(
+                          onPressed: () {
+                            Navigator.pop(dialogContext);
+                            widget.onOpenOpenList();
+                          },
+                          child: const Text('去配置'),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    PrismSwitchTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('启用每日自动备份到 OpenList'),
+                      subtitle: const Text('如果触发时仍有浏览器实例运行，将自动跳过本次任务。'),
+                      value: enabled,
+                      onChanged: saving
+                          ? null
+                          : (value) => setDialog(() => enabled = value),
+                    ),
+                    const SizedBox(height: 8),
+                    PrismTextField(
+                      controller: timeController,
+                      enabled: !saving,
+                      keyboardType: TextInputType.datetime,
+                      decoration: PrismInputDecoration(
+                        labelText: '每日执行时间（24 小时制 HH:mm）',
+                        hintText: '例如 03:00',
+                        errorText: timeError.isEmpty ? null : timeError,
+                      ),
+                      onChanged: (_) {
+                        if (timeError.isNotEmpty) {
+                          setDialog(() => timeError = '');
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                    prism.Surface(
+                      color: colors.surfaceContainerLow,
+                      shape: prism.AppShape.lg,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  '执行状态',
+                                  style: prism.AppTextStyle.footnote.of(
+                                    dialogContext,
+                                    emphasized: true,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                PrismBadge(
+                                  label: statusLabel,
+                                  tone: statusTone,
+                                  dot: true,
+                                ),
+                              ],
+                            ),
+                            if (lastSuccessAt.isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                '上次成功：$lastSuccessAt',
+                                style: prism.AppTextStyle.caption1
+                                    .of(dialogContext)
+                                    .copyWith(color: colors.onSurfaceVariant),
+                              ),
+                            ],
+                            if (lastRemoteName.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                '最近上传：$lastRemoteName',
+                                style: prism.AppTextStyle.caption1
+                                    .of(dialogContext)
+                                    .copyWith(color: colors.onSurfaceVariant),
+                              ),
+                            ],
+                            if (lastError.isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              PrismBanner(
+                                tone: PrismTone.danger,
+                                message: lastError,
+                              ),
+                            ],
+                            if (recentTimes.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                '最近备份时间',
+                                style: prism.AppTextStyle.caption1
+                                    .of(dialogContext, emphasized: true)
+                                    .copyWith(color: colors.onSurfaceVariant),
+                              ),
+                              const SizedBox(height: 4),
+                              for (final time in recentTimes.take(5))
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Text(
+                                    '• $time',
+                                    style: prism.AppTextStyle.caption1
+                                        .of(dialogContext)
+                                        .copyWith(
+                                          color: colors.onSurfaceVariant,
+                                        ),
+                                  ),
+                                ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              prism.TextButton(
+                onPressed: saving ? null : () => Navigator.pop(dialogContext),
+                child: const Text('关闭'),
+              ),
+              prism.FilledButton(
+                onPressed: saving
+                    ? null
+                    : () async {
+                        final trimmed = timeController.text.trim();
+                        if (!RegExp(
+                          r'^([01]?\d|2[0-3]):[0-5]\d$',
+                        ).hasMatch(trimmed)) {
+                          setDialog(
+                            () => timeError = '请输入有效的 24 小时时间，例如 03:00',
+                          );
+                          return;
+                        }
+                        dailyTime =
+                            trimmed.length == 4 ? '0$trimmed' : trimmed;
+                        setDialog(() => saving = true);
+                        try {
+                          final updated = await AppBridge.call(
+                            'BackupScheduledSaveSettings',
+                            [
+                              {
+                                'enabled': enabled.toString(),
+                                'dailyTime': dailyTime,
+                              },
+                            ],
+                          );
+                          if (updated is Map) {
+                            schedule = Map<String, dynamic>.from(updated);
+                          }
+                          if (dialogContext.mounted) {
+                            showPrismNotice(dialogContext, '定时备份设置已保存');
+                            Navigator.pop(dialogContext);
+                          }
+                        } catch (error) {
+                          if (dialogContext.mounted) {
+                            setDialog(() => saving = false);
+                            showPrismNotice(dialogContext, '$error');
+                          }
+                        }
+                      },
+                child: Text(saving ? '保存中…' : '保存设置'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    timeController.dispose();
+  }
+
+  Future<void> _restoreLocal(Map<String, dynamic> backup) async {
     final accepted = await showPrismDialog<bool>(
       context: context,
       useRootNavigator: false,
       builder: (context) => PrismDialog(
-        title: const Text('恢复备份？'),
-        content: Text('将从「${backup['name'] ?? ''}」恢复数据。建议先关闭浏览器实例。'),
+        title: const Text('合并恢复本地备份？'),
+        content: Text('将从「${backup['name'] ?? ''}」合并恢复数据。建议先关闭浏览器实例。'),
         actions: [
           prism.TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -298,7 +1031,7 @@ class _BackupPageState extends State<BackupPage>
         ],
       ),
     );
-    if (accepted == true)
+    if (accepted == true) {
       await _run('restore', () async {
         final value = await AppBridge.call('BackupRestoreLocalPackage', [
           backup['path'],
@@ -307,7 +1040,50 @@ class _BackupPageState extends State<BackupPage>
           return _completeProfileImport(Map<String, dynamic>.from(value));
         }
         return value;
-      });
+      }, resetProgress: true);
+    }
+  }
+
+  Future<void> _restoreRemote(String channel, String fileName) async {
+    final label = channel == 'openlist' ? 'OpenList' : 'S3';
+    final accepted = await showPrismDialog<bool>(
+      context: context,
+      useRootNavigator: false,
+      builder: (context) => PrismDialog(
+        title: Text('从 $label 合并恢复？'),
+        content: Text('将从 $label 合并恢复「$fileName」中的数据；已有数据会保留。'),
+        actions: [
+          prism.TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          prism.FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('合并恢复'),
+          ),
+        ],
+      ),
+    );
+    if (accepted != true) return;
+    await _run('restore', () async {
+      final result = await AppBridge.call(
+        channel == 'openlist' ? 'BackupOpenListRestore' : 'BackupS3Restore',
+        [channel == 'openlist' ? _openListPayload : _s3Payload, fileName],
+      );
+      if (result is Map) {
+        return _completeProfileImport(Map<String, dynamic>.from(result));
+      }
+      return result;
+    }, resetProgress: true);
+  }
+
+  Future<void> _downloadRemote(String channel, String fileName) async {
+    await _run('download', () async {
+      return AppBridge.call(
+        channel == 'openlist' ? 'BackupOpenListDownload' : 'BackupS3Download',
+        [channel == 'openlist' ? _openListPayload : _s3Payload, fileName],
+      );
+    });
   }
 
   Future<List<String>?> _selectProfileIds() async {
@@ -372,7 +1148,10 @@ class _BackupPageState extends State<BackupPage>
               width: 620,
               height: 460,
               child: profiles.isEmpty
-                  ? const Center(child: Text('没有可备份的实例'))
+                  ? const PrismEmptyState(
+                      title: '没有可备份的实例',
+                      glyph: AntGlyphs.browser,
+                    )
                   : Column(
                       children: [
                         PrismCheckboxTile(
@@ -399,13 +1178,10 @@ class _BackupPageState extends State<BackupPage>
                         Row(
                           children: [
                             Expanded(
-                              child: PrismTextField(
+                              child: PrismSearchBar(
                                 controller: search,
+                                hintText: '搜索名称或实例 ID',
                                 onChanged: (_) => setDialog(() {}),
-                                decoration: const PrismInputDecoration(
-                                  labelText: '搜索名称或实例 ID',
-                                  isDense: true,
-                                ),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -447,7 +1223,10 @@ class _BackupPageState extends State<BackupPage>
                         const SizedBox(height: 8),
                         Expanded(
                           child: visible.isEmpty
-                              ? const Center(child: Text('没有匹配的实例'))
+                              ? const PrismEmptyState(
+                                  title: '没有匹配的实例',
+                                  glyph: AntGlyphs.search,
+                                )
                               : ListView.builder(
                                   itemCount: visible.length,
                                   itemBuilder: (context, index) {
@@ -500,6 +1279,8 @@ class _BackupPageState extends State<BackupPage>
 
   Future<String?> _askExportPassword() async {
     final password = TextEditingController();
+    final confirmPassword = TextEditingController();
+    var obscure = true;
     var error = '';
     final result = await showPrismDialog<String>(
       context: context,
@@ -507,24 +1288,64 @@ class _BackupPageState extends State<BackupPage>
       builder: (context) => StatefulBuilder(
         builder: (context, setDialog) => PrismDialog(
           title: const Text('迁移登录态'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('可以设置密码，将实例 Cookie 一并迁移到另一台电脑。'),
-              const SizedBox(height: 12),
-              PrismTextField(
-                controller: password,
-                obscureText: true,
-                decoration: PrismInputDecoration(
-                  labelText: '迁移密码（至少 8 个字符）',
-                  errorText: error.isEmpty ? null : error,
+          content: SizedBox(
+            width: 440,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  '可以设置迁移密码，将实例 Cookie 加密后一并迁移到另一台电脑。',
+                  style: prism.AppTextStyle.footnote.of(context),
                 ),
-              ),
-            ],
+                const SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: PrismTextField(
+                        controller: password,
+                        obscureText: obscure,
+                        onChanged: (_) {
+                          if (error.isNotEmpty) setDialog(() => error = '');
+                        },
+                        decoration: const PrismInputDecoration(
+                          labelText: '迁移密码（至少 8 个字符）',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    prism.IconButton(
+                      tooltip: obscure ? '显示密码' : '隐藏密码',
+                      onPressed: () => setDialog(() => obscure = !obscure),
+                      icon: PrismGlyph(
+                        obscure ? AntGlyphs.eye : AntGlyphs.eyeOff,
+                        size: 18,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                PrismTextField(
+                  controller: confirmPassword,
+                  obscureText: obscure,
+                  onChanged: (_) {
+                    if (error.isNotEmpty) setDialog(() => error = '');
+                  },
+                  decoration: PrismInputDecoration(
+                    labelText: '确认迁移密码',
+                    errorText: error.isEmpty ? null : error,
+                  ),
+                ),
+              ],
+            ),
           ),
           actions: [
             prism.TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
+            prism.OutlinedButton(
               onPressed: () => Navigator.pop(context, ''),
               child: const Text('仅导出配置'),
             ),
@@ -532,6 +1353,10 @@ class _BackupPageState extends State<BackupPage>
               onPressed: () {
                 if (password.text.runes.length < 8) {
                   setDialog(() => error = '密码至少需要 8 个字符');
+                  return;
+                }
+                if (password.text != confirmPassword.text) {
+                  setDialog(() => error = '两次输入的密码不一致');
                   return;
                 }
                 Navigator.pop(context, password.text);
@@ -543,27 +1368,12 @@ class _BackupPageState extends State<BackupPage>
       ),
     );
     password.dispose();
+    confirmPassword.dispose();
     return result;
   }
 
   Future<Set<String>?> _selectDestinations() async {
-    var openListConfigured = false;
-    var s3Configured = false;
-    try {
-      final value = await AppBridge.call('BackupOpenListGetSettings');
-      final settings = Map<String, dynamic>.from(value as Map);
-      openListConfigured =
-          (settings['baseURL'] ?? '').toString().trim().isNotEmpty &&
-          settings['authConfigured'] == true;
-    } catch (_) {}
-    try {
-      final value = await AppBridge.call('BackupS3GetSettings');
-      final settings = Map<String, dynamic>.from(value as Map);
-      s3Configured =
-          (settings['endpoint'] ?? '').toString().trim().isNotEmpty &&
-          (settings['bucket'] ?? '').toString().trim().isNotEmpty &&
-          settings['credentialsConfigured'] == true;
-    } catch (_) {}
+    await _loadRemoteMetadata();
 
     final selected = <String>{'local'};
     final destinations = await showPrismDialog<Set<String>>(
@@ -588,7 +1398,7 @@ class _BackupPageState extends State<BackupPage>
               PrismCheckboxTile(
                 value: selected.contains('openlist'),
                 title: const Text('OpenList'),
-                subtitle: Text(openListConfigured ? '已配置' : '未配置，选择后会打开设置页'),
+                subtitle: Text(_openListConfigured ? '已配置' : '未配置，选择后会打开设置页'),
                 onChanged: (checked) => setDialog(() {
                   checked == true
                       ? selected.add('openlist')
@@ -598,7 +1408,7 @@ class _BackupPageState extends State<BackupPage>
               PrismCheckboxTile(
                 value: selected.contains('s3'),
                 title: const Text('S3'),
-                subtitle: Text(s3Configured ? '已配置' : '未配置，选择后会打开设置页'),
+                subtitle: Text(_s3Configured ? '已配置' : '未配置，选择后会打开设置页'),
                 onChanged: (checked) => setDialog(() {
                   checked == true ? selected.add('s3') : selected.remove('s3');
                 }),
@@ -621,12 +1431,12 @@ class _BackupPageState extends State<BackupPage>
       ),
     );
     if (destinations == null) return null;
-    if (destinations.contains('openlist') && !openListConfigured) {
+    if (destinations.contains('openlist') && !_openListConfigured) {
       _message('请先配置 OpenList，再开始备份');
       widget.onOpenOpenList();
       return null;
     }
-    if (destinations.contains('s3') && !s3Configured) {
+    if (destinations.contains('s3') && !_s3Configured) {
       _message('请先配置 S3，再开始备份');
       widget.onOpenS3();
       return null;
@@ -643,6 +1453,10 @@ class _BackupPageState extends State<BackupPage>
         content: const Text('全量备份保存应用配置；实例备份保存选中的浏览器实例数据。'),
         actions: [
           prism.TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          prism.OutlinedButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('全量备份'),
           ),
@@ -678,6 +1492,7 @@ class _BackupPageState extends State<BackupPage>
             'portableSessionPassword': portableSessionPassword,
         },
       ]),
+      resetProgress: true,
     );
   }
 
@@ -705,81 +1520,406 @@ class _BackupPageState extends State<BackupPage>
       final value = await AppBridge.call('BackupImportPackage');
       if (value is! Map) return value;
       return _completeProfileImport(Map<String, dynamic>.from(value));
-    });
+    }, resetProgress: true);
+  }
+
+  Widget _buildProgressSection() {
+    final event = _activeProgress!;
+    final colors = prism.Theme.of(context).colorScheme;
+    final progressNum = (event['progress'] as num?)?.toDouble();
+    final progressValue =
+        progressNum == null ? null : (progressNum / 100).clamp(0.0, 1.0);
+    final componentName = (event['componentName'] ?? '').toString().trim();
+    final message = (event['message'] ?? '').toString().trim();
+    final entryIndex = (event['entryIndex'] as num?)?.toInt() ?? 0;
+    final entryTotal = (event['entryTotal'] as num?)?.toInt() ?? 0;
+    final rate = _formatTransferRate(event['bytesPerSecond']);
+    final transferred = (event['bytesTransferred'] as num?)?.toInt() ?? 0;
+    final totalBytes = (event['totalBytes'] as num?)?.toInt() ?? 0;
+    final kindLabel = _progressKind == 'import' ? '正在恢复备份' : '正在导出备份';
+    final title = componentName.isEmpty
+        ? kindLabel
+        : '$kindLabel · $componentName';
+    final subtitleParts = <String>[
+      if (message.isNotEmpty) message,
+      if (entryIndex > 0 && entryTotal > 0) '条目 $entryIndex / $entryTotal',
+      if (transferred > 0 && totalBytes > 0)
+        '${_formatFileSize(transferred)} / ${_formatFileSize(totalBytes)}',
+      if (rate.isNotEmpty) '速度 $rate',
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        PrismProgressPanel(
+          title: title,
+          subtitle: subtitleParts.join(' · '),
+          progress: progressValue,
+          trailing: _busy.isEmpty
+              ? prism.IconButton(
+                  tooltip: '关闭进度面板',
+                  onPressed: () => setState(() {
+                    _activeProgress = null;
+                    _progressLogs.clear();
+                  }),
+                  icon: const PrismGlyph(AntGlyphs.close, size: 15),
+                )
+              : null,
+        ),
+        if (_progressLogs.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          prism.Surface(
+            color: colors.surfaceContainerLow,
+            shape: prism.AppShape.lg,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 130),
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                shrinkWrap: true,
+                itemCount: _progressLogs.length,
+                itemBuilder: (context, index) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 1.5),
+                  child: Text(
+                    _progressLogs[index],
+                    style: TextStyle(
+                      fontFamily: 'Consolas',
+                      fontSize: 11.5,
+                      color: colors.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildBackupHistoryItem(
+    Map<String, dynamic> backup, {
+    required String channel,
+  }) {
+    final isLocal = channel == 'local';
+    final colors = prism.Theme.of(context).colorScheme;
+    final name = (backup['name'] ?? '').toString();
+    final path = (backup['path'] ?? '').toString();
+    final sizeText = _formatFileSize(backup['size']);
+    final modifiedAt = _formatTimestamp(backup['modifiedAt']);
+    final (badgeLabel, badgeTone) = _backupPackageBadge(
+      backup,
+      isLocal: isLocal,
+    );
+    final profileNames = (backup['profileNames'] as List? ?? [])
+        .map((e) => e.toString().trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+    final profileCount = (backup['profileCount'] as num?)?.toInt() ?? 0;
+    final metadataOrphan = backup['metadataOrphan'] == true;
+    final metadataUnavailable =
+        isLocal &&
+        backup.containsKey('metadataAvailable') &&
+        backup['metadataAvailable'] == false;
+    final metadataError = (backup['metadataError'] ?? '').toString().trim();
+    final restoreBlocked = metadataOrphan || metadataUnavailable;
+
+    return PrismCard(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          name,
+                          style: prism.AppTextStyle.subheadline.of(
+                            context,
+                            emphasized: true,
+                          ),
+                        ),
+                        PrismBadge(label: badgeLabel, tone: badgeTone),
+                        if ((backup['size'] as num?) != null)
+                          PrismBadge(label: sizeText, tone: PrismTone.neutral),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      modifiedAt.isEmpty ? '时间未知' : '修改时间：$modifiedAt',
+                      style: prism.AppTextStyle.caption1
+                          .of(context)
+                          .copyWith(color: colors.onSurfaceVariant),
+                    ),
+                    if (profileCount > 0 || profileNames.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        profileNames.isNotEmpty
+                            ? '包含 ${profileCount > 0 ? profileCount : profileNames.length} 个实例：${profileNames.take(5).join('、')}${profileNames.length > 5 ? ' 等' : ''}'
+                            : '包含 $profileCount 个实例',
+                        style: prism.AppTextStyle.caption1
+                            .of(context)
+                            .copyWith(color: colors.onSurfaceVariant),
+                      ),
+                    ],
+                    if (isLocal && path.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      prism.PressRegion(
+                        onTap: () => _run(
+                          'open',
+                          () => AppBridge.call('OpenBackupPath', [path]),
+                        ),
+                        shape: prism.AppShape.sm,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              PrismGlyph(
+                                AntGlyphs.folder,
+                                size: 13,
+                                color: colors.primary,
+                              ),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  path,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: prism.AppTextStyle.caption1
+                                      .of(context)
+                                      .copyWith(color: colors.primary),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  if (isLocal)
+                    prism.IconButton(
+                      tooltip: '打开文件位置',
+                      onPressed: path.isEmpty
+                          ? null
+                          : () => _run(
+                              'open',
+                              () => AppBridge.call('OpenBackupPath', [path]),
+                            ),
+                      icon: const PrismGlyph(AntGlyphs.folder, size: 18),
+                    )
+                  else
+                    prism.OutlinedButton.icon(
+                      onPressed: _busy.isEmpty
+                          ? () => _downloadRemote(channel, name)
+                          : null,
+                      icon: const PrismGlyph(AntGlyphs.download, size: 15),
+                      label: const Text('下载到本地'),
+                    ),
+                  prism.FilledButton.icon(
+                    onPressed: (_busy.isEmpty && !restoreBlocked)
+                        ? () => isLocal
+                              ? _restoreLocal(backup)
+                              : _restoreRemote(channel, name)
+                        : null,
+                    icon: const PrismGlyph(AntGlyphs.restore, size: 15),
+                    label: const Text('合并恢复'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          if (restoreBlocked) ...[
+            const SizedBox(height: 8),
+            PrismBanner(
+              tone: metadataOrphan ? PrismTone.danger : PrismTone.warning,
+              message: metadataOrphan
+                  ? '仅找到元数据文件，对应的备份包已缺失，无法恢复。'
+                  : (metadataError.isNotEmpty
+                        ? '备份元数据不可用（$metadataError），已阻止恢复。'
+                        : '备份包信息不可用或已损坏，已阻止恢复。'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHistoryBody() {
+    if (_loading || _loadingRemote) {
+      return const Center(child: PrismProgressIndicator());
+    }
+    if (_historyTab == 0) {
+      if (_localBackups.isEmpty) {
+        return const PrismEmptyState(
+          title: '没有找到本地备份',
+          subtitle: '点击上方「立即备份」即可创建本地备份包。',
+          glyph: AntGlyphs.archive,
+        );
+      }
+      return ListView.separated(
+        itemCount: _localBackups.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (context, index) => _buildBackupHistoryItem(
+          _localBackups[index],
+          channel: 'local',
+        ),
+      );
+    }
+    if (_historyTab == 1) {
+      if (!_openListConfigured) {
+        return PrismEmptyState(
+          title: '尚未配置 OpenList',
+          subtitle: '配置 OpenList 连接后，可在此查看、下载或合并恢复云端备份。',
+          glyph: AntGlyphs.cloudOff,
+          action: prism.FilledButton(
+            onPressed: widget.onOpenOpenList,
+            child: const Text('前往配置 OpenList'),
+          ),
+        );
+      }
+      if (_openListBackups.isEmpty) {
+        return const PrismEmptyState(
+          title: '没有找到 OpenList 备份',
+          subtitle: '创建备份时勾选 OpenList，或前往 OpenList 设置页上传备份。',
+          glyph: AntGlyphs.cloud,
+        );
+      }
+      return ListView.separated(
+        itemCount: _openListBackups.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (context, index) => _buildBackupHistoryItem(
+          _openListBackups[index],
+          channel: 'openlist',
+        ),
+      );
+    }
+    if (!_s3Configured) {
+      return PrismEmptyState(
+        title: '尚未配置 S3 存储',
+        subtitle: '配置 S3 兼容存储后，可在此查看、下载或合并恢复远端备份。',
+        glyph: AntGlyphs.cloudOff,
+        action: prism.FilledButton(
+          onPressed: widget.onOpenS3,
+          child: const Text('前往配置 S3'),
+        ),
+      );
+    }
+    if (_s3Backups.isEmpty) {
+      return const PrismEmptyState(
+        title: '没有找到 S3 备份',
+        subtitle: '创建备份时勾选 S3，或前往 S3 设置页上传备份。',
+        glyph: AntGlyphs.cloud,
+      );
+    }
+    return ListView.separated(
+      itemCount: _s3Backups.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (context, index) => _buildBackupHistoryItem(
+        _s3Backups[index],
+        channel: 's3',
+      ),
+    );
   }
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.all(24),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Text(
-          '备份与恢复',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            prism.OutlinedButton.icon(
-              onPressed: widget.onOpenOpenList,
-              icon: const Icon(Icons.cloud_queue_outlined),
-              label: const Text('OpenList'),
-            ),
-            prism.OutlinedButton.icon(
-              onPressed: widget.onOpenS3,
-              icon: const Icon(Icons.cloud_outlined),
-              label: const Text('S3 设置'),
-            ),
-            prism.OutlinedButton.icon(
-              onPressed: widget.onOpenOpenList,
-              icon: const Icon(Icons.schedule),
-              label: const Text('定时备份'),
-            ),
-            const SizedBox(width: 8),
-            prism.IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
-          ],
-        ),
-        const SizedBox(height: 14),
-        PrismCard(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
+  Widget build(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '备份与恢复',
+                  style: prism.AppTextStyle.title2.of(
+                    context,
+                    emphasized: true,
+                  ),
+                ),
+              ),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  prism.OutlinedButton.icon(
+                    onPressed: widget.onOpenOpenList,
+                    icon: const PrismGlyph(AntGlyphs.cloud, size: 16),
+                    label: const Text('OpenList'),
+                  ),
+                  prism.OutlinedButton.icon(
+                    onPressed: widget.onOpenS3,
+                    icon: const PrismGlyph(AntGlyphs.cloudUpload, size: 16),
+                    label: const Text('S3 设置'),
+                  ),
+                  prism.OutlinedButton.icon(
+                    onPressed: _openScheduledBackupModal,
+                    icon: const PrismGlyph(AntGlyphs.schedule, size: 16),
+                    label: const Text('定时备份'),
+                  ),
+                  prism.IconButton(
+                    tooltip: '刷新',
+                    onPressed: _loading ? null : _load,
+                    icon: const PrismGlyph(AntGlyphs.refresh, size: 18),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          PrismSectionCard(
+            title: '本地备份目录',
+            glyph: AntGlyphs.folder,
+            actions: [
+              prism.OutlinedButton(
+                onPressed: _busy.isEmpty ? _chooseDirectory : null,
+                child: const Text('选择目录'),
+              ),
+            ],
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  '本地备份目录',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                prism.SelectableText(
+                  _directory.isEmpty ? '尚未选择目录' : _directory,
+                  style: prism.AppTextStyle.footnote
+                      .of(context)
+                      .copyWith(color: colors.onSurfaceVariant),
                 ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Expanded(
-                      child: prism.SelectableText(
-                        _directory.isEmpty ? '尚未选择目录' : _directory,
-                      ),
-                    ),
-                    prism.OutlinedButton(
-                      onPressed: _busy.isEmpty ? _chooseDirectory : null,
-                      child: const Text('选择目录'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Wrap(
                   spacing: 8,
+                  runSpacing: 8,
                   children: [
                     prism.FilledButton.icon(
                       onPressed: _busy.isEmpty ? _createBackup : null,
-                      icon: const Icon(Icons.archive_outlined),
+                      icon: const PrismGlyph(AntGlyphs.archive, size: 16),
                       label: Text(_busy == 'backup' ? '备份中…' : '立即备份'),
                     ),
                     prism.OutlinedButton.icon(
                       onPressed: _busy.isEmpty ? _importBackup : null,
-                      icon: const Icon(Icons.settings_backup_restore),
+                      icon: const PrismGlyph(AntGlyphs.restore, size: 16),
                       label: const Text('导入备份'),
                     ),
                   ],
@@ -787,57 +1927,39 @@ class _BackupPageState extends State<BackupPage>
               ],
             ),
           ),
-        ),
-        const SizedBox(height: 12),
-        const Text('本地备份记录', style: TextStyle(fontWeight: FontWeight.w700)),
-        const SizedBox(height: 8),
-        Expanded(
-          child: _loading
-              ? const Center(child: PrismProgressIndicator())
-              : _backups.isEmpty
-              ? const Center(child: Text('没有找到本地备份'))
-              : ListView.separated(
-                  itemCount: _backups.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final backup = _backups[index];
-                    return PrismCard(
-                      child: PrismListTile(
-                        title: Text((backup['name'] ?? '').toString()),
-                        subtitle: Text(
-                          '${backup['modifiedAt'] ?? ''} · ${backup['path'] ?? ''}',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        trailing: Wrap(
-                          children: [
-                            prism.IconButton(
-                              tooltip: '打开文件位置',
-                              onPressed: () => _run(
-                                'open',
-                                () => AppBridge.call('OpenBackupPath', [
-                                  backup['path'],
-                                ]),
-                              ),
-                              icon: const Icon(Icons.folder_open_outlined),
-                            ),
-                            prism.IconButton(
-                              tooltip: '恢复',
-                              onPressed: _busy.isEmpty
-                                  ? () => _restore(backup)
-                                  : null,
-                              icon: const Icon(Icons.restore),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
+          if (_activeProgress != null) ...[
+            const SizedBox(height: 12),
+            _buildProgressSection(),
+          ],
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '备份历史',
+                  style: prism.AppTextStyle.headline.of(context),
                 ),
-        ),
-      ],
-    ),
-  );
+              ),
+              prism.SegmentedControl<int>(
+                segments: const [(0, '本地'), (1, 'OpenList'), (2, 'S3')],
+                value: _historyTab,
+                onChanged: (value) {
+                  setState(() => _historyTab = value);
+                  if (value == 1 && _openListConfigured) {
+                    _loadOpenListBackups();
+                  } else if (value == 2 && _s3Configured) {
+                    _loadS3Backups();
+                  }
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Expanded(child: _buildHistoryBody()),
+        ],
+      ),
+    );
+  }
 }
 
 class S3ConfigPage extends StatefulWidget {
@@ -866,12 +1988,12 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
   bool _loading = true;
   String _busy = '';
   bool _tokenConfigured = false;
+  bool _passwordConfigured = false;
   bool _tokenVisible = false;
+  bool _passwordVisible = false;
   bool _revealingToken = false;
+  _TestResultState? _testResult;
   List<Map<String, dynamic>> _files = [];
-  Map<String, dynamic> _schedule = {};
-  bool _scheduleEnabled = false;
-  String _scheduleTime = '03:00';
 
   @override
   void initState() {
@@ -900,14 +2022,13 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
       _username.text = (value['username'] ?? '').toString();
       _mode = (value['authMode'] ?? 'token').toString();
       _tokenConfigured = value['tokenConfigured'] == true;
+      _passwordConfigured =
+          value['passwordConfigured'] == true ||
+          (_mode == 'basic' && value['authConfigured'] == true);
       _rate.text = (value['uploadRateLimitMBps'] ?? 0).toString();
-      final schedule = await AppBridge.call('BackupScheduledGetSettings');
-      _schedule = Map<String, dynamic>.from(schedule as Map);
-      _scheduleEnabled = _schedule['enabled'] == true;
-      _scheduleTime = (_schedule['dailyTime'] ?? '03:00').toString();
       if (_url.text.isNotEmpty) await _loadFiles();
     } catch (error) {
-      if (mounted) showPrismNotice(context, (error.toString()).toString());
+      if (mounted) showPrismNotice(context, error.toString());
     }
     if (mounted) setState(() => _loading = false);
   }
@@ -921,6 +2042,33 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
     'token': _token.text.trim(),
     'uploadRateLimitMBps': _rate.text.trim(),
   };
+
+  String? _validateForm() {
+    final baseUrl = _url.text.trim();
+    if (baseUrl.isEmpty) return '请填写 OpenList 服务地址';
+    final uri = Uri.tryParse(baseUrl);
+    if (uri == null ||
+        (uri.scheme != 'http' && uri.scheme != 'https') ||
+        uri.host.isEmpty) {
+      return 'OpenList 地址格式无效，需以 http:// 或 https:// 开头';
+    }
+    if (_mode == 'basic') {
+      if (_username.text.trim().isEmpty) return 'Basic 认证需要填写用户名';
+      if (_password.text.isEmpty && !_passwordConfigured) {
+        return 'Basic 认证需要填写密码';
+      }
+    } else {
+      if (_token.text.trim().isEmpty && !_tokenConfigured) {
+        return 'Token 认证需要填写 Token';
+      }
+    }
+    final rateText = _rate.text.trim();
+    if (rateText.isNotEmpty) {
+      final parsed = double.tryParse(rateText);
+      if (parsed == null || parsed < 0) return '上传限速必须为非负数字';
+    }
+    return null;
+  }
 
   Future<void> _toggleTokenVisibility() async {
     if (_tokenVisible) {
@@ -952,45 +2100,71 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
   }
 
   Future<void> _action(String action) async {
+    if (action != 'list') {
+      final validationError = _validateForm();
+      if (validationError != null) {
+        setState(
+          () => _testResult = _TestResultState(
+            ok: false,
+            message: validationError,
+          ),
+        );
+        showPrismNotice(context, validationError);
+        return;
+      }
+    }
     setState(() => _busy = action);
     try {
       if (action == 'test') {
-        await AppBridge.call('BackupOpenListTest', [_payload]);
-        if (mounted) showPrismNotice(context, ('连接成功').toString());
+        final res = await AppBridge.call('BackupOpenListTest', [_payload]);
+        final msg =
+            (res is Map ? res['message']?.toString() : null) ?? 'OpenList 连接成功';
+        if (mounted) {
+          setState(
+            () => _testResult = _TestResultState(ok: true, message: msg),
+          );
+          showPrismNotice(context, msg);
+        }
       } else if (action == 'save') {
         await AppBridge.call('BackupOpenListSaveSettings', [_payload]);
-        if (mounted) showPrismNotice(context, ('设置已保存').toString());
+        if (_mode == 'token' && _token.text.trim().isNotEmpty) {
+          _tokenConfigured = true;
+        }
+        if (_mode == 'basic' && _password.text.isNotEmpty) {
+          _passwordConfigured = true;
+        }
+        if (mounted) {
+          setState(
+            () => _testResult = const _TestResultState(
+              ok: true,
+              message: 'OpenList 设置已保存',
+            ),
+          );
+          showPrismNotice(context, '设置已保存');
+        }
       } else if (action == 'upload') {
         final result = await AppBridge.call('BackupOpenListUpload', [_payload]);
         await _loadFiles();
-        if (mounted)
-          showPrismNotice(
-            context,
-            ((result as Map?)?['message']?.toString() ?? '备份上传完成').toString(),
-          );
+        if (mounted) {
+          final summary = result is Map
+              ? _formatBackupResultSummary(Map<String, dynamic>.from(result))
+              : '备份上传完成';
+          showPrismNotice(context, summary);
+        }
       } else {
         await _loadFiles();
       }
     } catch (error) {
-      if (mounted) showPrismNotice(context, (error.toString()).toString());
-    } finally {
-      if (mounted) setState(() => _busy = '');
-    }
-  }
-
-  Future<void> _saveSchedule() async {
-    setState(() => _busy = 'schedule');
-    try {
-      final result = await AppBridge.call('BackupScheduledSaveSettings', [
-        {'enabled': _scheduleEnabled.toString(), 'dailyTime': _scheduleTime},
-      ]);
-      _schedule = Map<String, dynamic>.from(result as Map);
       if (mounted) {
-        showPrismNotice(context, ('定时备份设置已保存').toString());
-      }
-    } catch (error) {
-      if (mounted) {
-        showPrismNotice(context, (error.toString()).toString());
+        if (action == 'test') {
+          setState(
+            () => _testResult = _TestResultState(
+              ok: false,
+              message: '连接测试失败：$error',
+            ),
+          );
+        }
+        showPrismNotice(context, error.toString());
       }
     } finally {
       if (mounted) setState(() => _busy = '');
@@ -1026,10 +2200,11 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
       final completed = result is Map
           ? await _completeProfileImport(Map<String, dynamic>.from(result))
           : <String, dynamic>{'message': result?.toString() ?? '恢复完成'};
-      if (mounted)
-        showPrismNotice(context, (completed['message'] ?? '恢复完成').toString());
+      if (mounted && completed['cancelled'] != true) {
+        showPrismNotice(context, _formatBackupResultSummary(completed));
+      }
     } catch (error) {
-      if (mounted) showPrismNotice(context, (error.toString()).toString());
+      if (mounted) showPrismNotice(context, error.toString());
     } finally {
       if (mounted) setState(() => _busy = '');
     }
@@ -1042,281 +2217,220 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
         _payload,
         fileName,
       ]);
-      if (mounted)
+      if (mounted) {
         showPrismNotice(
           context,
-          ((result as Map?)?['message']?.toString() ?? '下载完成').toString(),
+          ((result as Map?)?['message']?.toString() ?? '下载完成'),
         );
+      }
     } catch (error) {
-      if (mounted) showPrismNotice(context, (error.toString()).toString());
+      if (mounted) showPrismNotice(context, error.toString());
     } finally {
       if (mounted) setState(() => _busy = '');
     }
   }
 
   @override
-  Widget build(BuildContext context) => _loading
-      ? const Center(child: PrismProgressIndicator())
-      : ListView(
-          padding: const EdgeInsets.all(24),
+  Widget build(BuildContext context) {
+    if (_loading) return const Center(child: PrismProgressIndicator());
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        Row(
           children: [
-            Row(
-              children: [
-                prism.IconButton(
-                  onPressed: widget.onBack,
-                  icon: const Icon(Icons.arrow_back),
-                ),
-                const Expanded(
-                  child: Text(
-                    'OpenList 备份设置',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-                  ),
-                ),
-                prism.OutlinedButton(
-                  onPressed: _busy.isEmpty ? () => _action('test') : null,
-                  child: const Text('测试连接'),
-                ),
-                const SizedBox(width: 8),
-                prism.FilledButton(
-                  onPressed: _busy.isEmpty ? () => _action('save') : null,
-                  child: const Text('保存'),
-                ),
-              ],
+            prism.IconButton(
+              onPressed: widget.onBack,
+              icon: const PrismGlyph(AntGlyphs.arrowBack, size: 18),
             ),
-            const SizedBox(height: 16),
-            PrismTextField(
-              controller: _url,
-              decoration: const PrismInputDecoration(labelText: 'OpenList 地址'),
-            ),
-            PrismTextField(
-              controller: _path,
-              decoration: const PrismInputDecoration(labelText: '远程目录'),
-            ),
-            PrismDropdownField<String>(
-              initialValue: _mode,
-              decoration: const PrismInputDecoration(labelText: '认证方式'),
-              items: const [
-                PrismDropdownItem(value: 'token', child: Text('Token')),
-                PrismDropdownItem(value: 'basic', child: Text('用户名和密码')),
-              ],
-              onChanged: (value) => setState(() => _mode = value ?? 'token'),
-            ),
-            if (_mode == 'basic') ...[
-              PrismTextField(
-                controller: _username,
-                decoration: const PrismInputDecoration(labelText: '用户名'),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                'OpenList 备份设置',
+                style: prism.AppTextStyle.title2.of(context, emphasized: true),
               ),
+            ),
+            prism.OutlinedButton(
+              onPressed: _busy.isEmpty ? () => _action('test') : null,
+              child: Text(_busy == 'test' ? '测试中…' : '测试连接'),
+            ),
+            const SizedBox(width: 8),
+            prism.FilledButton(
+              onPressed: _busy.isEmpty ? () => _action('save') : null,
+              child: const Text('保存'),
+            ),
+          ],
+        ),
+        if (_testResult != null) ...[
+          const SizedBox(height: 12),
+          PrismBanner(
+            tone: _testResult!.ok ? PrismTone.success : PrismTone.danger,
+            message: _testResult!.message,
+          ),
+        ],
+        const SizedBox(height: 16),
+        PrismSectionCard(
+          title: '连接与认证',
+          glyph: AntGlyphs.cloud,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
               PrismTextField(
-                controller: _password,
-                obscureText: true,
+                controller: _url,
                 decoration: const PrismInputDecoration(
-                  labelText: '密码（留空保留原密码）',
+                  labelText: 'OpenList 地址',
+                  hintText: 'https://alist.example.com',
                 ),
               ),
-            ] else
-              Row(
-                children: [
-                  Expanded(
-                    child: PrismTextField(
-                      controller: _token,
-                      obscureText: !_tokenVisible,
-                      decoration: PrismInputDecoration(
-                        labelText: 'Token（留空保留原 Token）',
-                        hintText: _tokenConfigured ? '已保存，点击眼睛查看' : null,
+              const SizedBox(height: 10),
+              PrismTextField(
+                controller: _path,
+                decoration: const PrismInputDecoration(labelText: '远程目录'),
+              ),
+              const SizedBox(height: 10),
+              PrismDropdownField<String>(
+                initialValue: _mode,
+                decoration: const PrismInputDecoration(labelText: '认证方式'),
+                items: const [
+                  PrismDropdownItem(value: 'token', child: Text('Token')),
+                  PrismDropdownItem(value: 'basic', child: Text('用户名和密码')),
+                ],
+                onChanged: (value) => setState(() => _mode = value ?? 'token'),
+              ),
+              const SizedBox(height: 10),
+              if (_mode == 'basic') ...[
+                PrismTextField(
+                  controller: _username,
+                  decoration: const PrismInputDecoration(labelText: '用户名'),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: PrismTextField(
+                        controller: _password,
+                        obscureText: !_passwordVisible,
+                        decoration: PrismInputDecoration(
+                          labelText: '密码（留空保留原密码）',
+                          hintText: _passwordConfigured ? '已保存，留空将保留原密码' : null,
+                        ),
                       ),
                     ),
-                  ),
+                    const SizedBox(width: 6),
+                    prism.IconButton(
+                      tooltip: _passwordVisible ? '隐藏密码' : '显示密码',
+                      onPressed: () =>
+                          setState(() => _passwordVisible = !_passwordVisible),
+                      icon: PrismGlyph(
+                        _passwordVisible ? AntGlyphs.eyeOff : AntGlyphs.eye,
+                        size: 18,
+                      ),
+                    ),
+                  ],
+                ),
+              ] else
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: PrismTextField(
+                        controller: _token,
+                        obscureText: !_tokenVisible,
+                        decoration: PrismInputDecoration(
+                          labelText: 'Token（留空保留原 Token）',
+                          hintText: _tokenConfigured ? '已保存，点击眼睛查看' : null,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    prism.IconButton(
+                      tooltip: _tokenVisible ? '隐藏 Token' : '显示 Token',
+                      onPressed: _busy.isEmpty && !_revealingToken
+                          ? _toggleTokenVisibility
+                          : null,
+                      icon: _revealingToken
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: PrismProgressIndicator(size: 18),
+                            )
+                          : PrismGlyph(
+                              _tokenVisible ? AntGlyphs.eyeOff : AntGlyphs.eye,
+                              size: 18,
+                            ),
+                    ),
+                  ],
+                ),
+              const SizedBox(height: 10),
+              PrismTextField(
+                controller: _rate,
+                keyboardType: TextInputType.number,
+                decoration: const PrismInputDecoration(
+                  labelText: '上传限速 MB/s（0 表示不限速）',
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                '远程备份文件',
+                style: prism.AppTextStyle.headline.of(context),
+              ),
+            ),
+            prism.IconButton(
+              tooltip: '刷新列表',
+              onPressed: _busy.isEmpty ? () => _action('list') : null,
+              icon: const PrismGlyph(AntGlyphs.refresh, size: 18),
+            ),
+            const SizedBox(width: 6),
+            prism.FilledButton.icon(
+              onPressed: _busy.isEmpty ? () => _action('upload') : null,
+              icon: const PrismGlyph(AntGlyphs.cloudUpload, size: 16),
+              label: Text(_busy == 'upload' ? '上传中…' : '创建并上传备份'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        if (_files.isEmpty)
+          const PrismEmptyState(
+            title: '没有找到远程备份',
+            glyph: AntGlyphs.cloud,
+          ),
+        for (final file in _files)
+          PrismCard(
+            margin: const EdgeInsets.only(bottom: 8),
+            child: PrismListTile(
+              title: Text((file['name'] ?? '').toString()),
+              subtitle: Text(
+                '${_formatFileSize(file['size'])} · ${_formatTimestamp(file['modifiedAt'])}',
+              ),
+              trailing: Wrap(
+                spacing: 4,
+                children: [
                   prism.IconButton(
-                    onPressed: _busy.isEmpty && !_revealingToken
-                        ? _toggleTokenVisibility
+                    tooltip: '下载到本地',
+                    onPressed: _busy.isEmpty
+                        ? () => _download((file['name'] ?? '').toString())
                         : null,
-                    icon: _revealingToken
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: PrismProgressIndicator(size: 18),
-                          )
-                        : Icon(
-                            _tokenVisible
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                          ),
+                    icon: const PrismGlyph(AntGlyphs.download, size: 18),
+                  ),
+                  prism.TextButton(
+                    onPressed: _busy.isEmpty
+                        ? () => _restore((file['name'] ?? '').toString())
+                        : null,
+                    child: const Text('合并恢复'),
                   ),
                 ],
               ),
-            PrismTextField(
-              controller: _rate,
-              keyboardType: TextInputType.number,
-              decoration: const PrismInputDecoration(
-                labelText: '上传限速 MB/s（0 表示不限速）',
-              ),
             ),
-            const SizedBox(height: 12),
-            PrismCard(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    PrismSwitchTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('每天自动备份到 OpenList'),
-                      subtitle: const Text('实例仍在运行时会跳过当次任务。'),
-                      value: _scheduleEnabled,
-                      onChanged: _busy.isEmpty
-                          ? (value) => setState(() => _scheduleEnabled = value)
-                          : null,
-                    ),
-                    Row(
-                      children: [
-                        const Expanded(child: Text('每日执行时间')),
-                        prism.OutlinedButton.icon(
-                          onPressed: _busy.isEmpty
-                              ? () async {
-                                  final controller = TextEditingController(
-                                    text: _scheduleTime,
-                                  );
-                                  try {
-                                    final picked = await showPrismDialog<String>(
-                                      context: context,
-                                      builder: (dialogContext) => PrismDialog(
-                                        title: '每日执行时间',
-                                        hasFields: true,
-                                        content: PrismTextField(
-                                          controller: controller,
-                                          keyboardType: TextInputType.datetime,
-                                          decoration:
-                                              const PrismInputDecoration(
-                                                hintText: '24 小时制，例如 03:00',
-                                              ),
-                                        ),
-                                        actions: [
-                                          prism.TextButton(
-                                            onPressed: () =>
-                                                Navigator.pop(dialogContext),
-                                            child: const Text('取消'),
-                                          ),
-                                          prism.FilledButton(
-                                            onPressed: () {
-                                              final value = controller.text
-                                                  .trim();
-                                              if (RegExp(
-                                                r'^([01]?\d|2[0-3]):[0-5]\d$',
-                                              ).hasMatch(value)) {
-                                                Navigator.pop(
-                                                  dialogContext,
-                                                  value.length == 4
-                                                      ? '0$value'
-                                                      : value,
-                                                );
-                                              } else {
-                                                showPrismNotice(
-                                                  dialogContext,
-                                                  '请输入有效的 24 小时时间，例如 03:00',
-                                                );
-                                              }
-                                            },
-                                            child: const Text('确定'),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                    if (picked != null) {
-                                      setState(() => _scheduleTime = picked);
-                                    }
-                                  } finally {
-                                    controller.dispose();
-                                  }
-                                }
-                              : null,
-                          icon: const Icon(Icons.schedule),
-                          label: Text(_scheduleTime),
-                        ),
-                        const SizedBox(width: 8),
-                        prism.FilledButton(
-                          onPressed: _busy.isEmpty ? _saveSchedule : null,
-                          child: Text(_busy == 'schedule' ? '保存中…' : '保存定时设置'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '最近状态：${_schedule['status'] ?? 'never'}${(_schedule['lastError'] ?? '').toString().isEmpty ? '' : ' · ${_schedule['lastError']}'}',
-                      style: TextStyle(
-                        color: prism.Theme.of(context)
-                            .colorScheme
-                            .onSurfaceVariant,
-                      ),
-                    ),
-                    for (final time
-                        in (_schedule['recentBackupTimes'] as List? ?? []).take(
-                          3,
-                        ))
-                      Text(
-                        '最近备份：$time',
-                        style: TextStyle(
-                          color: prism.Theme.of(context)
-                              .colorScheme
-                              .onSurfaceVariant,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            const prism.Divider(height: 28),
-            Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    '远程备份文件',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ),
-                prism.IconButton(
-                  onPressed: _busy.isEmpty ? () => _action('list') : null,
-                  icon: const Icon(Icons.refresh),
-                ),
-                prism.FilledButton.icon(
-                  onPressed: _busy.isEmpty ? () => _action('upload') : null,
-                  icon: const Icon(Icons.cloud_upload_outlined),
-                  label: Text(_busy == 'upload' ? '上传中…' : '创建并上传备份'),
-                ),
-              ],
-            ),
-            if (_files.isEmpty)
-              Text(
-                '没有找到远程备份',
-                style: TextStyle(
-                  color: prism.Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            for (final file in _files)
-              PrismCard(
-                child: PrismListTile(
-                  title: Text((file['name'] ?? '').toString()),
-                  subtitle: Text((file['modifiedAt'] ?? '').toString()),
-                  trailing: Wrap(
-                    children: [
-                      prism.IconButton(
-                        tooltip: '下载到本地',
-                        onPressed: _busy.isEmpty
-                            ? () => _download((file['name'] ?? '').toString())
-                            : null,
-                        icon: const Icon(Icons.download_outlined),
-                      ),
-                      prism.TextButton(
-                        onPressed: _busy.isEmpty
-                            ? () => _restore((file['name'] ?? '').toString())
-                            : null,
-                        child: const Text('恢复'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-          ],
-        );
+          ),
+      ],
+    );
+  }
 }
 
 class _S3ConfigPageState extends State<S3ConfigPage>
@@ -1334,6 +2448,7 @@ class _S3ConfigPageState extends State<S3ConfigPage>
   bool _loading = true;
   String _busy = '';
   String _revealingCredential = '';
+  _TestResultState? _testResult;
   List<Map<String, dynamic>> _files = [];
 
   @override
@@ -1370,7 +2485,7 @@ class _S3ConfigPageState extends State<S3ConfigPage>
         ..['sessionToken'] = value['sessionTokenConfigured'] == true;
       if (_bucket.text.isNotEmpty) await _loadFiles();
     } catch (error) {
-      if (mounted) showPrismNotice(context, (error.toString()).toString());
+      if (mounted) showPrismNotice(context, error.toString());
     }
     if (mounted) setState(() => _loading = false);
   }
@@ -1385,6 +2500,28 @@ class _S3ConfigPageState extends State<S3ConfigPage>
     'secretAccessKey': _secret.text.trim(),
     'sessionToken': _token.text.trim(),
   };
+
+  String? _validateForm() {
+    final endpoint = _endpoint.text.trim();
+    if (endpoint.isEmpty) return '请填写 S3 Endpoint';
+    final uri = Uri.tryParse(endpoint);
+    if (uri == null ||
+        (uri.scheme != 'http' && uri.scheme != 'https') ||
+        uri.host.isEmpty) {
+      return 'Endpoint 格式无效，需以 http:// 或 https:// 开头';
+    }
+    if (_region.text.trim().isEmpty) return '请填写 Region';
+    if (_bucket.text.trim().isEmpty) return '请填写 Bucket 名称';
+    if (_accessKey.text.trim().isEmpty &&
+        _credentialConfigured['accessKeyID'] != true) {
+      return '请填写 Access Key ID';
+    }
+    if (_secret.text.trim().isEmpty &&
+        _credentialConfigured['secretAccessKey'] != true) {
+      return '请填写 Secret Access Key';
+    }
+    return null;
+  }
 
   Future<void> _toggleCredentialVisibility(
     String field,
@@ -1413,6 +2550,7 @@ class _S3ConfigPageState extends State<S3ConfigPage>
     String field,
     TextEditingController controller,
   ) => prism.IconButton(
+    tooltip: _visibleCredentials[field] == true ? '隐藏凭据' : '显示凭据',
     onPressed: _busy.isEmpty && _revealingCredential.isEmpty
         ? () => _toggleCredentialVisibility(field, controller)
         : null,
@@ -1422,26 +2560,72 @@ class _S3ConfigPageState extends State<S3ConfigPage>
             height: 18,
             child: PrismProgressIndicator(size: 18),
           )
-        : Icon(
+        : PrismGlyph(
             _visibleCredentials[field] == true
-                ? Icons.visibility_off_outlined
-                : Icons.visibility_outlined,
+                ? AntGlyphs.eyeOff
+                : AntGlyphs.eye,
+            size: 18,
           ),
   );
 
   Future<void> _action(String method) async {
+    final validationError = _validateForm();
+    if (validationError != null) {
+      setState(
+        () => _testResult = _TestResultState(
+          ok: false,
+          message: validationError,
+        ),
+      );
+      showPrismNotice(context, validationError);
+      return;
+    }
     setState(() => _busy = method);
     try {
       if (method == 'BackupS3Test') {
-        await AppBridge.call(method, [_payload]);
-        if (mounted) showPrismNotice(context, ('连接成功').toString());
+        final res = await AppBridge.call(method, [_payload]);
+        final msg =
+            (res is Map ? res['message']?.toString() : null) ?? 'S3 连接测试成功';
+        if (mounted) {
+          setState(
+            () => _testResult = _TestResultState(ok: true, message: msg),
+          );
+          showPrismNotice(context, msg);
+        }
       } else {
         await AppBridge.call('BackupS3SaveSettings', [_payload]);
+        if (_accessKey.text.trim().isNotEmpty) {
+          _credentialConfigured['accessKeyID'] = true;
+        }
+        if (_secret.text.trim().isNotEmpty) {
+          _credentialConfigured['secretAccessKey'] = true;
+        }
+        if (_token.text.trim().isNotEmpty) {
+          _credentialConfigured['sessionToken'] = true;
+        }
         await _loadFiles();
-        if (mounted) showPrismNotice(context, ('设置已保存').toString());
+        if (mounted) {
+          setState(
+            () => _testResult = const _TestResultState(
+              ok: true,
+              message: 'S3 设置已保存',
+            ),
+          );
+          showPrismNotice(context, '设置已保存');
+        }
       }
     } catch (error) {
-      if (mounted) showPrismNotice(context, (error.toString()).toString());
+      if (mounted) {
+        if (method == 'BackupS3Test') {
+          setState(
+            () => _testResult = _TestResultState(
+              ok: false,
+              message: '连接测试失败：$error',
+            ),
+          );
+        }
+        showPrismNotice(context, error.toString());
+      }
     } finally {
       if (mounted) setState(() => _busy = '');
     }
@@ -1460,22 +2644,34 @@ class _S3ConfigPageState extends State<S3ConfigPage>
     try {
       await _loadFiles();
     } catch (error) {
-      if (mounted) showPrismNotice(context, (error.toString()).toString());
+      if (mounted) showPrismNotice(context, error.toString());
     }
   }
 
   Future<void> _upload() async {
+    final validationError = _validateForm();
+    if (validationError != null) {
+      setState(
+        () => _testResult = _TestResultState(
+          ok: false,
+          message: validationError,
+        ),
+      );
+      showPrismNotice(context, validationError);
+      return;
+    }
     setState(() => _busy = 'upload');
     try {
       final result = await AppBridge.call('BackupS3Upload', [_payload]);
       await _loadFiles();
-      if (mounted)
-        showPrismNotice(
-          context,
-          ((result as Map?)?['message']?.toString() ?? '上传完成').toString(),
-        );
+      if (mounted) {
+        final summary = result is Map
+            ? _formatBackupResultSummary(Map<String, dynamic>.from(result))
+            : '上传完成';
+        showPrismNotice(context, summary);
+      }
     } catch (error) {
-      if (mounted) showPrismNotice(context, (error.toString()).toString());
+      if (mounted) showPrismNotice(context, error.toString());
     } finally {
       if (mounted) setState(() => _busy = '');
     }
@@ -1507,10 +2703,11 @@ class _S3ConfigPageState extends State<S3ConfigPage>
       final completed = result is Map
           ? await _completeProfileImport(Map<String, dynamic>.from(result))
           : <String, dynamic>{'message': result?.toString() ?? '恢复完成'};
-      if (mounted)
-        showPrismNotice(context, (completed['message'] ?? '恢复完成').toString());
+      if (mounted && completed['cancelled'] != true) {
+        showPrismNotice(context, _formatBackupResultSummary(completed));
+      }
     } catch (error) {
-      if (mounted) showPrismNotice(context, (error.toString()).toString());
+      if (mounted) showPrismNotice(context, error.toString());
     } finally {
       if (mounted) setState(() => _busy = '');
     }
@@ -1520,175 +2717,214 @@ class _S3ConfigPageState extends State<S3ConfigPage>
     setState(() => _busy = 'download');
     try {
       final result = await AppBridge.call('BackupS3Download', [_payload, name]);
-      if (mounted)
+      if (mounted) {
         showPrismNotice(
           context,
-          ((result as Map?)?['message']?.toString() ?? '下载完成').toString(),
+          ((result as Map?)?['message']?.toString() ?? '下载完成'),
         );
+      }
     } catch (error) {
-      if (mounted) showPrismNotice(context, (error.toString()).toString());
+      if (mounted) showPrismNotice(context, error.toString());
     } finally {
       if (mounted) setState(() => _busy = '');
     }
   }
 
   @override
-  Widget build(BuildContext context) => _loading
-      ? const Center(child: PrismProgressIndicator())
-      : ListView(
-          padding: const EdgeInsets.all(24),
+  Widget build(BuildContext context) {
+    if (_loading) return const Center(child: PrismProgressIndicator());
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        Row(
           children: [
-            Row(
-              children: [
-                prism.IconButton(
-                  onPressed: widget.onBack,
-                  icon: const Icon(Icons.arrow_back),
-                ),
-                const Expanded(
-                  child: Text(
-                    'S3 备份设置',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-                  ),
-                ),
-                prism.OutlinedButton(
-                  onPressed: _busy.isEmpty
-                      ? () => _action('BackupS3Test')
-                      : null,
-                  child: Text(_busy == 'BackupS3Test' ? '测试中…' : '测试连接'),
-                ),
-                const SizedBox(width: 8),
-                prism.FilledButton(
-                  onPressed: _busy.isEmpty ? () => _action('save') : null,
-                  child: const Text('保存'),
-                ),
-              ],
+            prism.IconButton(
+              onPressed: widget.onBack,
+              icon: const PrismGlyph(AntGlyphs.arrowBack, size: 18),
             ),
-            const SizedBox(height: 18),
-            PrismTextField(
-              controller: _endpoint,
-              decoration: const PrismInputDecoration(labelText: 'Endpoint'),
-            ),
-            PrismTextField(
-              controller: _region,
-              decoration: const PrismInputDecoration(labelText: 'Region'),
-            ),
-            PrismTextField(
-              controller: _bucket,
-              decoration: const PrismInputDecoration(labelText: 'Bucket'),
-            ),
-            PrismTextField(
-              controller: _prefix,
-              decoration: const PrismInputDecoration(labelText: '备份目录前缀'),
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: PrismTextField(
-                    controller: _accessKey,
-                    obscureText: _visibleCredentials['accessKeyID'] != true,
-                    decoration: PrismInputDecoration(
-                      labelText: 'Access Key ID',
-                      hintText: _credentialConfigured['accessKeyID'] == true
-                          ? '已保存，点击眼睛查看'
-                          : null,
-                    ),
-                  ),
-                ),
-                _credentialVisibilityButton('accessKeyID', _accessKey),
-              ],
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: PrismTextField(
-                    controller: _secret,
-                    obscureText: _visibleCredentials['secretAccessKey'] != true,
-                    decoration: PrismInputDecoration(
-                      labelText: 'Secret Access Key',
-                      hintText: _credentialConfigured['secretAccessKey'] == true
-                          ? '已保存，点击眼睛查看'
-                          : null,
-                    ),
-                  ),
-                ),
-                _credentialVisibilityButton('secretAccessKey', _secret),
-              ],
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: PrismTextField(
-                    controller: _token,
-                    obscureText: _visibleCredentials['sessionToken'] != true,
-                    decoration: PrismInputDecoration(
-                      labelText: 'Session Token（可选）',
-                      hintText: _credentialConfigured['sessionToken'] == true
-                          ? '已保存，点击眼睛查看'
-                          : null,
-                    ),
-                  ),
-                ),
-                _credentialVisibilityButton('sessionToken', _token),
-              ],
-            ),
-            PrismSwitchTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('强制使用路径风格地址'),
-              value: _pathStyle,
-              onChanged: (value) => setState(() => _pathStyle = value),
-            ),
-            const prism.Divider(height: 28),
-            Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'S3 备份文件',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ),
-                prism.IconButton(
-                  onPressed: _busy.isEmpty ? _refreshS3 : null,
-                  icon: const Icon(Icons.refresh),
-                ),
-                prism.FilledButton.icon(
-                  onPressed: _busy.isEmpty ? _upload : null,
-                  icon: const Icon(Icons.cloud_upload_outlined),
-                  label: Text(_busy == 'upload' ? '上传中…' : '创建并上传备份'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            if (_files.isEmpty)
-              Text(
-                '没有找到 S3 备份文件',
-                style: TextStyle(
-                  color: prism.Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                'S3 备份设置',
+                style: prism.AppTextStyle.title2.of(context, emphasized: true),
               ),
-            for (final file in _files)
-              PrismCard(
-                child: PrismListTile(
-                  title: Text((file['name'] ?? '').toString()),
-                  subtitle: Text((file['modifiedAt'] ?? '').toString()),
-                  trailing: Wrap(
-                    children: [
-                      prism.IconButton(
-                        tooltip: '下载到本地',
-                        onPressed: _busy.isEmpty
-                            ? () => _downloadS3((file['name'] ?? '').toString())
-                            : null,
-                        icon: const Icon(Icons.download_outlined),
-                      ),
-                      prism.TextButton(
-                        onPressed: _busy.isEmpty
-                            ? () => _restoreS3((file['name'] ?? '').toString())
-                            : null,
-                        child: const Text('恢复'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+            ),
+            prism.OutlinedButton(
+              onPressed: _busy.isEmpty ? () => _action('BackupS3Test') : null,
+              child: Text(_busy == 'BackupS3Test' ? '测试中…' : '测试连接'),
+            ),
+            const SizedBox(width: 8),
+            prism.FilledButton(
+              onPressed: _busy.isEmpty ? () => _action('save') : null,
+              child: const Text('保存'),
+            ),
           ],
-        );
+        ),
+        if (_testResult != null) ...[
+          const SizedBox(height: 12),
+          PrismBanner(
+            tone: _testResult!.ok ? PrismTone.success : PrismTone.danger,
+            message: _testResult!.message,
+          ),
+        ],
+        const SizedBox(height: 16),
+        PrismSectionCard(
+          title: '存储桶与凭据',
+          glyph: AntGlyphs.cloudUpload,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              PrismTextField(
+                controller: _endpoint,
+                decoration: const PrismInputDecoration(
+                  labelText: 'Endpoint',
+                  hintText: 'https://s3.amazonaws.com',
+                ),
+              ),
+              const SizedBox(height: 10),
+              PrismTextField(
+                controller: _region,
+                decoration: const PrismInputDecoration(labelText: 'Region'),
+              ),
+              const SizedBox(height: 10),
+              PrismTextField(
+                controller: _bucket,
+                decoration: const PrismInputDecoration(labelText: 'Bucket'),
+              ),
+              const SizedBox(height: 10),
+              PrismTextField(
+                controller: _prefix,
+                decoration: const PrismInputDecoration(labelText: '备份目录前缀'),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: PrismTextField(
+                      controller: _accessKey,
+                      obscureText: _visibleCredentials['accessKeyID'] != true,
+                      decoration: PrismInputDecoration(
+                        labelText: 'Access Key ID',
+                        hintText: _credentialConfigured['accessKeyID'] == true
+                            ? '已保存，点击眼睛查看'
+                            : null,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  _credentialVisibilityButton('accessKeyID', _accessKey),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: PrismTextField(
+                      controller: _secret,
+                      obscureText:
+                          _visibleCredentials['secretAccessKey'] != true,
+                      decoration: PrismInputDecoration(
+                        labelText: 'Secret Access Key',
+                        hintText:
+                            _credentialConfigured['secretAccessKey'] == true
+                            ? '已保存，点击眼睛查看'
+                            : null,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  _credentialVisibilityButton('secretAccessKey', _secret),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: PrismTextField(
+                      controller: _token,
+                      obscureText: _visibleCredentials['sessionToken'] != true,
+                      decoration: PrismInputDecoration(
+                        labelText: 'Session Token（可选）',
+                        hintText: _credentialConfigured['sessionToken'] == true
+                            ? '已保存，点击眼睛查看'
+                            : null,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  _credentialVisibilityButton('sessionToken', _token),
+                ],
+              ),
+              const SizedBox(height: 8),
+              PrismSwitchTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('强制使用路径风格地址'),
+                value: _pathStyle,
+                onChanged: (value) => setState(() => _pathStyle = value),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'S3 备份文件',
+                style: prism.AppTextStyle.headline.of(context),
+              ),
+            ),
+            prism.IconButton(
+              tooltip: '刷新列表',
+              onPressed: _busy.isEmpty ? _refreshS3 : null,
+              icon: const PrismGlyph(AntGlyphs.refresh, size: 18),
+            ),
+            const SizedBox(width: 6),
+            prism.FilledButton.icon(
+              onPressed: _busy.isEmpty ? _upload : null,
+              icon: const PrismGlyph(AntGlyphs.cloudUpload, size: 16),
+              label: Text(_busy == 'upload' ? '上传中…' : '创建并上传备份'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        if (_files.isEmpty)
+          const PrismEmptyState(
+            title: '没有找到 S3 备份文件',
+            glyph: AntGlyphs.cloud,
+          ),
+        for (final file in _files)
+          PrismCard(
+            margin: const EdgeInsets.only(bottom: 8),
+            child: PrismListTile(
+              title: Text((file['name'] ?? '').toString()),
+              subtitle: Text(
+                '${_formatFileSize(file['size'])} · ${_formatTimestamp(file['modifiedAt'])}',
+              ),
+              trailing: Wrap(
+                spacing: 4,
+                children: [
+                  prism.IconButton(
+                    tooltip: '下载到本地',
+                    onPressed: _busy.isEmpty
+                        ? () => _downloadS3((file['name'] ?? '').toString())
+                        : null,
+                    icon: const PrismGlyph(AntGlyphs.download, size: 18),
+                  ),
+                  prism.TextButton(
+                    onPressed: _busy.isEmpty
+                        ? () => _restoreS3((file['name'] ?? '').toString())
+                        : null,
+                    child: const Text('合并恢复'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
 }

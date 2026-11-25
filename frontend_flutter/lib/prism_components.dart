@@ -1,6 +1,574 @@
-import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
+import 'package:prism_ui/icons/icons.dart' as prism_icons;
 import 'package:prism_ui/prism_ui.dart' as prism;
+
+import 'prism_glyphs.dart';
+
+enum PrismTone { neutral, primary, success, warning, danger, info }
+
+class PrismToneColors {
+  const PrismToneColors({
+    required this.bg,
+    required this.fg,
+    required this.border,
+  });
+
+  final Color bg;
+  final Color fg;
+  final Color border;
+
+  static PrismToneColors of(BuildContext context, PrismTone tone) {
+    final theme = prism.Theme.of(context);
+    final colors = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
+    return switch (tone) {
+      PrismTone.neutral => PrismToneColors(
+        bg: colors.surfaceContainerHighest,
+        fg: colors.onSurfaceVariant,
+        border: colors.outlineVariant.withValues(alpha: 0.45),
+      ),
+      PrismTone.primary => PrismToneColors(
+        bg: colors.primaryContainer,
+        fg: colors.onPrimaryContainer,
+        border: colors.primary.withValues(alpha: 0.28),
+      ),
+      PrismTone.success => PrismToneColors(
+        bg: dark ? const Color(0xFF143526) : const Color(0xFFE3F7EC),
+        fg: dark ? const Color(0xFF6EE7B7) : const Color(0xFF0E6B42),
+        border: (dark ? const Color(0xFF34D399) : const Color(0xFF10B981))
+            .withValues(alpha: 0.30),
+      ),
+      PrismTone.warning => PrismToneColors(
+        bg: dark ? const Color(0xFF3B2B11) : const Color(0xFFFEF3DC),
+        fg: dark ? const Color(0xFFFCD34D) : const Color(0xFF9A5B06),
+        border: (dark ? const Color(0xFFFBBF24) : const Color(0xFFF59E0B))
+            .withValues(alpha: 0.32),
+      ),
+      PrismTone.danger => PrismToneColors(
+        bg: colors.errorContainer,
+        fg: colors.onErrorContainer,
+        border: colors.error.withValues(alpha: 0.32),
+      ),
+      PrismTone.info => PrismToneColors(
+        bg: colors.secondaryContainer,
+        fg: colors.onSecondaryContainer,
+        border: colors.secondary.withValues(alpha: 0.28),
+      ),
+    };
+  }
+}
+
+class PrismBadge extends StatelessWidget {
+  const PrismBadge({
+    super.key,
+    required this.label,
+    this.tone = PrismTone.neutral,
+    this.glyph,
+    this.dot = false,
+    this.onPressed,
+  });
+
+  final String label;
+  final PrismTone tone;
+  final prism_icons.Glyph? glyph;
+  final bool dot;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = PrismToneColors.of(context, tone);
+    final content = prism.Surface(
+      color: palette.bg,
+      shape: prism.AppShape.full,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: 5,
+          children: [
+            if (dot)
+              SizedBox(
+                width: 7,
+                height: 7,
+                child: DecoratedBox(
+                  decoration: ShapeDecoration(
+                    color: palette.fg,
+                    shape: const CircleBorder(),
+                  ),
+                ),
+              ),
+            if (glyph != null)
+              prism_icons.GlyphIcon(glyph!, size: 13, color: palette.fg),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: prism.AppTextStyle.caption1
+                    .of(context, emphasized: true)
+                    .copyWith(color: palette.fg),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (onPressed == null) return content;
+    return prism.PressRegion(
+      onTap: onPressed,
+      shape: prism.AppShape.full,
+      child: content,
+    );
+  }
+}
+
+class PrismBanner extends StatelessWidget {
+  const PrismBanner({
+    super.key,
+    required this.message,
+    this.title,
+    this.tone = PrismTone.info,
+    this.glyph,
+    this.trailing,
+  });
+
+  final String? title;
+  final String message;
+  final PrismTone tone;
+  final prism_icons.Glyph? glyph;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = PrismToneColors.of(context, tone);
+    final effectiveGlyph =
+        glyph ??
+        switch (tone) {
+          PrismTone.success => AntGlyphs.checkCircle,
+          PrismTone.warning => AntGlyphs.warning,
+          PrismTone.danger => AntGlyphs.error,
+          _ => AntGlyphs.info,
+        };
+    return prism.Surface(
+      color: palette.bg,
+      shape: prism.AppShape.lg,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            prism_icons.GlyphIcon(effectiveGlyph, size: 18, color: palette.fg),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (title != null && title!.isNotEmpty)
+                    Text(
+                      title!,
+                      style: prism.AppTextStyle.footnote
+                          .of(context, emphasized: true)
+                          .copyWith(color: palette.fg),
+                    ),
+                  Text(
+                    message,
+                    style: prism.AppTextStyle.footnote
+                        .of(context)
+                        .copyWith(color: palette.fg),
+                  ),
+                ],
+              ),
+            ),
+            if (trailing != null) ...[
+              const SizedBox(width: 12),
+              trailing!,
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class PrismSectionCard extends StatelessWidget {
+  const PrismSectionCard({
+    super.key,
+    this.title,
+    this.glyph,
+    this.actions = const [],
+    required this.child,
+    this.padding = const EdgeInsets.all(16),
+    this.margin = EdgeInsets.zero,
+    this.radius = prism.AppCorner.xl,
+  });
+
+  final String? title;
+  final prism_icons.Glyph? glyph;
+  final List<Widget> actions;
+  final Widget child;
+  final EdgeInsets padding;
+  final EdgeInsetsGeometry margin;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: margin,
+      child: prism.Card(
+        radius: radius,
+        inert: true,
+        padding: EdgeInsets.zero,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (title != null && title!.isNotEmpty) ...[
+              prism.InfoHeader(
+                info: prism.Info(label: title!, glyph: glyph),
+                actions: actions,
+                padding: const EdgeInsets.fromLTRB(16, 14, 14, 10),
+              ),
+              const prism.Divider(height: 1),
+            ],
+            Padding(padding: padding, child: child),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class PrismMetricTile extends StatelessWidget {
+  const PrismMetricTile({
+    super.key,
+    required this.label,
+    required this.value,
+    this.subtitle,
+    this.glyph,
+    this.tone = PrismTone.primary,
+    this.onPressed,
+  });
+
+  final String label;
+  final String value;
+  final String? subtitle;
+  final prism_icons.Glyph? glyph;
+  final PrismTone tone;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
+    final palette = PrismToneColors.of(context, tone);
+    return prism.Card(
+      radius: prism.AppCorner.lg,
+      onPressed: onPressed,
+      inert: onPressed == null,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (glyph != null) ...[
+            prism.Surface(
+              color: palette.bg,
+              shape: prism.AppShape.md,
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: prism_icons.GlyphIcon(
+                  glyph!,
+                  size: 18,
+                  color: palette.fg,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+          ],
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: prism.AppTextStyle.caption1
+                      .of(context)
+                      .copyWith(color: colors.onSurfaceVariant),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: prism.AppTextStyle.title3.of(
+                    context,
+                    emphasized: true,
+                  ),
+                ),
+                if (subtitle != null && subtitle!.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: prism.AppTextStyle.caption2
+                        .of(context)
+                        .copyWith(color: colors.onSurfaceVariant),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PrismEmptyState extends StatelessWidget {
+  const PrismEmptyState({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.glyph = AntGlyphs.search,
+    this.action,
+  });
+
+  final String title;
+  final String? subtitle;
+  final prism_icons.Glyph glyph;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            prism.Surface(
+              color: colors.surfaceContainerLow,
+              shape: prism.AppShape.xl,
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: prism_icons.GlyphIcon(
+                  glyph,
+                  size: 32,
+                  color: colors.onSurfaceVariant,
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: prism.AppTextStyle.headline.of(context),
+            ),
+            if (subtitle != null && subtitle!.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Text(
+                  subtitle!,
+                  textAlign: TextAlign.center,
+                  style: prism.AppTextStyle.footnote
+                      .of(context)
+                      .copyWith(color: colors.onSurfaceVariant),
+                ),
+              ),
+            ],
+            if (action != null) ...[
+              const SizedBox(height: 16),
+              action!,
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class PrismSearchBar extends StatelessWidget {
+  const PrismSearchBar({
+    super.key,
+    this.controller,
+    this.focusNode,
+    this.hintText = '搜索...',
+    this.onChanged,
+    this.onSubmitted,
+    this.autofocus = false,
+    this.height = 40,
+    this.trailing,
+  });
+
+  final TextEditingController? controller;
+  final FocusNode? focusNode;
+  final String hintText;
+  final ValueChanged<String>? onChanged;
+  final VoidCallback? onSubmitted;
+  final bool autofocus;
+  final double height;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
+    return prism.SearchField(
+      controller: controller,
+      focusNode: focusNode,
+      hintText: hintText,
+      onChanged: onChanged,
+      onSubmitted: onSubmitted,
+      autofocus: autofocus,
+      height: height,
+      fill: colors.surfaceContainerLow,
+      trailing: trailing,
+    );
+  }
+}
+
+class PrismCodeSurface extends StatelessWidget {
+  const PrismCodeSurface({
+    super.key,
+    required this.code,
+    this.language,
+    this.maxHeight,
+    this.showCopy = true,
+  });
+
+  final String code;
+  final String? language;
+  final double? maxHeight;
+  final bool showCopy;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
+    final body = prism.SelectableText(
+      code,
+      style: TextStyle(
+        fontFamily: 'Consolas',
+        fontSize: 12.5,
+        height: 1.5,
+        color: colors.onSurface,
+      ),
+    );
+    return prism.Surface(
+      color: colors.surfaceContainerLow,
+      shape: prism.AppShape.lg,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (showCopy || (language != null && language!.isNotEmpty))
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 6, 6, 0),
+              child: Row(
+                children: [
+                  if (language != null && language!.isNotEmpty)
+                    Text(
+                      language!.toUpperCase(),
+                      style: prism.AppTextStyle.caption2
+                          .of(context, emphasized: true)
+                          .copyWith(color: colors.onSurfaceVariant),
+                    ),
+                  const Spacer(),
+                  if (showCopy)
+                    prism.IconButton(
+                      tooltip: '复制代码',
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: code));
+                        showPrismNotice(context, '已复制到剪贴板');
+                      },
+                      icon: const PrismGlyph(AntGlyphs.copy, size: 15),
+                    ),
+                ],
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+            child: maxHeight == null
+                ? body
+                : ConstrainedBox(
+                    constraints: BoxConstraints(maxHeight: maxHeight!),
+                    child: SingleChildScrollView(child: body),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PrismProgressPanel extends StatelessWidget {
+  const PrismProgressPanel({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.progress,
+    this.trailing,
+  });
+
+  final String title;
+  final String? subtitle;
+  final double? progress;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
+    final pct = progress == null
+        ? null
+        : '${(progress!.clamp(0.0, 1.0) * 100).round()}%';
+    return prism.Card(
+      radius: prism.AppCorner.lg,
+      inert: true,
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: prism.AppTextStyle.subheadline.of(
+                    context,
+                    emphasized: true,
+                  ),
+                ),
+              ),
+              if (pct != null)
+                Text(
+                  pct,
+                  style: prism.AppTextStyle.footnote
+                      .of(context, emphasized: true)
+                      .copyWith(color: colors.primary),
+                ),
+              if (trailing != null) ...[
+                const SizedBox(width: 8),
+                trailing!,
+              ],
+            ],
+          ),
+          const SizedBox(height: 8),
+          prism.LinearProgressIndicator(value: progress, minHeight: 6),
+          if (subtitle != null && subtitle!.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              subtitle!,
+              style: prism.AppTextStyle.caption1
+                  .of(context)
+                  .copyWith(color: colors.onSurfaceVariant),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
 
 class PrismInputDecoration {
   const PrismInputDecoration({
@@ -132,11 +700,11 @@ class PrismTextField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 12, bottom: 5),
+          padding: const EdgeInsets.only(left: 10, bottom: 5),
           child: Text(
             label,
             style: prism.AppTextStyle.footnote
-                .of(context)
+                .of(context, emphasized: true)
                 .copyWith(color: colors.onSurfaceVariant),
           ),
         ),
@@ -220,11 +788,11 @@ class PrismTextFormField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 12, bottom: 5),
+          padding: const EdgeInsets.only(left: 10, bottom: 5),
           child: Text(
             label,
             style: prism.AppTextStyle.footnote
-                .of(context)
+                .of(context, emphasized: true)
                 .copyWith(color: colors.onSurfaceVariant),
           ),
         ),
@@ -308,7 +876,7 @@ class PrismPopupMenuButton<T> extends StatelessWidget {
     targetBuilder: (open) => prism.IconButton(
       onPressed: enabled ? open : null,
       tooltip: tooltip,
-      icon: icon ?? const Text('⋯'),
+      icon: icon ?? const PrismGlyph(AntGlyphs.more, size: 18),
     ),
     popupBuilder: (context) => prism.PopupMenu(
       items: [
@@ -379,7 +947,7 @@ class _PrismDropdownFieldState<T> extends State<PrismDropdownField<T>> {
     final field = prism.PopupAnchor(
       placement: prism.PopupPlacement.overAnchorEnd,
       targetBuilder: (open) => prism.Card(
-        radius: 16,
+        radius: prism.AppCorner.md,
         onPressed: enabled ? open : null,
         inert: !enabled,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -389,13 +957,21 @@ class _PrismDropdownFieldState<T> extends State<PrismDropdownField<T>> {
               child: Text(
                 label.isEmpty ? (widget.decoration.hintText ?? '') : label,
                 overflow: TextOverflow.ellipsis,
-                style: prism.AppTextStyle.body
+                style: prism.AppTextStyle.subheadline
                     .of(context)
-                    .copyWith(color: colors.onSurface),
+                    .copyWith(
+                      color: label.isEmpty
+                          ? colors.onSurfaceVariant
+                          : colors.onSurface,
+                    ),
               ),
             ),
-            const SizedBox(width: 12),
-            Text('⌄', style: prism.AppTextStyle.body.of(context)),
+            const SizedBox(width: 10),
+            prism_icons.GlyphIcon(
+              prism_icons.Glyphs.picker,
+              size: 16,
+              color: colors.onSurfaceVariant,
+            ),
           ],
         ),
       ),
@@ -422,11 +998,11 @@ class _PrismDropdownFieldState<T> extends State<PrismDropdownField<T>> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 12, bottom: 5),
+          padding: const EdgeInsets.only(left: 10, bottom: 5),
           child: Text(
             labelText,
             style: prism.AppTextStyle.footnote
-                .of(context)
+                .of(context, emphasized: true)
                 .copyWith(color: colors.onSurfaceVariant),
           ),
         ),
@@ -527,7 +1103,7 @@ class PrismTonalButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => prism.TonalButtonTheme(
-    size: prism.TonalButtonSize.bar,
+    size: prism.TonalButtonSize.section,
     child: icon == null
         ? prism.FilledButton(onPressed: onPressed, style: style, child: child)
         : prism.FilledButton.icon(
@@ -616,7 +1192,7 @@ class PrismCard extends StatelessWidget {
     final card = Padding(
       padding: margin,
       child: prism.Card(
-        radius: radius,
+        radius: radius ?? prism.AppCorner.xl,
         shape: shape is OutlinedBorder ? shape as OutlinedBorder : null,
         padding: padding,
         onPressed: onPressed,
@@ -692,11 +1268,15 @@ class PrismListTile extends StatelessWidget {
       color: selected
           ? selectedTileColor ?? const Color(0x00000000)
           : const Color(0x00000000),
-      shape: shape,
+      shape: shape ?? prism.AppShape.lg,
       child: row,
     );
     if (onTap == null) return content;
-    return prism.PressRegion(onTap: onTap, shape: shape, child: content);
+    return prism.PressRegion(
+      onTap: onTap,
+      shape: shape ?? prism.AppShape.lg,
+      child: content,
+    );
   }
 
   Widget _textWithColor(Text text, Color color) => Text(

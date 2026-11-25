@@ -1,8 +1,7 @@
-import 'prism_widgets.dart';
-
 import 'package:prism_ui/prism_ui.dart' as prism;
 
 import 'notification_store.dart';
+import 'prism_widgets.dart';
 
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({
@@ -53,6 +52,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
     return AnimatedBuilder(
       animation: widget.store,
       builder: (context, child) {
@@ -75,56 +75,79 @@ class _NotificationsPageState extends State<NotificationsPage> {
           'error': all.where((item) => item['type'] == 'error').length,
           'warning': all.where((item) => item['type'] == 'warning').length,
         };
-        const filters = [
-          ('all', '全部'),
-          ('unread', '未读'),
-          ('error', '错误'),
-          ('warning', '警告'),
-        ];
 
         return Padding(
           padding: const EdgeInsets.fromLTRB(28, 22, 28, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(unread > 0 ? '通知中心 · $unread 条未读' : '通知中心'),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
+              Row(
                 children: [
-                  if (unread > 0)
-                    prism.TextButton.icon(
-                      onPressed: widget.store.markAllRead,
-                      icon: const Icon(Icons.done_all, size: 18),
-                      label: const Text('全部标为已读'),
-                    ),
-                  if (all.isNotEmpty) ...[
-                    prism.OutlinedButton.icon(
-                      onPressed: _clear,
-                      icon: const Icon(Icons.delete_outline, size: 18),
-                      label: const Text('清空通知'),
+                  Text(
+                    '通知中心',
+                    style: prism.AppTextStyle.headline.of(context),
+                  ),
+                  if (unread > 0) ...[
+                    const SizedBox(width: 10),
+                    PrismBadge(
+                      label: '$unread 条未读',
+                      tone: PrismTone.primary,
+                      dot: true,
                     ),
                   ],
+                  const Spacer(),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      if (unread > 0)
+                        prism.TextButton.icon(
+                          onPressed: widget.store.markAllRead,
+                          icon: const PrismGlyph(AntGlyphs.doneAll, size: 17),
+                          label: const Text('全部标为已读'),
+                        ),
+                      if (all.isNotEmpty)
+                        prism.OutlinedButton.icon(
+                          onPressed: _clear,
+                          icon: const PrismGlyph(AntGlyphs.delete, size: 17),
+                          label: const Text('清空通知'),
+                        ),
+                    ],
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                children: [
-                  for (final (value, label) in filters)
-                    PrismChip(
-                      label: Text('$label (${counts[value]})'),
-                      selected: _filter == value,
-                      onSelected: (_) => setState(() => _filter = value),
-                    ),
-                ],
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: prism.SegmentedControl<String>(
+                  value: _filter,
+                  onChanged: (value) => setState(() => _filter = value),
+                  segments: [
+                    ('all', '全部 (${counts['all']})'),
+                    ('unread', '未读 (${counts['unread']})'),
+                    ('error', '错误 (${counts['error']})'),
+                    ('warning', '警告 (${counts['warning']})'),
+                  ],
+                ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               Expanded(
                 child: filtered.isEmpty
-                    ? const Center(child: Text('暂无通知'))
+                    ? PrismEmptyState(
+                        glyph: AntGlyphs.bell,
+                        title: all.isEmpty ? '暂无通知' : '当前筛选没有通知',
+                        subtitle: all.isEmpty
+                            ? '系统提醒、运行状态与错误消息会显示在这里。'
+                            : '切换到“全部”查看所有历史通知。',
+                        action: all.isNotEmpty && _filter != 'all'
+                            ? prism.OutlinedButton(
+                                onPressed: () =>
+                                    setState(() => _filter = 'all'),
+                                child: const Text('查看全部通知'),
+                              )
+                            : null,
+                      )
                     : ListView.separated(
                         itemCount: filtered.length,
                         separatorBuilder: (context, index) =>
@@ -134,18 +157,18 @@ class _NotificationsPageState extends State<NotificationsPage> {
                           final id = '${item['id'] ?? ''}';
                           final type = '${item['type'] ?? 'info'}';
                           final isRead = item['read'] == true;
-                          final colors = prism.Theme.of(context).colorScheme;
-                          final color = switch (type) {
-                            'error' => colors.error,
-                            'warning' => colors.tertiary,
-                            'success' => colors.primary,
-                            _ => colors.secondary,
+                          final tone = switch (type) {
+                            'error' => PrismTone.danger,
+                            'warning' => PrismTone.warning,
+                            'success' => PrismTone.success,
+                            _ => PrismTone.info,
                           };
-                          final icon = switch (type) {
-                            'error' => Icons.error_outline,
-                            'warning' => Icons.warning_amber_outlined,
-                            'success' => Icons.check_circle_outline,
-                            _ => Icons.info_outline,
+                          final palette = PrismToneColors.of(context, tone);
+                          final glyph = switch (type) {
+                            'error' => AntGlyphs.error,
+                            'warning' => AntGlyphs.warning,
+                            'success' => AntGlyphs.checkCircle,
+                            _ => AntGlyphs.info,
                           };
                           final action = item['action'] is Map
                               ? Map<String, dynamic>.from(item['action'] as Map)
@@ -157,104 +180,106 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                 'frontend' => '前端',
                                 _ => '系统',
                               };
-                          return AnimatedContainer(
-                            duration: const Duration(milliseconds: 180),
-                            curve: Curves.easeOut,
-                            decoration: BoxDecoration(
-                              color: prism.Theme.of(context)
-                                  .colorScheme
-                                  .surfaceContainerLowest,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: prism.Theme.of(context)
-                                    .colorScheme
-                                    .outlineVariant,
-                              ),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Icon(icon, color: color, size: 21),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            if (!isRead) ...[
-                                              Container(
-                                                width: 7,
-                                                height: 7,
-                                                decoration: BoxDecoration(
-                                                  color: color,
-                                                  shape: BoxShape.circle,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 7),
-                                            ],
-                                            Expanded(
-                                              child: Text(
-                                                '${item['title'] ?? '通知'}',
-                                                style: TextStyle(
-                                                  fontWeight: isRead
-                                                      ? FontWeight.w500
-                                                      : FontWeight.w700,
-                                                ),
-                                              ),
+                          return prism.Card(
+                            radius: prism.AppCorner.xl,
+                            inert: true,
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                prism.Surface(
+                                  color: palette.bg,
+                                  shape: prism.AppShape.md,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(8),
+                                    child: PrismGlyph(
+                                      glyph,
+                                      color: palette.fg,
+                                      size: 18,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          if (!isRead) ...[
+                                            const PrismBadge(
+                                              label: '未读',
+                                              tone: PrismTone.primary,
+                                              dot: true,
                                             ),
+                                            const SizedBox(width: 8),
                                           ],
-                                        ),
-                                        const SizedBox(height: 5),
-                                        Text(
-                                          '$source · ${item['time'] ?? ''}',
-                                          style: TextStyle(
-                                            color: colors.onSurfaceVariant,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        prism.SelectableText(
-                                          '${item['message'] ?? ''}',
-                                          style: TextStyle(
-                                            color: colors.onSurface,
-                                            height: 1.5,
-                                          ),
-                                        ),
-                                        if (action != null &&
-                                            action['path'] is String) ...[
-                                          const SizedBox(height: 8),
-                                          prism.TextButton.icon(
-                                            onPressed: () {
-                                              widget.store.markRead(id);
-                                              widget.onNavigate(
-                                                action['path'] as String,
-                                              );
-                                            },
-                                            icon: const Icon(
-                                              Icons.arrow_forward,
-                                              size: 16,
-                                            ),
-                                            label: Text(
-                                              '${action['label'] ?? '查看'}',
+                                          Expanded(
+                                            child: Text(
+                                              '${item['title'] ?? '通知'}',
+                                              style: prism
+                                                  .AppTextStyle
+                                                  .subheadline
+                                                  .of(
+                                                    context,
+                                                    emphasized: !isRead,
+                                                  ),
                                             ),
                                           ),
                                         ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '$source · ${item['time'] ?? ''}',
+                                        style: prism.AppTextStyle.caption1
+                                            .of(context)
+                                            .copyWith(
+                                              color: colors.onSurfaceVariant,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      prism.SelectableText(
+                                        '${item['message'] ?? ''}',
+                                        style: prism.AppTextStyle.body
+                                            .of(context)
+                                            .copyWith(
+                                              color: colors.onSurface,
+                                              height: 1.5,
+                                            ),
+                                      ),
+                                      if (action != null &&
+                                          action['path'] is String) ...[
+                                        const SizedBox(height: 8),
+                                        prism.TextButton.icon(
+                                          onPressed: () {
+                                            widget.store.markRead(id);
+                                            widget.onNavigate(
+                                              action['path'] as String,
+                                            );
+                                          },
+                                          icon: const PrismGlyph(
+                                            AntGlyphs.arrowForward,
+                                            size: 16,
+                                          ),
+                                          label: Text(
+                                            '${action['label'] ?? '查看'}',
+                                          ),
+                                        ),
                                       ],
+                                    ],
+                                  ),
+                                ),
+                                if (!isRead)
+                                  prism.IconButton(
+                                    tooltip: '标记为已读',
+                                    onPressed: () => widget.store.markRead(id),
+                                    icon: const PrismGlyph(
+                                      AntGlyphs.check,
+                                      size: 18,
                                     ),
                                   ),
-                                  if (!isRead)
-                                    prism.IconButton(
-                                      tooltip: '标记为已读',
-                                      onPressed: () =>
-                                          widget.store.markRead(id),
-                                      icon: const Icon(Icons.done, size: 19),
-                                    ),
-                                ],
-                              ),
+                              ],
                             ),
                           );
                         },

@@ -1,5 +1,4 @@
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
-
 import 'package:prism_ui/prism_ui.dart' as prism;
 
 import 'app_bridge.dart';
@@ -7,7 +6,7 @@ import 'prism_widgets.dart';
 
 /// 快速启动对话框（Ctrl+K），对应旧版 React 的 QuickLaunchModal：
 /// 按名称/启动码/标签/关键词搜索实例，Enter 直接按输入启动，
-/// 点击实例按其启动码启动，统一走 BrowserInstanceStartByCode。
+/// 支持单击选中、双击启动及行内启动按钮，统一走 BrowserInstanceStartByCode。
 class QuickLaunchDialog extends StatefulWidget {
   const QuickLaunchDialog({super.key});
 
@@ -28,6 +27,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
   final Map<String, GlobalKey> _profileKeys = {};
   bool _loading = true;
   bool _starting = false;
+  String _startingProfileId = '';
   String _groupFilter = _allGroups;
   String _activeTag = '';
   int _selectedIndex = 0;
@@ -48,6 +48,12 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
   }
 
   Future<void> _load() async {
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _loadError = '';
+      });
+    }
     try {
       final profiles = await AppBridge.call('BrowserProfileList');
       final groups = await AppBridge.call('ListGroups');
@@ -70,7 +76,9 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
         _profiles = loadedProfiles;
         _groupNames = {
           for (final row in (groups as List? ?? []).whereType<Map>())
-            '${row['groupId']}': '${row['groupName'] ?? '分组'}',
+            if ('${row['groupId'] ?? ''}'.trim().isNotEmpty)
+              '${row['groupId']}'.trim():
+                  '${row['groupName'] ?? '分组'}'.trim(),
         };
         _loading = false;
         _loadError = '';
@@ -85,11 +93,18 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
   }
 
   String _groupLabel(Map<String, dynamic> profile) {
-    final id = '${profile['groupId'] ?? ''}';
+    final id = '${profile['groupId'] ?? ''}'.trim();
     if (id.isEmpty) return '未分组';
     return _groupNames[id] ?? '分组 $id';
   }
 
+  List<String> _profileTags(Map<String, dynamic> profile) =>
+      (profile['tags'] as List? ?? const [])
+          .map((tag) => '$tag'.trim())
+          .where((tag) => tag.isNotEmpty)
+          .toList();
+
+  /// 包含所有分组（含空分组）及未分组项，便于按分组筛选。
   List<Map<String, dynamic>> get _groupOptions {
     final counts = <String, int>{};
     for (final profile in _profiles) {
@@ -99,8 +114,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
     }
     final options = <Map<String, dynamic>>[
       for (final entry in _groupNames.entries)
-        if ((counts[entry.key] ?? 0) > 0)
-          {'id': entry.key, 'name': entry.value, 'count': counts[entry.key]},
+        {'id': entry.key, 'name': entry.value, 'count': counts[entry.key] ?? 0},
       for (final entry in counts.entries)
         if (entry.key != _ungrouped && !_groupNames.containsKey(entry.key))
           {'id': entry.key, 'name': '分组 ${entry.key}', 'count': entry.value},
@@ -144,9 +158,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
   ) {
     final buckets = <String, List<Map<String, dynamic>>>{};
     for (final profile in profiles) {
-      final tags = (profile['tags'] as List? ?? const [])
-          .map((tag) => '$tag'.trim())
-          .where((tag) => tag.isNotEmpty);
+      final tags = _profileTags(profile);
       final tag = tags.isEmpty ? '未打标签' : tags.first;
       buckets.putIfAbsent(tag, () => []).add(profile);
     }
@@ -196,10 +208,17 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
     }
   }
 
-  Future<bool> _startByCode(String rawCode, {bool showFailure = true}) async {
+  Future<bool> _startByCode(
+    String rawCode, {
+    bool showFailure = true,
+    String profileId = '',
+  }) async {
     final code = rawCode.trim().toUpperCase();
     if (code.isEmpty || _starting) return false;
-    setState(() => _starting = true);
+    setState(() {
+      _starting = true;
+      _startingProfileId = profileId;
+    });
     try {
       final result = await AppBridge.call('BrowserInstanceStartByCode', [code]);
       if (!mounted) return true;
@@ -215,7 +234,10 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
     } catch (error) {
       if (mounted) {
         if (showFailure) showPrismNotice(context, '按启动码启动失败：$error');
-        setState(() => _starting = false);
+        setState(() {
+          _starting = false;
+          _startingProfileId = '';
+        });
       }
       return false;
     }
@@ -227,7 +249,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
       showPrismNotice(context, '该实例尚未分配启动码，请先在实例列表设置');
       return;
     }
-    await _startByCode(code);
+    await _startByCode(code, profileId: _profileIdentity(profile));
   }
 
   Future<void> _onSubmit(List<Map<String, dynamic>> filtered) async {
@@ -253,6 +275,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
     final filtered = _filtered;
     final sections = _tagSections(filtered);
     return CallbackShortcuts(
@@ -280,26 +303,22 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
         child: PrismDialog(
           title: const Text('快速启动'),
           content: SizedBox(
-            width: 680,
+            width: 720,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                PrismTextField(
+                PrismSearchBar(
                   controller: _query,
                   focusNode: _focusNode,
                   autofocus: true,
-                  enabled: !_starting,
+                  hintText: '输入启动码或搜索实例（名称 / 启动码 / 标签 / 关键词，Enter 启动）',
                   onChanged: (_) => setState(() => _selectedIndex = 0),
-                  onSubmitted: (_) => _onSubmit(filtered),
-                  decoration: const PrismInputDecoration(
-                    labelText: '输入启动码或搜索实例',
-                    hintText: '名称 / 启动码 / 标签 / 关键词，Enter 启动',
-                  ),
+                  onSubmitted: () => _onSubmit(filtered),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 SizedBox(
-                  height: 38,
+                  height: 36,
                   child: ListView(
                     scrollDirection: Axis.horizontal,
                     children: [
@@ -312,48 +331,57 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 if (sections.isNotEmpty)
                   SizedBox(
-                    height: 34,
+                    height: 32,
                     child: ListView(
                       scrollDirection: Axis.horizontal,
                       children: [
                         for (final section in sections)
                           Padding(
                             padding: const EdgeInsets.only(right: 6),
-                            child: prism.TextButton(
+                            child: PrismBadge(
+                              label:
+                                  '${section.key} (${section.value.length})',
+                              glyph: AntGlyphs.tag,
+                              tone: _activeTag == section.key
+                                  ? PrismTone.primary
+                                  : PrismTone.neutral,
                               onPressed: () => _jumpToTag(section.key),
-                              child: Text(
-                                '${section.key} (${section.value.length})',
-                                style: TextStyle(
-                                  fontWeight: _activeTag == section.key
-                                      ? FontWeight.w700
-                                      : FontWeight.normal,
-                                ),
-                              ),
                             ),
                           ),
                       ],
                     ),
                   ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 SizedBox(
-                  height: 320,
+                  height: 340,
                   child: _loading
                       ? const Center(child: PrismProgressIndicator())
                       : _loadError.isNotEmpty
                       ? Center(
-                          child: prism.TextButton(
-                            onPressed: _load,
-                            child: Text('加载失败，点击重试：$_loadError'),
+                          child: PrismBanner(
+                            tone: PrismTone.danger,
+                            title: '加载实例失败',
+                            message: _loadError,
+                            trailing: prism.OutlinedButton.icon(
+                              onPressed: _load,
+                              icon: const PrismGlyph(
+                                AntGlyphs.refresh,
+                                size: 15,
+                              ),
+                              label: const Text('重试'),
+                            ),
                           ),
                         )
                       : filtered.isEmpty
-                      ? Center(
-                          child: Text(
-                            _profiles.isEmpty ? '暂无实例，请先创建' : '没有匹配的实例',
-                          ),
+                      ? PrismEmptyState(
+                          glyph: AntGlyphs.browser,
+                          title: _profiles.isEmpty ? '暂无实例' : '没有匹配的实例',
+                          subtitle: _profiles.isEmpty
+                              ? '请先在实例管理中创建浏览器实例'
+                              : '尝试切换分组筛选或修改搜索关键词',
                         )
                       : ListView(
                           controller: _listController,
@@ -361,83 +389,19 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                             for (final section in sections) ...[
                               Padding(
                                 key: _sectionKey(section.key),
-                                padding: const EdgeInsets.fromLTRB(4, 8, 4, 4),
+                                padding: const EdgeInsets.fromLTRB(4, 10, 4, 6),
                                 child: Text(
                                   '${section.key} · ${section.value.length} 个实例',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    color: prism.Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
-                                  ),
+                                  style: prism.AppTextStyle.footnote
+                                      .of(context, emphasized: true)
+                                      .copyWith(color: colors.onSurfaceVariant),
                                 ),
                               ),
                               for (final profile in section.value)
-                                Builder(
-                                  builder: (context) {
-                                    final index = filtered.indexOf(profile);
-                                    final selected = index == _selectedIndex;
-                                    final running = profile['running'] == true;
-                                    return PrismCard(
-                                      key: _profileKey(profile),
-                                      margin: const EdgeInsets.only(bottom: 6),
-                                      child: DecoratedBox(
-                                        decoration: BoxDecoration(
-                                          color: selected
-                                              ? prism.Theme.of(context)
-                                                    .colorScheme
-                                                    .secondaryContainer
-                                              : null,
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                        ),
-                                        child: PrismListTile(
-                                          leading: Icon(
-                                            running
-                                                ? Icons.play_circle_outline
-                                                : Icons.bolt_outlined,
-                                            color: running
-                                                ? prism.Theme.of(context)
-                                                      .colorScheme
-                                                      .tertiary
-                                                : null,
-                                          ),
-                                          title: Text(
-                                            '${profile['profileName'] ?? ''}',
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          subtitle: Text(
-                                            '启动码 ${profile['launchCode'] ?? '未分配'} · '
-                                            '${_groupLabel(profile)}'
-                                            '${running ? ' · 运行中' : ''}',
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          onTap: _starting
-                                              ? null
-                                              : () => _selectProfile(
-                                                  index,
-                                                  filtered,
-                                                ),
-                                          trailing: _starting && selected
-                                              ? const SizedBox(
-                                                  width: 18,
-                                                  height: 18,
-                                                  child:
-                                                      PrismProgressIndicator(),
-                                                )
-                                              : Icon(
-                                                  selected
-                                                      ? Icons
-                                                            .check_circle_outline
-                                                      : Icons.chevron_right,
-                                                ),
-                                        ),
-                                      ),
-                                    );
-                                  },
+                                _buildProfileCard(
+                                  context,
+                                  profile,
+                                  filtered,
                                 ),
                             ],
                           ],
@@ -445,11 +409,10 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '↑↓选择实例 · Enter 启动 · 点击实例后使用下方按钮启动',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: prism.Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                  '↑↓ 选择实例 · 双击或 Enter 直接启动 · 支持直接输入启动码启动',
+                  style: prism.AppTextStyle.caption1
+                      .of(context)
+                      .copyWith(color: colors.onSurfaceVariant),
                 ),
               ],
             ),
@@ -461,13 +424,14 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                   : () => _startByCode(_query.text),
               child: const Text('按启动码启动'),
             ),
-            prism.TextButton(
+            prism.FilledButton.icon(
               onPressed: _starting || filtered.isEmpty
                   ? null
                   : () => _startProfile(
                       filtered[_selectedIndex.clamp(0, filtered.length - 1)],
                     ),
-              child: const Text('启动选中实例'),
+              icon: const PrismGlyph(AntGlyphs.play, size: 15),
+              label: const Text('启动选中实例'),
             ),
             prism.TextButton(
               onPressed: () => Navigator.of(context).maybePop(),
@@ -479,25 +443,162 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
     );
   }
 
+  Widget _buildProfileCard(
+    BuildContext context,
+    Map<String, dynamic> profile,
+    List<Map<String, dynamic>> filtered,
+  ) {
+    final colors = prism.Theme.of(context).colorScheme;
+    final successTone = PrismToneColors.of(context, PrismTone.success);
+    final primaryTone = PrismToneColors.of(context, PrismTone.primary);
+    final index = filtered.indexOf(profile);
+    final selected = index == _selectedIndex;
+    final running = profile['running'] == true;
+    final tags = _profileTags(profile);
+    final launchCode = '${profile['launchCode'] ?? ''}'.trim();
+    final identity = _profileIdentity(profile);
+    final isStartingThis = _starting && _startingProfileId == identity;
+
+    return Padding(
+      key: _profileKey(profile),
+      padding: const EdgeInsets.only(bottom: 6),
+      child: GestureDetector(
+        onDoubleTap: _starting ? null : () => _startProfile(profile),
+        child: prism.Surface(
+          color: selected ? colors.secondaryContainer : colors.surfaceContainerLow,
+          shape: prism.AppShape.lg,
+          child: prism.PressRegion(
+            onTap: _starting ? null : () => _selectProfile(index, filtered),
+            shape: prism.AppShape.lg,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                children: [
+                  prism.Surface(
+                    color: running ? successTone.bg : primaryTone.bg,
+                    shape: prism.AppShape.md,
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: PrismGlyph(
+                        running ? AntGlyphs.play : AntGlyphs.bolt,
+                        size: 16,
+                        color: running ? successTone.fg : primaryTone.fg,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                '${profile['profileName'] ?? ''}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: prism.AppTextStyle.subheadline.of(
+                                  context,
+                                  emphasized: true,
+                                ),
+                              ),
+                            ),
+                            if (running) ...[
+                              const SizedBox(width: 6),
+                              const PrismBadge(
+                                label: '运行中',
+                                tone: PrismTone.success,
+                                dot: true,
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          '启动码 ${launchCode.isEmpty ? '未分配' : launchCode} · ${_groupLabel(profile)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: prism.AppTextStyle.caption1
+                              .of(context)
+                              .copyWith(color: colors.onSurfaceVariant),
+                        ),
+                        if (tags.isNotEmpty) ...[
+                          const SizedBox(height: 5),
+                          Wrap(
+                            spacing: 4,
+                            runSpacing: 4,
+                            children: [
+                              for (final tag in tags.take(4))
+                                PrismBadge(
+                                  label: tag,
+                                  tone: PrismTone.info,
+                                  glyph: AntGlyphs.tag,
+                                ),
+                              if (tags.length > 4)
+                                PrismBadge(
+                                  label: '+${tags.length - 4}',
+                                  tone: PrismTone.neutral,
+                                ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  if (isStartingThis)
+                    const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: PrismProgressIndicator(size: 18),
+                    )
+                  else
+                    prism.OutlinedButton.icon(
+                      onPressed: _starting || launchCode.isEmpty
+                          ? null
+                          : () => _startProfile(profile),
+                      icon: const PrismGlyph(AntGlyphs.play, size: 14),
+                      label: const Text('启动'),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _filterButton(String label, String filter) {
     final selected = _groupFilter == filter;
     final colors = prism.Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(right: 6),
-      child: GestureDetector(
+      child: prism.PressRegion(
         onTap: () => setState(() {
           _groupFilter = filter;
           _selectedIndex = 0;
           _activeTag = '';
         }),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-          decoration: BoxDecoration(
-            color: selected ? colors.secondaryContainer : colors.surface,
-            border: Border.all(color: colors.outlineVariant),
-            borderRadius: BorderRadius.circular(18),
+        shape: prism.AppShape.full,
+        child: prism.Surface(
+          color: selected ? colors.primaryContainer : colors.surfaceContainerLow,
+          shape: prism.AppShape.full,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            child: Text(
+              label,
+              style: prism.AppTextStyle.footnote
+                  .of(context, emphasized: selected)
+                  .copyWith(
+                    color: selected
+                        ? colors.onPrimaryContainer
+                        : colors.onSurface,
+                  ),
+            ),
           ),
-          child: Text(label, style: TextStyle(color: colors.onSurface)),
         ),
       ),
     );

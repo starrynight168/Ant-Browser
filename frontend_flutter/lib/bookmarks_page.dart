@@ -1,8 +1,36 @@
-import 'prism_widgets.dart';
-
 import 'package:prism_ui/prism_ui.dart' as prism;
 
 import 'app_bridge.dart';
+import 'prism_widgets.dart';
+
+class _BookmarkEntry {
+  _BookmarkEntry({
+    required this.id,
+    required String name,
+    required String url,
+    required this.openOnStart,
+  }) : nameController = TextEditingController(text: name),
+       urlController = TextEditingController(text: url);
+
+  final int id;
+  final TextEditingController nameController;
+  final TextEditingController urlController;
+  bool openOnStart;
+
+  bool get isProtected =>
+      urlController.text.trim().toLowerCase() == _BookmarksPageState._protectedUrl;
+
+  Map<String, dynamic> toJson() => {
+    'name': nameController.text,
+    'url': urlController.text,
+    'openOnStart': openOnStart,
+  };
+
+  void dispose() {
+    nameController.dispose();
+    urlController.dispose();
+  }
+}
 
 class BookmarksPage extends StatefulWidget {
   const BookmarksPage({super.key});
@@ -13,7 +41,8 @@ class BookmarksPage extends StatefulWidget {
 
 class _BookmarksPageState extends State<BookmarksPage> {
   static const _protectedUrl = 'ant://fingerprint-check';
-  List<Map<String, dynamic>> _items = [];
+  final List<_BookmarkEntry> _entries = [];
+  int _nextId = 1;
   bool _loading = true;
   bool _saving = false;
   bool _syncing = false;
@@ -24,20 +53,47 @@ class _BookmarksPageState extends State<BookmarksPage> {
     _load();
   }
 
-  bool _isProtected(Map<String, dynamic> item) =>
-      '${item['url'] ?? ''}'.trim().toLowerCase() == _protectedUrl;
+  @override
+  void dispose() {
+    for (final entry in _entries) {
+      entry.dispose();
+    }
+    super.dispose();
+  }
+
+  List<_BookmarkEntry> get _protectedEntries =>
+      _entries.where((e) => e.isProtected).toList();
+
+  List<_BookmarkEntry> get _regularEntries =>
+      _entries.where((e) => !e.isProtected).toList();
 
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
       final result = await AppBridge.call('BookmarkList');
       if (!mounted) return;
+      final rawList = (result is List ? result : const [])
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList();
+      final nextEntries = [
+        for (final item in rawList)
+          _BookmarkEntry(
+            id: _nextId++,
+            name: '${item['name'] ?? ''}',
+            url: '${item['url'] ?? ''}',
+            openOnStart: item['openOnStart'] == true,
+          ),
+      ];
+      final old = List<_BookmarkEntry>.of(_entries);
       setState(() {
-        _items = (result is List ? result : const [])
-            .whereType<Map>()
-            .map((item) => Map<String, dynamic>.from(item))
-            .toList();
+        _entries
+          ..clear()
+          ..addAll(nextEntries);
       });
+      for (final item in old) {
+        item.dispose();
+      }
     } catch (error) {
       if (mounted) _message('读取书签失败：$error');
     } finally {
@@ -45,16 +101,38 @@ class _BookmarksPageState extends State<BookmarksPage> {
     }
   }
 
-  void _updateItem(int index, String field, dynamic value) {
-    setState(() => _items[index] = {..._items[index], field: value});
+  void _add() {
+    setState(() {
+      _entries.add(
+        _BookmarkEntry(id: _nextId++, name: '', url: '', openOnStart: false),
+      );
+    });
   }
 
-  void _add() {
-    setState(() => _items.add({'name': '', 'url': '', 'openOnStart': false}));
+  void _removeEntry(_BookmarkEntry entry) {
+    if (entry.isProtected) return;
+    setState(() => _entries.remove(entry));
+    entry.dispose();
+  }
+
+  void _reorderRegular(int oldIndex, int newIndex) {
+    final protected = _protectedEntries;
+    final regular = _regularEntries;
+    if (oldIndex < 0 || oldIndex >= regular.length) return;
+    final target = newIndex.clamp(0, regular.length - 1).toInt();
+    setState(() {
+      final moved = regular.removeAt(oldIndex);
+      regular.insert(target, moved);
+      _entries
+        ..clear()
+        ..addAll(protected)
+        ..addAll(regular);
+    });
   }
 
   Future<void> _save() async {
-    if (_items.any(
+    final payload = _entries.map((entry) => entry.toJson()).toList();
+    if (payload.any(
       (item) =>
           '${item['name'] ?? ''}'.trim().isEmpty ||
           '${item['url'] ?? ''}'.trim().isEmpty,
@@ -64,7 +142,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
     }
     setState(() => _saving = true);
     try {
-      await AppBridge.call('BookmarkSave', [_items]);
+      await AppBridge.call('BookmarkSave', [payload]);
       try {
         final result = await AppBridge.call('BookmarkSyncToProfiles');
         _message(_syncMessage(result, prefix: '书签已保存'));
@@ -133,18 +211,114 @@ class _BookmarksPageState extends State<BookmarksPage> {
 
   void _message(String value) {
     if (!mounted) return;
-    showPrismNotice(context, (value).toString());
+    showPrismNotice(context, value);
+  }
+
+  Widget _buildBookmarkRow(
+    _BookmarkEntry entry, {
+    required bool protected,
+    int? dragIndex,
+  }) {
+    final colors = prism.Theme.of(context).colorScheme;
+    return Padding(
+      key: ValueKey('bookmark-entry-${entry.id}'),
+      padding: const EdgeInsets.only(bottom: 8),
+      child: prism.Surface(
+        color: colors.surfaceContainerLow,
+        shape: prism.AppShape.lg,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              if (protected)
+                const Padding(
+                  padding: EdgeInsets.only(right: 10),
+                  child: PrismBadge(
+                    label: '内置',
+                    tone: PrismTone.info,
+                    glyph: AntGlyphs.shield,
+                  ),
+                )
+              else if (dragIndex != null)
+                prism.ReorderDragStartListener(
+                  index: dragIndex,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 5),
+                    child: PrismGlyph(
+                      AntGlyphs.dragHandle,
+                      size: 18,
+                      color: colors.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              Expanded(
+                flex: 2,
+                child: PrismTextField(
+                  controller: entry.nameController,
+                  readOnly: protected,
+                  decoration: const PrismInputDecoration(
+                    labelText: '名称',
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                flex: 4,
+                child: PrismTextField(
+                  controller: entry.urlController,
+                  readOnly: protected,
+                  decoration: const PrismInputDecoration(
+                    labelText: '网址',
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  prism.Checkbox(
+                    value: entry.openOnStart,
+                    onChanged: (value) =>
+                        setState(() => entry.openOnStart = value == true),
+                  ),
+                  Text(
+                    '启动时打开',
+                    style: prism.AppTextStyle.caption1.of(context),
+                  ),
+                ],
+              ),
+              if (!protected)
+                prism.IconButton(
+                  tooltip: '删除',
+                  onPressed: () => _removeEntry(entry),
+                  icon: const PrismGlyph(AntGlyphs.delete, size: 18),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final protectedCount = _items.where(_isProtected).length;
+    final colors = prism.Theme.of(context).colorScheme;
+    final protectedEntries = _protectedEntries;
+    final regularEntries = _regularEntries;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(28, 22, 28, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('管理默认书签，并同步到浏览器实例。'),
+          Text(
+            '管理默认书签，并同步到浏览器实例。',
+            style: prism.AppTextStyle.footnote
+                .of(context)
+                .copyWith(color: colors.onSurfaceVariant),
+          ),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
@@ -153,18 +327,18 @@ class _BookmarksPageState extends State<BookmarksPage> {
             children: [
               prism.OutlinedButton.icon(
                 onPressed: _syncing ? null : _sync,
-                icon: const Icon(Icons.sync, size: 18),
+                icon: const PrismGlyph(AntGlyphs.sync, size: 17),
                 label: Text(_syncing ? '同步中' : '手动同步'),
               ),
               prism.OutlinedButton.icon(
                 onPressed: _reset,
-                icon: const Icon(Icons.restore, size: 18),
+                icon: const PrismGlyph(AntGlyphs.restore, size: 17),
                 label: const Text('恢复默认'),
               ),
-              const SizedBox(width: 8),
-              prism.FilledButton(
+              prism.FilledButton.icon(
                 onPressed: _saving || _loading ? null : _save,
-                child: Text(_saving ? '保存中' : '保存'),
+                icon: const PrismGlyph(AntGlyphs.save, size: 17),
+                label: Text(_saving ? '保存中' : '保存'),
               ),
             ],
           ),
@@ -175,144 +349,87 @@ class _BookmarksPageState extends State<BookmarksPage> {
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        '内置检测（$protectedCount 项）',
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 8),
-                      Expanded(
-                        child: prism.PrismReorderableListView(
-                          proxyDecorator: (child, index, animation) => child,
-                          itemCount: _items.length,
-                          onReorderItem: (oldIndex, newIndex) {
-                            if (oldIndex < 0 || oldIndex >= _items.length)
-                              return;
-                            final movingProtected = _isProtected(
-                              _items[oldIndex],
-                            );
-                            final target = newIndex;
-                            if (movingProtected ||
-                                (target >= 0 &&
-                                    target < _items.length &&
-                                    _isProtected(_items[target])))
-                              return;
-                            setState(() {
-                              final item = _items.removeAt(oldIndex);
-                              _items.insert(
-                                target.clamp(0, _items.length).toInt(),
-                                item,
-                              );
-                            });
-                          },
-                          itemBuilder: (context, index) {
-                            final item = _items[index];
-                            final protected = _isProtected(item);
-                            return PrismCard(
-                              key: ValueKey('${item['url'] ?? ''}-$index'),
-                              margin: const EdgeInsets.only(bottom: 8),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                                side: BorderSide(
-                                  color: prism.Theme.of(context)
-                                      .colorScheme
-                                      .outlineVariant,
-                                ),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 10,
-                                ),
-                                child: Row(
-                                  children: [
-                                    prism.ReorderDragStartListener(
-                                      index: index,
-                                      child: Padding(
-                                        padding: EdgeInsets.symmetric(
-                                          horizontal: 5,
-                                        ),
-                                        child: Icon(
-                                          Icons.drag_indicator,
-                                          color: prism.Theme.of(context)
-                                              .colorScheme
-                                              .onSurfaceVariant,
-                                        ),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      flex: 2,
-                                      child: PrismTextFormField(
-                                        key: ValueKey(
-                                          'bookmark-name-$index-${item['name']}',
-                                        ),
-                                        initialValue: '${item['name'] ?? ''}',
-                                        readOnly: protected,
-                                        decoration: const PrismInputDecoration(
-                                          labelText: '名称',
-                                          isDense: true,
-                                        ),
-                                        onChanged: (value) =>
-                                            _updateItem(index, 'name', value),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      flex: 4,
-                                      child: PrismTextFormField(
-                                        key: ValueKey(
-                                          'bookmark-url-$index-${item['url']}',
-                                        ),
-                                        initialValue: '${item['url'] ?? ''}',
-                                        readOnly: protected,
-                                        decoration: const PrismInputDecoration(
-                                          labelText: '网址',
-                                          isDense: true,
-                                        ),
-                                        onChanged: (value) =>
-                                            _updateItem(index, 'url', value),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        prism.Checkbox(
-                                          value: item['openOnStart'] == true,
-                                          onChanged: (value) => _updateItem(
-                                            index,
-                                            'openOnStart',
-                                            value == true,
-                                          ),
-                                        ),
-                                        const Text(
-                                          '启动时打开',
-                                          style: TextStyle(fontSize: 12),
-                                        ),
-                                      ],
-                                    ),
-                                    prism.IconButton(
-                                      tooltip: '删除',
-                                      onPressed: protected
-                                          ? null
-                                          : () => setState(
-                                              () => _items.removeAt(index),
-                                            ),
-                                      icon: const Icon(Icons.delete_outline),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
+                      if (protectedEntries.isNotEmpty) ...[
+                        PrismSectionCard(
+                          title: '内置检测',
+                          glyph: AntGlyphs.shield,
+                          actions: const [
+                            PrismBadge(label: '内置', tone: PrismTone.info),
+                          ],
+                          child: Column(
+                            children: [
+                              for (final entry in protectedEntries)
+                                _buildBookmarkRow(entry, protected: true),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: prism.OutlinedButton.icon(
-                          onPressed: _add,
-                          icon: const Icon(Icons.add, size: 18),
-                          label: const Text('添加书签'),
+                        const SizedBox(height: 12),
+                      ],
+                      Expanded(
+                        child: prism.Card(
+                          radius: prism.AppCorner.xl,
+                          inert: true,
+                          padding: EdgeInsets.zero,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              prism.InfoHeader(
+                                info: prism.Info(
+                                  label: '书签列表（${regularEntries.length} 项）',
+                                  glyph: AntGlyphs.bookmark,
+                                ),
+                                actions: [
+                                  prism.OutlinedButton.icon(
+                                    onPressed: _add,
+                                    icon: const PrismGlyph(
+                                      AntGlyphs.add,
+                                      size: 16,
+                                    ),
+                                    label: const Text('添加书签'),
+                                  ),
+                                ],
+                                padding: const EdgeInsets.fromLTRB(
+                                  16,
+                                  14,
+                                  14,
+                                  10,
+                                ),
+                              ),
+                              const prism.Divider(height: 1),
+                              Expanded(
+                                child: regularEntries.isEmpty
+                                    ? PrismEmptyState(
+                                        glyph: AntGlyphs.bookmark,
+                                        title: '暂无自定义书签',
+                                        subtitle: '点击右上角“添加书签”创建常用网址。',
+                                        action: prism.OutlinedButton.icon(
+                                          onPressed: _add,
+                                          icon: const PrismGlyph(
+                                            AntGlyphs.add,
+                                            size: 16,
+                                          ),
+                                          label: const Text('添加书签'),
+                                        ),
+                                      )
+                                    : Padding(
+                                        padding: const EdgeInsets.all(14),
+                                        child: prism.PrismReorderableListView(
+                                          proxyDecorator:
+                                              (child, index, animation) =>
+                                                  child,
+                                          itemCount: regularEntries.length,
+                                          onReorderItem: _reorderRegular,
+                                          itemBuilder: (context, index) =>
+                                              _buildBookmarkRow(
+                                                regularEntries[index],
+                                                protected: false,
+                                                dragIndex: index,
+                                              ),
+                                        ),
+                                      ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],

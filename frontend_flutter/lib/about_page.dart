@@ -1,8 +1,8 @@
-import 'prism_widgets.dart';
-
+import 'package:prism_ui/icons/icons.dart' as prism_icons;
 import 'package:prism_ui/prism_ui.dart' as prism;
 
 import 'app_bridge.dart';
+import 'prism_widgets.dart';
 
 const _remoteAuthorUrl = '';
 const _remoteAuthorTimeoutMs = 1000;
@@ -172,11 +172,12 @@ class _AboutPageState extends State<AboutPage> {
   Future<void> _loadVersion() async {
     try {
       final config = await AppBridge.call('GetAppConfig');
-      if (mounted)
+      if (mounted) {
         setState(
           () =>
               _version = config is Map ? '${config['version'] ?? '未知'}' : '未知',
         );
+      }
     } catch (_) {
       if (mounted) setState(() => _version = '未知');
     }
@@ -226,7 +227,7 @@ class _AboutPageState extends State<AboutPage> {
                     physics: const NeverScrollableScrollPhysics(),
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
-                    childAspectRatio: columns == 1 ? 3.2 : 1.65,
+                    childAspectRatio: columns == 1 ? 3.2 : 1.75,
                     children: [
                       for (final channel
                           in (_author['channels'] as List? ?? [])
@@ -253,27 +254,26 @@ class _AboutPageState extends State<AboutPage> {
     final github = (_author['github'] ?? '').toString().trim();
     final website = (_author['website'] ?? '').toString().trim();
     final email = (_author['email'] ?? '').toString().trim();
-    return _AboutCard(
+    return PrismSectionCard(
+      padding: const EdgeInsets.all(22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                width: 68,
-                height: 68,
-                decoration: BoxDecoration(
+              SizedBox.square(
+                dimension: 64,
+                child: prism.Surface(
                   color: colors.primary,
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  (_author['initial'] ?? (name.isEmpty ? '志' : name[0]))
-                      .toString(),
-                  style: TextStyle(
-                    color: colors.onPrimary,
-                    fontSize: 27,
-                    fontWeight: FontWeight.w700,
+                  shape: prism.AppShape.circle,
+                  child: Center(
+                    child: Text(
+                      (_author['initial'] ?? (name.isEmpty ? '志' : name[0]))
+                          .toString(),
+                      style: prism.AppTextStyle.title1
+                          .of(context, emphasized: true)
+                          .copyWith(color: colors.onPrimary),
+                    ),
                   ),
                 ),
               ),
@@ -284,40 +284,44 @@ class _AboutPageState extends State<AboutPage> {
                   children: [
                     Text(
                       name,
-                      style: TextStyle(
-                        fontSize: 23,
-                        fontWeight: FontWeight.w700,
+                      style: prism.AppTextStyle.title2.of(
+                        context,
+                        emphasized: true,
                       ),
                     ),
-                    const SizedBox(height: 5),
+                    const SizedBox(height: 4),
                     Text(
                       (_author['title'] ?? '').toString(),
-                      style: TextStyle(color: colors.onSurfaceVariant),
+                      style: prism.AppTextStyle.subheadline
+                          .of(context)
+                          .copyWith(color: colors.onSurfaceVariant),
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           Text(
             (_author['bio'] ?? '').toString(),
-            style: TextStyle(height: 1.7, color: colors.onSurfaceVariant),
+            style: prism.AppTextStyle.body
+                .of(context)
+                .copyWith(height: 1.7, color: colors.onSurfaceVariant),
           ),
+          const SizedBox(height: 12),
           Wrap(
             spacing: 18,
             runSpacing: 8,
             children: [
               if ((_author['location'] ?? '').toString().trim().isNotEmpty)
                 _MetaLabel(
-                  icon: Icons.place_outlined,
+                  glyph: AntGlyphs.location,
                   text: _author['location'].toString(),
                 ),
               if ((_author['joinDate'] ?? '').toString().trim().isNotEmpty)
                 _MetaLabel(
-                  icon: Icons.calendar_month_outlined,
-                  text: '加入于 ' + _author['joinDate'].toString(),
+                  glyph: AntGlyphs.calendar,
+                  text: '加入于 ${_author['joinDate']}',
                 ),
             ],
           ),
@@ -325,7 +329,9 @@ class _AboutPageState extends State<AboutPage> {
             const SizedBox(height: 10),
             Text(
               _loadingProfile ? '正在加载作者资料…' : '远程作者资料加载失败，当前显示默认资料。',
-              style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
+              style: prism.AppTextStyle.caption1
+                  .of(context)
+                  .copyWith(color: colors.onSurfaceVariant),
             ),
           ],
           const SizedBox(height: 16),
@@ -336,19 +342,19 @@ class _AboutPageState extends State<AboutPage> {
               if (github.isNotEmpty)
                 prism.OutlinedButton.icon(
                   onPressed: () => AppBridge.openExternal(github),
-                  icon: const Icon(Icons.code, size: 18),
+                  icon: const PrismGlyph(AntGlyphs.code, size: 17),
                   label: const Text('GitHub'),
                 ),
               if (website.isNotEmpty)
                 prism.OutlinedButton.icon(
                   onPressed: () => AppBridge.openExternal(website),
-                  icon: const Icon(Icons.public, size: 18),
+                  icon: const PrismGlyph(AntGlyphs.globe, size: 17),
                   label: Text(_stripProtocol(website)),
                 ),
               if (email.isNotEmpty)
                 prism.OutlinedButton.icon(
-                  onPressed: () => AppBridge.openExternal('mailto:' + email),
-                  icon: const Icon(Icons.mail_outline, size: 18),
+                  onPressed: () => AppBridge.openExternal('mailto:$email'),
+                  icon: const PrismGlyph(AntGlyphs.mail, size: 17),
                   label: const Text('联系作者'),
                 ),
             ],
@@ -360,103 +366,109 @@ class _AboutPageState extends State<AboutPage> {
 
   Widget _channelCard(Map<String, dynamic> channel) {
     final colors = prism.Theme.of(context).colorScheme;
+    final primaryTone = PrismToneColors.of(context, PrismTone.primary);
     final href = (channel['href'] ?? '').toString().trim();
     final title = (channel['name'] ?? '').toString();
     final detail = (channel['detail'] ?? '').toString();
-    return PrismCard(
+    return prism.Card(
+      radius: prism.AppCorner.xl,
       onPressed: href.isEmpty ? null : () => AppBridge.openExternal(href),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Icon(
-              _profileIcon((channel['icon'] ?? '').toString(), title),
-              size: 24,
-              color: colors.primary,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  if ((channel['description'] ?? '').toString().isNotEmpty)
-                    Text(
-                      channel['description'].toString(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: colors.onSurfaceVariant),
-                    ),
-                  if (detail.isNotEmpty)
-                    Text(
-                      detail,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: colors.onSurfaceVariant,
-                        fontSize: 12,
-                      ),
-                    ),
-                ],
+      inert: href.isEmpty,
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          prism.Surface(
+            color: primaryTone.bg,
+            shape: prism.AppShape.md,
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: PrismGlyph(
+                _profileGlyph((channel['icon'] ?? '').toString(), title),
+                size: 20,
+                color: primaryTone.fg,
               ),
             ),
-            if (href.isNotEmpty)
-              Icon(Icons.open_in_new, size: 16, color: colors.onSurfaceVariant),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _skillsCard() {
-    return _AboutCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '技术栈与技能',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
           ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              for (final skill in (_author['skills'] as List? ?? []).map(
-                (item) => item.toString(),
-              ))
-                _SkillChip(label: skill),
-            ],
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: prism.AppTextStyle.headline.of(
+                    context,
+                    emphasized: true,
+                  ),
+                ),
+                if ((channel['description'] ?? '').toString().isNotEmpty)
+                  Text(
+                    channel['description'].toString(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: prism.AppTextStyle.footnote
+                        .of(context)
+                        .copyWith(color: colors.onSurfaceVariant),
+                  ),
+                if (detail.isNotEmpty)
+                  Text(
+                    detail,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: prism.AppTextStyle.caption1
+                        .of(context)
+                        .copyWith(color: colors.onSurfaceVariant),
+                  ),
+              ],
+            ),
           ),
+          if (href.isNotEmpty)
+            PrismGlyph(
+              AntGlyphs.openInNew,
+              size: 16,
+              color: colors.onSurfaceVariant,
+            ),
         ],
       ),
     );
   }
 
-  IconData _profileIcon(String icon, String label) {
+  Widget _skillsCard() {
+    return PrismSectionCard(
+      title: '技术栈与技能',
+      glyph: AntGlyphs.sparkles,
+      padding: const EdgeInsets.all(20),
+      child: Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: [
+          for (final skill in (_author['skills'] as List? ?? []).map(
+            (item) => item.toString(),
+          ))
+            _SkillChip(label: skill),
+        ],
+      ),
+    );
+  }
+
+  prism_icons.Glyph _profileGlyph(String icon, String label) {
     final key = '$icon $label'.toLowerCase();
     if (key.contains('github') || key.contains('code') || key.contains('源码')) {
-      return Icons.code;
+      return AntGlyphs.code;
     }
     if (key.contains('book') || key.contains('juejin') || key.contains('文章')) {
-      return Icons.auto_stories_outlined;
+      return AntGlyphs.book;
     }
     if (key.contains('message') ||
         key.contains('wechat') ||
         key.contains('公众号')) {
-      return Icons.chat_bubble_outline;
+      return AntGlyphs.chat;
     }
     if (key.contains('globe') || key.contains('web') || key.contains('博客')) {
-      return Icons.public;
+      return AntGlyphs.globe;
     }
-    return Icons.link;
+    return AntGlyphs.link;
   }
 
   String _stripProtocol(String url) => url
@@ -468,37 +480,48 @@ class _AboutPageState extends State<AboutPage> {
     final result = _updateResult;
     final projectName = (_project['name'] ?? 'Ant Browser').toString();
     final introBadge = (_project['introBadge'] ?? projectName).toString();
+    final releaseUrl = '${result?['releaseUrl'] ?? ''}'.trim();
+    final canOpenDownload =
+        result != null &&
+        result['ok'] == true &&
+        result['updateAvailable'] == true &&
+        releaseUrl.isNotEmpty;
+    final hasError = result?['error']?.toString().isNotEmpty == true;
+    final updateAvailable = result?['updateAvailable'] == true;
     final updateText = result == null
         ? ''
-        : result['updateAvailable'] == true
+        : updateAvailable
         ? '发现新版本 ${result['latestVersion'] ?? ''}'
-        : result['error']?.toString().isNotEmpty == true
+        : hasError
         ? result['error'].toString()
         : '当前已是最新版本';
-    return _AboutCard(
+
+    return PrismSectionCard(
+      title: '项目介绍',
+      glyph: AntGlyphs.browser,
+      padding: const EdgeInsets.all(22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            '项目介绍',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 8),
           Text(
             '$introBadge ${_project['introText'] ?? ''}',
-            style: TextStyle(color: colors.onSurfaceVariant, height: 1.6),
+            style: prism.AppTextStyle.body
+                .of(context)
+                .copyWith(color: colors.onSurfaceVariant, height: 1.6),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
           Text(
             projectName,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            style: prism.AppTextStyle.title3.of(context, emphasized: true),
           ),
           const SizedBox(height: 8),
           Text(
             (_project['description'] ?? '').toString(),
-            style: TextStyle(color: colors.onSurfaceVariant, height: 1.6),
+            style: prism.AppTextStyle.body
+                .of(context)
+                .copyWith(color: colors.onSurfaceVariant, height: 1.6),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -518,24 +541,24 @@ class _AboutPageState extends State<AboutPage> {
                   onPressed: (action['href'] ?? '').toString().trim().isEmpty
                       ? null
                       : () => AppBridge.openExternal(action['href'].toString()),
-                  icon: Icon(
-                    _profileIcon(
+                  icon: PrismGlyph(
+                    _profileGlyph(
                       (action['icon'] ?? '').toString(),
                       (action['label'] ?? '').toString(),
                     ),
-                    size: 18,
+                    size: 17,
                   ),
                   label: Text((action['label'] ?? '').toString()),
                 ),
             ],
           ),
-          const SizedBox(height: 22),
-          const prism.Divider(),
-          const SizedBox(height: 12),
+          const SizedBox(height: 20),
+          const prism.Divider(height: 1),
+          const SizedBox(height: 14),
           Row(
             children: [
-              Icon(
-                Icons.info_outline,
+              PrismGlyph(
+                AntGlyphs.info,
                 size: 18,
                 color: colors.onSurfaceVariant,
               ),
@@ -543,7 +566,10 @@ class _AboutPageState extends State<AboutPage> {
               Expanded(
                 child: Text(
                   '当前版本：$_version',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+                  style: prism.AppTextStyle.subheadline.of(
+                    context,
+                    emphasized: true,
+                  ),
                 ),
               ),
               PrismTonalButton(
@@ -551,25 +577,29 @@ class _AboutPageState extends State<AboutPage> {
                 child: _checking
                     ? const SizedBox.square(
                         dimension: 16,
-                        child: PrismProgressIndicator(),
+                        child: PrismProgressIndicator(size: 16),
                       )
                     : const Text('检查更新'),
               ),
             ],
           ),
           if (updateText.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Text(
-              updateText,
-              style: TextStyle(color: colors.onSurfaceVariant, fontSize: 13),
+            const SizedBox(height: 12),
+            PrismBanner(
+              tone: hasError
+                  ? PrismTone.danger
+                  : updateAvailable
+                  ? PrismTone.info
+                  : PrismTone.success,
+              message: updateText,
+              trailing: canOpenDownload
+                  ? prism.OutlinedButton.icon(
+                      onPressed: () => AppBridge.openExternal(releaseUrl),
+                      icon: const PrismGlyph(AntGlyphs.openInNew, size: 15),
+                      label: const Text('打开下载页面'),
+                    )
+                  : null,
             ),
-            if (result?['releaseUrl']?.toString().isNotEmpty == true)
-              prism.TextButton.icon(
-                onPressed: () =>
-                    AppBridge.openExternal(result!['releaseUrl'].toString()),
-                icon: const Icon(Icons.open_in_new, size: 16),
-                label: const Text('打开下载页面'),
-              ),
           ],
         ],
       ),
@@ -577,29 +607,10 @@ class _AboutPageState extends State<AboutPage> {
   }
 }
 
-class _AboutCard extends StatelessWidget {
-  const _AboutCard({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return PrismCard(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: prism.Theme.of(context).colorScheme.outlineVariant,
-        ),
-      ),
-      child: Padding(padding: const EdgeInsets.all(22), child: child),
-    );
-  }
-}
-
 class _MetaLabel extends StatelessWidget {
-  const _MetaLabel({required this.icon, required this.text});
+  const _MetaLabel({required this.glyph, required this.text});
 
-  final IconData icon;
+  final prism_icons.Glyph glyph;
   final String text;
 
   @override
@@ -608,11 +619,13 @@ class _MetaLabel extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 16, color: colors.onSurfaceVariant),
+        PrismGlyph(glyph, size: 15, color: colors.onSurfaceVariant),
         const SizedBox(width: 5),
         Text(
           text,
-          style: TextStyle(color: colors.onSurfaceVariant, fontSize: 13),
+          style: prism.AppTextStyle.footnote
+              .of(context)
+              .copyWith(color: colors.onSurfaceVariant),
         ),
       ],
     );

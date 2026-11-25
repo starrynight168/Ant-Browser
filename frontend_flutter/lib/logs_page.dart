@@ -1,11 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'prism_widgets.dart';
-
 import 'package:prism_ui/prism_ui.dart' as prism;
 
 import 'app_bridge.dart';
+import 'prism_widgets.dart';
 
 class LogsPage extends StatefulWidget {
   const LogsPage({super.key});
@@ -90,7 +89,7 @@ class _LogsPageState extends State<LogsPage> {
       }
     } catch (_) {
       if (mounted && showLoading) {
-        showPrismNotice(context, ('读取日志失败').toString());
+        showPrismNotice(context, '读取日志失败');
       }
     } finally {
       _refreshing = false;
@@ -124,7 +123,7 @@ class _LogsPageState extends State<LogsPage> {
       await _load(showLoading: false);
     } catch (error) {
       if (mounted) {
-        showPrismNotice(context, ('清空失败：$error').toString());
+        showPrismNotice(context, '清空失败：$error');
       }
     } finally {
       if (mounted) setState(() => _clearing = false);
@@ -156,6 +155,29 @@ class _LogsPageState extends State<LogsPage> {
 
   DateTime? _parseTime(String value) =>
       DateTime.tryParse(value.trim().replaceFirst(' ', 'T'));
+
+  String _formatFieldValue(dynamic value) {
+    if (value == null) return 'null';
+    if (value is Map || value is List) {
+      try {
+        return jsonEncode(value);
+      } catch (_) {
+        return '$value';
+      }
+    }
+    if (value is String) {
+      if (value.isEmpty) return '""';
+      if (RegExp(r'\s').hasMatch(value)) {
+        return '"${value.replaceAll('"', r'\"')}"';
+      }
+      return value;
+    }
+    return '$value';
+  }
+
+  String _formatFields(Map<String, dynamic> fields) => fields.entries
+      .map((item) => '${item.key}=${_formatFieldValue(item.value)}')
+      .join('  ');
 
   void _resetFilters() {
     _searchController.clear();
@@ -223,187 +245,199 @@ class _LogsPageState extends State<LogsPage> {
     }).toList();
   }
 
+  PrismTone _levelTone(String level) => switch (level) {
+    'ERROR' => PrismTone.danger,
+    'WARN' => PrismTone.warning,
+    'DEBUG' => PrismTone.neutral,
+    _ => PrismTone.info,
+  };
+
   @override
   Widget build(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
     final filtered = _filteredLogs;
     return Padding(
       padding: const EdgeInsets.fromLTRB(28, 22, 28, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('${filtered.length} / ${_logs.length} 条日志'),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          Row(
             children: [
-              prism.OutlinedButton.icon(
-                onPressed: _loading ? null : _load,
-                icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('刷新'),
+              PrismBadge(
+                label: '${filtered.length} / ${_logs.length} 条日志',
+                tone: PrismTone.neutral,
+                glyph: AntGlyphs.logs,
               ),
-              prism.OutlinedButton.icon(
-                onPressed: _clearing || _logs.isEmpty ? null : _clear,
-                icon: const Icon(Icons.delete_outline, size: 18),
-                label: const Text('清空'),
+              const Spacer(),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  prism.OutlinedButton.icon(
+                    onPressed: _loading ? null : _load,
+                    icon: const PrismGlyph(AntGlyphs.refresh, size: 17),
+                    label: const Text('刷新'),
+                  ),
+                  prism.OutlinedButton.icon(
+                    onPressed: _clearing || _logs.isEmpty ? null : _clear,
+                    icon: const PrismGlyph(AntGlyphs.delete, size: 17),
+                    label: const Text('清空'),
+                  ),
+                ],
               ),
             ],
           ),
           const SizedBox(height: 14),
-          PrismCard(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(
-                color: prism.Theme.of(context).colorScheme.outlineVariant,
-              ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 10,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 160,
-                    child: PrismDropdownField<String>(
-                      initialValue: _level,
-                      decoration: const PrismInputDecoration(
-                        labelText: '级别',
-                        isDense: true,
-                      ),
-                      items: const ['ALL', 'DEBUG', 'INFO', 'WARN', 'ERROR']
-                          .map(
-                            (value) => PrismDropdownItem(
-                              value: value,
-                              child: Text(value),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) =>
-                          setState(() => _level = value ?? 'ALL'),
+          PrismSectionCard(
+            padding: const EdgeInsets.all(14),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 10,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                SizedBox(
+                  width: 150,
+                  child: PrismDropdownField<String>(
+                    value: _level,
+                    decoration: const PrismInputDecoration(
+                      labelText: '级别',
+                      isDense: true,
+                    ),
+                    items: const ['ALL', 'DEBUG', 'INFO', 'WARN', 'ERROR']
+                        .map(
+                          (value) => PrismDropdownItem(
+                            value: value,
+                            child: Text(value),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) =>
+                        setState(() => _level = value ?? 'ALL'),
+                  ),
+                ),
+                SizedBox(
+                  width: 175,
+                  child: PrismDropdownField<String>(
+                    value: _componentFilter,
+                    decoration: const PrismInputDecoration(
+                      labelText: '组件',
+                      isDense: true,
+                    ),
+                    items: _components
+                        .map(
+                          (value) => PrismDropdownItem(
+                            value: value,
+                            child: Text(value == 'ALL' ? '全部组件' : value),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) =>
+                        setState(() => _componentFilter = value ?? 'ALL'),
+                  ),
+                ),
+                SizedBox(
+                  width: 175,
+                  child: PrismDropdownField<String>(
+                    value: _methodFilter,
+                    decoration: const PrismInputDecoration(
+                      labelText: '方法',
+                      isDense: true,
+                    ),
+                    items: _methods
+                        .map(
+                          (value) => PrismDropdownItem(
+                            value: value,
+                            child: Text(value == 'ALL' ? '全部方法' : value),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) =>
+                        setState(() => _methodFilter = value ?? 'ALL'),
+                  ),
+                ),
+                for (final filter in const ['全部', '错误', '慢调用', '前端', '后端'])
+                  PrismChip(
+                    label: Text(filter),
+                    selected: _quickFilter == filter,
+                    onSelected: (_) => setState(() => _quickFilter = filter),
+                  ),
+                SizedBox(
+                  width: 280,
+                  child: PrismSearchBar(
+                    controller: _searchController,
+                    hintText: '搜索消息、组件或方法',
+                    onChanged: (value) => setState(() => _keyword = value),
+                  ),
+                ),
+                SizedBox(
+                  width: 220,
+                  child: PrismTextField(
+                    controller: _fieldSearchController,
+                    onChanged: (value) =>
+                        setState(() => _fieldKeyword = value),
+                    decoration: const PrismInputDecoration(
+                      hintText: '搜索日志字段',
+                      prefixIcon: PrismGlyph(AntGlyphs.dataObject, size: 17),
+                      isDense: true,
                     ),
                   ),
-                  SizedBox(
-                    width: 180,
-                    child: PrismDropdownField<String>(
-                      initialValue: _componentFilter,
-                      decoration: const PrismInputDecoration(
-                        labelText: '组件',
-                        isDense: true,
-                      ),
-                      items: _components
-                          .map(
-                            (value) => PrismDropdownItem(
-                              value: value,
-                              child: Text(value == 'ALL' ? '全部组件' : value),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) =>
-                          setState(() => _componentFilter = value ?? 'ALL'),
+                ),
+                SizedBox(
+                  width: 150,
+                  child: PrismTextField(
+                    controller: _durationController,
+                    keyboardType: TextInputType.number,
+                    onChanged: (value) =>
+                        setState(() => _durationMin = value),
+                    decoration: const PrismInputDecoration(
+                      hintText: '最短耗时（毫秒）',
+                      isDense: true,
                     ),
                   ),
-                  SizedBox(
-                    width: 180,
-                    child: PrismDropdownField<String>(
-                      initialValue: _methodFilter,
-                      decoration: const PrismInputDecoration(
-                        labelText: '方法',
-                        isDense: true,
-                      ),
-                      items: _methods
-                          .map(
-                            (value) => PrismDropdownItem(
-                              value: value,
-                              child: Text(value == 'ALL' ? '全部方法' : value),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) =>
-                          setState(() => _methodFilter = value ?? 'ALL'),
+                ),
+                SizedBox(
+                  width: 210,
+                  child: PrismTextField(
+                    controller: _timeFromController,
+                    onChanged: (value) => setState(() => _timeFrom = value),
+                    decoration: const PrismInputDecoration(
+                      hintText: '开始时间 YYYY-MM-DD HH:mm:ss',
+                      isDense: true,
                     ),
                   ),
-                  for (final filter in const ['全部', '错误', '慢调用', '前端', '后端'])
-                    PrismChip(
-                      label: Text(filter),
-                      selected: _quickFilter == filter,
-                      onSelected: (_) => setState(() => _quickFilter = filter),
-                    ),
-                  SizedBox(
-                    width: 280,
-                    child: PrismTextField(
-                      controller: _searchController,
-                      onChanged: (value) => setState(() => _keyword = value),
-                      decoration: const PrismInputDecoration(
-                        hintText: '搜索消息、组件或方法',
-                        prefixIcon: Icon(Icons.search),
-                        isDense: true,
-                      ),
+                ),
+                SizedBox(
+                  width: 210,
+                  child: PrismTextField(
+                    controller: _timeToController,
+                    onChanged: (value) => setState(() => _timeTo = value),
+                    decoration: const PrismInputDecoration(
+                      hintText: '结束时间 YYYY-MM-DD HH:mm:ss',
+                      isDense: true,
                     ),
                   ),
-                  SizedBox(
-                    width: 220,
-                    child: PrismTextField(
-                      controller: _fieldSearchController,
-                      onChanged: (value) =>
-                          setState(() => _fieldKeyword = value),
-                      decoration: const PrismInputDecoration(
-                        hintText: '搜索日志字段',
-                        prefixIcon: Icon(Icons.data_object),
-                        isDense: true,
-                      ),
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    prism.Switch(
+                      value: _autoScroll,
+                      onChanged: (value) => setState(() => _autoScroll = value),
                     ),
-                  ),
-                  SizedBox(
-                    width: 150,
-                    child: PrismTextField(
-                      controller: _durationController,
-                      keyboardType: TextInputType.number,
-                      onChanged: (value) =>
-                          setState(() => _durationMin = value),
-                      decoration: const PrismInputDecoration(
-                        hintText: '最短耗时（毫秒）',
-                        isDense: true,
-                      ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '自动滚动到最新',
+                      style: prism.AppTextStyle.footnote.of(context),
                     ),
-                  ),
-                  SizedBox(
-                    width: 210,
-                    child: PrismTextField(
-                      controller: _timeFromController,
-                      onChanged: (value) => setState(() => _timeFrom = value),
-                      decoration: const PrismInputDecoration(
-                        hintText: '开始时间 YYYY-MM-DD HH:mm:ss',
-                        isDense: true,
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 210,
-                    child: PrismTextField(
-                      controller: _timeToController,
-                      onChanged: (value) => setState(() => _timeTo = value),
-                      decoration: const PrismInputDecoration(
-                        hintText: '结束时间 YYYY-MM-DD HH:mm:ss',
-                        isDense: true,
-                      ),
-                    ),
-                  ),
-                  PrismSwitchTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('自动滚动到最新'),
-                    value: _autoScroll,
-                    onChanged: (value) => setState(() => _autoScroll = value),
-                  ),
-                  prism.OutlinedButton.icon(
-                    onPressed: _resetFilters,
-                    icon: const Icon(Icons.filter_alt_off, size: 18),
-                    label: const Text('重置筛选'),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+                prism.OutlinedButton.icon(
+                  onPressed: _resetFilters,
+                  icon: const PrismGlyph(AntGlyphs.filterOff, size: 17),
+                  label: const Text('重置筛选'),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 12),
@@ -411,29 +445,38 @@ class _LogsPageState extends State<LogsPage> {
             child: _loading
                 ? const Center(child: PrismProgressIndicator())
                 : filtered.isEmpty
-                ? const Center(child: Text('没有符合条件的日志'))
+                ? PrismEmptyState(
+                    glyph: AntGlyphs.logs,
+                    title: '没有符合条件的日志',
+                    subtitle: _logs.isEmpty
+                        ? '当前暂无应用运行日志。'
+                        : '尝试调整级别或筛选条件查看更多记录。',
+                    action: _logs.isNotEmpty
+                        ? prism.OutlinedButton.icon(
+                            onPressed: _resetFilters,
+                            icon: const PrismGlyph(
+                              AntGlyphs.filterOff,
+                              size: 16,
+                            ),
+                            label: const Text('重置筛选'),
+                          )
+                        : null,
+                  )
                 : ListView.separated(
+                    controller: _scrollController,
                     itemCount: filtered.length,
                     separatorBuilder: (context, index) =>
                         const SizedBox(height: 6),
                     itemBuilder: (context, index) {
                       final entry = filtered[index];
                       final level = '${entry['level'] ?? 'INFO'}'.toUpperCase();
-                      final colors = prism.Theme.of(context).colorScheme;
-                      final color = switch (level) {
-                        'ERROR' => colors.error,
-                        'WARN' => colors.tertiary,
-                        'DEBUG' => colors.onSurfaceVariant,
-                        _ => colors.primary,
-                      };
+                      final component = '${entry['component'] ?? ''}';
                       final fields = entry['fields'] is Map
                           ? Map<String, dynamic>.from(entry['fields'] as Map)
                           : <String, dynamic>{};
-                      return PrismCard(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(color: colors.outlineVariant),
-                        ),
+                      return prism.Surface(
+                        color: colors.surfaceContainerLow,
+                        shape: prism.AppShape.lg,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 14,
@@ -447,50 +490,46 @@ class _LogsPageState extends State<LogsPage> {
                                 runSpacing: 4,
                                 crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
-                                  Text(
-                                    '$level',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      color: color,
-                                      fontSize: 12,
-                                    ),
+                                  PrismBadge(
+                                    label: level,
+                                    tone: _levelTone(level),
                                   ),
-                                  Text(
-                                    '${entry['component'] ?? ''}',
-                                    style: TextStyle(
-                                      color: colors.onSurfaceVariant,
-                                      fontSize: 12,
+                                  if (component.isNotEmpty)
+                                    Text(
+                                      component,
+                                      style: prism.AppTextStyle.caption1
+                                          .of(context, emphasized: true)
+                                          .copyWith(
+                                            color: colors.onSurfaceVariant,
+                                          ),
                                     ),
-                                  ),
                                   Text(
                                     '${entry['time'] ?? ''}',
-                                    style: TextStyle(
-                                      color: colors.onSurfaceVariant,
-                                      fontSize: 11,
-                                    ),
+                                    style: prism.AppTextStyle.caption2
+                                        .of(context)
+                                        .copyWith(
+                                          color: colors.onSurfaceVariant,
+                                        ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 5),
+                              const SizedBox(height: 6),
                               prism.SelectableText(
                                 '${entry['message'] ?? ''}',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  height: 1.45,
-                                ),
+                                style: prism.AppTextStyle.subheadline
+                                    .of(context)
+                                    .copyWith(height: 1.45),
                               ),
                               if (fields.isNotEmpty) ...[
-                                const SizedBox(height: 5),
+                                const SizedBox(height: 6),
                                 prism.SelectableText(
-                                  fields.entries
-                                      .map(
-                                        (item) => '${item.key}=${item.value}',
-                                      )
-                                      .join('  '),
-                                  style: TextStyle(
-                                    color: colors.onSurfaceVariant,
-                                    fontSize: 11,
-                                  ),
+                                  _formatFields(fields),
+                                  style: prism.AppTextStyle.caption2
+                                      .of(context)
+                                      .copyWith(
+                                        fontFamily: 'Consolas',
+                                        color: colors.onSurfaceVariant,
+                                      ),
                                 ),
                               ],
                             ],
