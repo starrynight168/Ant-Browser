@@ -99,7 +99,24 @@ class AntBrowserApp extends StatelessWidget {
           darkTheme: buildAntPrismTheme(Brightness.dark, seedColor, style),
           builder: (context, child) {
             final size = MediaQuery.sizeOf(context);
-            final cs = prism.Theme.of(context).colorScheme;
+            final theme = prism.Theme.of(context);
+            final cs = theme.colorScheme;
+            final isDark = theme.brightness == Brightness.dark;
+            final neutralFill = cs.onSurface.withValues(
+              alpha: isDark ? 0.10 : 0.06,
+            );
+            final neutralHover = cs.onSurface.withValues(
+              alpha: isDark ? 0.16 : 0.11,
+            );
+            final primaryTint = cs.primary.withValues(
+              alpha: isDark ? 0.24 : 0.14,
+            );
+            final primaryTintHover = cs.primary.withValues(
+              alpha: isDark ? 0.34 : 0.22,
+            );
+            final textSoftFill = cs.onSurface.withValues(
+              alpha: isDark ? 0.06 : 0.04,
+            );
             return prism.ViewScope(
               size: size,
               isMobile: size.width < 600,
@@ -107,84 +124,83 @@ class AntBrowserApp extends StatelessWidget {
                 data: prism.ButtonThemeData(
                   outlined: prism.ButtonStyle(
                     backgroundColor: WidgetStateProperty.fromMap({
-                      WidgetState.disabled: cs.surfaceContainerHigh.withValues(
-                        alpha: 0.45,
-                      ),
-                      WidgetState.hovered: cs.primaryContainer,
-                      WidgetState.any: cs.secondaryContainer,
+                      WidgetState.disabled: neutralFill.withValues(alpha: 0.45),
+                      WidgetState.hovered: neutralHover,
+                      WidgetState.any: neutralFill,
                     }),
                     foregroundColor: WidgetStateProperty.fromMap({
                       WidgetState.disabled: cs.onSurface.withValues(
-                        alpha: 0.38,
+                        alpha: 0.36,
                       ),
-                      WidgetState.hovered: cs.onPrimaryContainer,
-                      WidgetState.any: cs.onSecondaryContainer,
+                      WidgetState.any: cs.onSurface,
                     }),
                     overlayColor: WidgetStateProperty.fromMap({
-                      WidgetState.hovered: cs.onSecondaryContainer.withValues(
-                        alpha: 0.08,
-                      ),
-                      WidgetState.pressed: cs.onSecondaryContainer.withValues(
-                        alpha: 0.14,
-                      ),
+                      WidgetState.hovered: cs.onSurface.withValues(alpha: 0.05),
+                      WidgetState.pressed: cs.onSurface.withValues(alpha: 0.10),
                       WidgetState.any: const Color(0x00000000),
                     }),
                     side: const WidgetStatePropertyAll(BorderSide.none),
                     shape: prism.AppShape.full,
-                    minimumSize: const Size(0, 38),
+                    minimumSize: const Size(0, 40),
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 15,
+                      horizontal: 18,
                       vertical: 0,
                     ),
                   ),
                   filled: prism.ButtonStyle(
+                    backgroundColor: WidgetStateProperty.fromMap({
+                      WidgetState.disabled: neutralFill.withValues(alpha: 0.45),
+                      WidgetState.hovered: primaryTintHover,
+                      WidgetState.any: primaryTint,
+                    }),
+                    foregroundColor: WidgetStateProperty.fromMap({
+                      WidgetState.disabled: cs.onSurface.withValues(
+                        alpha: 0.36,
+                      ),
+                      WidgetState.any: cs.primary,
+                    }),
                     overlayColor: WidgetStateProperty.fromMap({
-                      WidgetState.hovered: cs.onPrimary.withValues(alpha: 0.14),
-                      WidgetState.pressed: cs.onPrimary.withValues(alpha: 0.22),
+                      WidgetState.hovered: cs.primary.withValues(alpha: 0.08),
+                      WidgetState.pressed: cs.primary.withValues(alpha: 0.14),
                       WidgetState.any: const Color(0x00000000),
                     }),
+                    side: const WidgetStatePropertyAll(BorderSide.none),
                     shape: prism.AppShape.full,
-                    minimumSize: const Size(0, 38),
+                    minimumSize: const Size(0, 40),
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
+                      horizontal: 18,
                       vertical: 0,
                     ),
                   ),
                   text: prism.ButtonStyle(
                     backgroundColor: WidgetStateProperty.fromMap({
                       WidgetState.disabled: const Color(0x00000000),
-                      WidgetState.hovered: cs.secondaryContainer,
-                      WidgetState.any: cs.surfaceContainerHigh.withValues(
-                        alpha: 0.72,
-                      ),
+                      WidgetState.hovered: neutralHover,
+                      WidgetState.any: textSoftFill,
                     }),
                     foregroundColor: WidgetStateProperty.fromMap({
                       WidgetState.disabled: cs.onSurface.withValues(
-                        alpha: 0.38,
+                        alpha: 0.36,
                       ),
-                      WidgetState.hovered: cs.onSecondaryContainer,
                       WidgetState.any: cs.onSurface,
                     }),
                     overlayColor: WidgetStateProperty.fromMap({
-                      WidgetState.hovered: cs.onSecondaryContainer.withValues(
-                        alpha: 0.08,
-                      ),
-                      WidgetState.pressed: cs.onSecondaryContainer.withValues(
-                        alpha: 0.14,
-                      ),
+                      WidgetState.hovered: cs.onSurface.withValues(alpha: 0.05),
+                      WidgetState.pressed: cs.onSurface.withValues(alpha: 0.10),
                       WidgetState.any: const Color(0x00000000),
                     }),
+                    side: const WidgetStatePropertyAll(BorderSide.none),
                     shape: prism.AppShape.full,
-                    minimumSize: const Size(0, 38),
+                    minimumSize: const Size(0, 40),
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
+                      horizontal: 16,
                       vertical: 0,
                     ),
                   ),
                   icon: prism.ButtonStyle(
                     overlayColor: WidgetStateProperty.fromMap({
-                      WidgetState.hovered: cs.onSurface.withValues(alpha: 0.10),
-                      WidgetState.pressed: cs.onSurface.withValues(alpha: 0.16),
+                      WidgetState.hovered: cs.onSurface.withValues(alpha: 0.09),
+                      WidgetState.pressed: cs.onSurface.withValues(alpha: 0.15),
                       WidgetState.any: const Color(0x00000000),
                     }),
                   ),

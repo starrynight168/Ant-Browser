@@ -1370,25 +1370,29 @@ class PrismTonalButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = prism.Theme.of(context).colorScheme;
+    final theme = prism.Theme.of(context);
+    final cs = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    final baseTint = cs.primary.withValues(alpha: isDark ? 0.18 : 0.10);
+    final hoverTint = cs.primary.withValues(alpha: isDark ? 0.28 : 0.17);
     final tonalStyle = prism.ButtonStyle(
       backgroundColor: WidgetStateProperty.fromMap({
-        WidgetState.disabled: cs.surfaceContainerHigh.withValues(alpha: 0.5),
-        WidgetState.hovered: cs.primaryContainer,
-        WidgetState.any: cs.secondaryContainer,
+        WidgetState.disabled: cs.onSurface.withValues(alpha: 0.04),
+        WidgetState.hovered: hoverTint,
+        WidgetState.any: baseTint,
       }),
       foregroundColor: WidgetStateProperty.fromMap({
-        WidgetState.disabled: cs.onSurface.withValues(alpha: 0.38),
-        WidgetState.any: cs.onSecondaryContainer,
+        WidgetState.disabled: cs.onSurface.withValues(alpha: 0.36),
+        WidgetState.any: cs.primary,
       }),
       overlayColor: WidgetStateProperty.fromMap({
-        WidgetState.hovered: cs.onSecondaryContainer.withValues(alpha: 0.08),
-        WidgetState.pressed: cs.onSecondaryContainer.withValues(alpha: 0.14),
+        WidgetState.hovered: cs.primary.withValues(alpha: 0.06),
+        WidgetState.pressed: cs.primary.withValues(alpha: 0.12),
         WidgetState.any: const Color(0x00000000),
       }),
       shape: prism.AppShape.full,
-      minimumSize: const Size(0, 38),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+      minimumSize: const Size(0, 40),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 0),
     ).merge(style);
     return icon == null
         ? prism.FilledButton(

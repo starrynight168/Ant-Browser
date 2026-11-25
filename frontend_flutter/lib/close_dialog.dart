@@ -9,35 +9,24 @@ class CloseDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = prism.Theme.of(context).colorScheme;
-    final dangerTone = PrismToneColors.of(context, PrismTone.danger);
-    const pillHeight = Size(double.infinity, 46);
+    final theme = prism.Theme.of(context);
+    final colors = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    final dangerBg = colors.error.withValues(alpha: isDark ? 0.24 : 0.13);
+    final primaryBg = colors.primary.withValues(alpha: isDark ? 0.24 : 0.13);
+    final neutralBg = colors.onSurface.withValues(alpha: isDark ? 0.10 : 0.06);
+    const pillSize = Size(double.infinity, 48);
+
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 380),
+      constraints: const BoxConstraints(maxWidth: 368),
       child: prism.Surface(
         color: colors.surface,
         shape: prism.AppShape.all(prism.AppCorner.alert),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 26, 24, 20),
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 18),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              prism.Surface(
-                color: dangerTone.bg,
-                shape: prism.AppShape.lg,
-                child: SizedBox(
-                  width: 50,
-                  height: 50,
-                  child: Center(
-                    child: PrismGlyph(
-                      AntGlyphs.exit,
-                      size: 22,
-                      color: dangerTone.fg,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
               Text(
                 '关闭 Ant Browser？',
                 style: prism.AppTextStyle.title3.of(context, emphasized: true),
@@ -48,15 +37,15 @@ class CloseDialog extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: prism.AppTextStyle.footnote
                     .of(context)
-                    .copyWith(color: colors.onSurfaceVariant, height: 1.5),
+                    .copyWith(color: colors.onSurfaceVariant, height: 1.45),
               ),
               const SizedBox(height: 20),
               if (isWindows) ...[
                 prism.FilledButton.icon(
                   style: prism.ButtonStyle.from(
-                    backgroundColor: colors.surfaceContainerHigh,
+                    backgroundColor: neutralBg,
                     foregroundColor: colors.onSurface,
-                    minimumSize: pillHeight,
+                    minimumSize: pillSize,
                     shape: prism.AppShape.full,
                   ),
                   onPressed: () => Navigator.pop(context, 'minimize'),
@@ -67,9 +56,9 @@ class CloseDialog extends StatelessWidget {
               ],
               prism.FilledButton(
                 style: prism.ButtonStyle.from(
-                  backgroundColor: colors.primary,
-                  foregroundColor: colors.onPrimary,
-                  minimumSize: pillHeight,
+                  backgroundColor: primaryBg,
+                  foregroundColor: colors.primary,
+                  minimumSize: pillSize,
                   shape: prism.AppShape.full,
                 ),
                 onPressed: () => Navigator.pop(context, 'quit-app'),
@@ -78,9 +67,9 @@ class CloseDialog extends StatelessWidget {
               const SizedBox(height: 8),
               prism.FilledButton(
                 style: prism.ButtonStyle.from(
-                  backgroundColor: colors.error,
-                  foregroundColor: colors.onError,
-                  minimumSize: pillHeight,
+                  backgroundColor: dangerBg,
+                  foregroundColor: colors.error,
+                  minimumSize: pillSize,
                   shape: prism.AppShape.full,
                 ),
                 onPressed: () => Navigator.pop(context, 'quit-all'),
@@ -89,9 +78,9 @@ class CloseDialog extends StatelessWidget {
               const SizedBox(height: 8),
               prism.FilledButton(
                 style: prism.ButtonStyle.from(
-                  backgroundColor: colors.surfaceContainerLow,
+                  backgroundColor: neutralBg,
                   foregroundColor: colors.onSurfaceVariant,
-                  minimumSize: pillHeight,
+                  minimumSize: pillSize,
                   shape: prism.AppShape.full,
                 ),
                 onPressed: () => Navigator.pop(context),
