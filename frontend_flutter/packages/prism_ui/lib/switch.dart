@@ -303,8 +303,12 @@ class _SwitchState extends State<Switch> with TickerProviderStateMixin {
           child: _buildTapTarget(
             enabled: enabled,
             child: AnimatedScale(
-              scale: enabled && _hovered ? 1.06 : 1.0,
-              duration: const Duration(milliseconds: 160),
+              scale: enabled && _hovered && !context.disableAnimations
+                  ? 1.06
+                  : 1.0,
+              duration: context.motionDuration(
+                const Duration(milliseconds: 160),
+              ),
               curve: Curves.easeOutCubic,
               child: SizedBox.fromSize(
                 size: size,

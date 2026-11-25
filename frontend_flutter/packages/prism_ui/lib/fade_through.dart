@@ -82,6 +82,13 @@ class _PageTransitionSwitcherState extends State<PageTransitionSwitcher>
   void didUpdateWidget(PageTransitionSwitcher oldWidget) {
     super.didUpdateWidget(oldWidget);
 
+    if (widget.duration != oldWidget.duration) {
+      for (final entry in _activeEntries) {
+        entry.primaryController.duration = widget.duration;
+        entry.secondaryController.duration = widget.duration;
+      }
+    }
+
     // If the transition builder changed, then update all of the old
     // transitions.
     if (widget.transitionBuilder != oldWidget.transitionBuilder) {

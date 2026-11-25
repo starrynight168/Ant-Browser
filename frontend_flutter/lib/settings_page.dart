@@ -6,7 +6,6 @@ import 'package:prism_ui/prism_ui.dart' as prism;
 
 import 'app_bridge.dart';
 import 'prism_widgets.dart';
-import 'theme_state.dart';
 
 const _defaultAppSettings = <String, dynamic>{
   'appName': 'Ant Browser',
@@ -14,6 +13,7 @@ const _defaultAppSettings = <String, dynamic>{
   'theme': 'light',
   'themeColor': 'forest',
   'themeStyle': 'tinted',
+  'motionIntensity': 100,
   'primaryColor': '#3B82F6',
   'language': 'zh-CN',
   'enableNotifications': true,
@@ -36,7 +36,7 @@ const _numberBounds = <String, (int min, int max)>{
 };
 
 enum _SettingsSection {
-  appearance('外观与主题', '主题模式、Prism 色彩与语言', AntGlyphs.sparkles),
+  appearance('外观与主题', '主题模式、色彩、语言与动效', AntGlyphs.sparkles),
   general('通用与应用', '通知、自动保存与应用信息', AntGlyphs.settings),
   automation('自动化运行时', 'Node.js、Playwright 与自检', AntGlyphs.robot),
   launchApi('本地启动接口', 'HTTP 监听端口与接口状态', AntGlyphs.api),
@@ -86,6 +86,29 @@ class _SettingsPageState extends State<SettingsPage> {
   String _busy = '';
   void Function()? _unsubscribeRuntimeProgress;
 
+  Map<String, dynamic> _normalizeStoredSettings(Map<String, dynamic> raw) {
+    final storedMotion =
+        (raw['motionIntensity'] as num?)?.round().clamp(
+          kMinMotionIntensity,
+          kMaxMotionIntensity,
+        ) ??
+        kDefaultMotionIntensity;
+    return <String, dynamic>{...raw, 'motionIntensity': storedMotion};
+  }
+
+  Map<String, dynamic> _overlayLiveAppearance(Map<String, dynamic> base) {
+    return <String, dynamic>{
+      ...base,
+      'theme': currentAppThemeModeId,
+      'themeColor': currentAppThemeColorId,
+      'themeStyle': currentAppThemeStyleId,
+      'motionIntensity': appMotionIntensity.value.clamp(
+        kMinMotionIntensity,
+        kMaxMotionIntensity,
+      ),
+    };
+  }
+
   @override
   void initState() {
     super.initState();
@@ -93,13 +116,13 @@ class _SettingsPageState extends State<SettingsPage> {
       final raw = AppBridge.readStorage('app_settings');
       final stored = raw.isEmpty ? null : jsonDecode(raw);
       if (stored is Map) {
-        _settings = <String, dynamic>{
+        _savedSettings = _normalizeStoredSettings(<String, dynamic>{
           ..._defaultAppSettings,
           ...Map<String, dynamic>.from(stored),
-        };
-        _savedSettings = Map<String, dynamic>.from(_settings);
+        });
       }
     } catch (_) {}
+    _settings = _overlayLiveAppearance(_savedSettings);
     for (final entry in _numberBounds.entries) {
       final key = entry.key;
       final (min, max) = entry.value;
@@ -169,7 +192,13 @@ class _SettingsPageState extends State<SettingsPage> {
     } catch (_) {}
   }
 
-  bool get _hasChanges => jsonEncode(_settings) != jsonEncode(_savedSettings);
+  bool get _hasChanges {
+    if (_settings.length != _savedSettings.length) return true;
+    for (final entry in _settings.entries) {
+      if (_savedSettings[entry.key] != entry.value) return true;
+    }
+    return false;
+  }
 
   bool get _automationRuntimeDirty =>
       _nodeSource != _savedNodeSource ||
@@ -215,12 +244,15 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  Future<void> _load() async {
+  Future<void> _load({
+    bool forceReloadStored = false,
+    bool notify = false,
+  }) async {
     if (mounted) setState(() => _loading = true);
     try {
       final raw = AppBridge.readStorage('app_settings');
       final stored = raw.isEmpty ? null : jsonDecode(raw);
-      final settings = <String, dynamic>{
+      final rawSettings = <String, dynamic>{
         ..._defaultAppSettings,
         if (stored is Map) ...Map<String, dynamic>.from(stored),
       };
@@ -232,16 +264,19 @@ class _SettingsPageState extends State<SettingsPage> {
       final automation = _asMap(results[0]);
       final launchServer = _asMap(results[1]);
       if (results[2] is String && '${results[2]}'.isNotEmpty) {
-        settings['logLevel'] = '${results[2]}'.toLowerCase();
+        rawSettings['logLevel'] = '${results[2]}'.toLowerCase();
       }
       if (!mounted) return;
+      final settings = _normalizeStoredSettings(rawSettings);
       final rtSettings = _nested(automation, 'settings');
       final nodeSource = '${rtSettings['nodeSource'] ?? _nodeSource}';
       final sysNodePath =
           '${rtSettings['systemNodePath'] ?? _savedSystemNodePath}';
       setState(() {
-        _settings = settings;
         _savedSettings = Map<String, dynamic>.from(settings);
+        _settings = forceReloadStored
+            ? Map<String, dynamic>.from(settings)
+            : _overlayLiveAppearance(settings);
         if (automation.isNotEmpty) _automation = automation;
         if (launchServer.isNotEmpty) _launchServer = launchServer;
         _nodeSource = nodeSource;
@@ -252,9 +287,15 @@ class _SettingsPageState extends State<SettingsPage> {
             '${launchServer['preferredPort'] ?? launchServer['port'] ?? 19876}';
         _syncControllersFromSettings();
       });
-      setAppThemeMode('${settings['theme'] ?? 'light'}');
-      setAppThemeColor('${settings['themeColor'] ?? 'forest'}');
-      setAppThemeStyle('${settings['themeStyle'] ?? 'tinted'}');
+      if (forceReloadStored) {
+        setAppThemeMode('${settings['theme'] ?? 'light'}');
+        setAppThemeColor('${settings['themeColor'] ?? 'forest'}');
+        setAppThemeStyle('${settings['themeStyle'] ?? 'tinted'}');
+        setAppMotionIntensity(settings['motionIntensity'] as num?);
+      }
+      if (notify && mounted) {
+        _message('已重新加载已保存的设置');
+      }
     } catch (error) {
       if (mounted) _message('设置加载失败：$error');
     } finally {
@@ -294,6 +335,7 @@ class _SettingsPageState extends State<SettingsPage> {
       setAppThemeMode('${updated['theme'] ?? 'light'}');
       setAppThemeColor('${updated['themeColor'] ?? 'forest'}');
       setAppThemeStyle('${updated['themeStyle'] ?? 'tinted'}');
+      setAppMotionIntensity(updated['motionIntensity'] as num? ?? 100);
       if (mounted) {
         setState(() => _savedSettings = Map<String, dynamic>.from(updated));
       }
@@ -338,7 +380,9 @@ class _SettingsPageState extends State<SettingsPage> {
       setAppThemeMode('light');
       setAppThemeColor('forest');
       setAppThemeStyle('tinted');
-      await _load();
+      appLastNonZeroMotionIntensity = kDefaultMotionIntensity;
+      setAppMotionIntensity(kDefaultMotionIntensity);
+      await _load(forceReloadStored: true);
       _message('已恢复默认设置');
     } catch (error) {
       _message('恢复失败：$error');
@@ -491,7 +535,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   int _staggerSeq = 0;
 
-  Widget _groupedCard(List<Widget> rows) {
+  Widget _groupedCard(List<Widget> rows, {bool hoverGlow = true}) {
     final children = <Widget>[];
     for (var i = 0; i < rows.length; i++) {
       if (i > 0) {
@@ -511,6 +555,7 @@ class _SettingsPageState extends State<SettingsPage> {
         initialDelay: const Duration(milliseconds: 55),
         child: PrismHoverGlow(
           radius: prism.AppCorner.xl,
+          enabled: hoverGlow,
           child: prism.Card(
             radius: prism.AppCorner.xl,
             inert: true,
@@ -519,6 +564,63 @@ class _SettingsPageState extends State<SettingsPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: children,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _railActionPill(
+    BuildContext context, {
+    required prism_icons.Glyph glyph,
+    required String label,
+    required VoidCallback? onTap,
+    bool destructive = false,
+  }) {
+    final colors = prism.Theme.of(context).colorScheme;
+    final disabled = onTap == null;
+    final dangerTone = PrismToneColors.of(context, PrismTone.danger);
+    final bg = disabled
+        ? colors.surfaceContainerHighest.withValues(alpha: 0.45)
+        : destructive
+        ? dangerTone.bg
+        : colors.surfaceContainerHighest;
+    final fg = disabled
+        ? colors.onSurface.withValues(alpha: 0.38)
+        : destructive
+        ? dangerTone.fg
+        : colors.onSurface;
+    return Expanded(
+      child: PrismHoverMotion(
+        enabled: !disabled,
+        hoverScale: 1.03,
+        pressScale: 0.96,
+        child: prism.PressRegion(
+          onTap: onTap,
+          shape: prism.AppShape.full,
+          child: prism.Surface(
+            color: bg,
+            shape: prism.AppShape.full,
+            child: SizedBox(
+              height: 32,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                spacing: 5,
+                children: [
+                  PrismGlyph(glyph, size: 14, color: fg),
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: prism.AppTextStyle.caption1
+                          .of(context, emphasized: true)
+                          .copyWith(color: fg),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -647,51 +749,106 @@ class _SettingsPageState extends State<SettingsPage> {
                         setState(() => _activeSection = section),
                   ),
                   const Spacer(),
-                  const prism.Divider(height: 16),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            _hasChanges ? '有未保存更改' : '配置已同步',
-                            style: prism.AppTextStyle.caption1
-                                .of(context, emphasized: _hasChanges)
-                                .copyWith(
-                                  color: _hasChanges
-                                      ? PrismToneColors.of(
-                                          context,
-                                          PrismTone.warning,
-                                        ).fg
-                                      : colors.onSurfaceVariant,
+                  const SizedBox(height: 10),
+                  prism.Surface(
+                    color: colors.surfaceContainerLow,
+                    shape: prism.AppShape.lg,
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            children: [
+                              if (_loading || _saving)
+                                const PrismProgressIndicator(size: 12)
+                              else
+                                SizedBox(
+                                  width: 7,
+                                  height: 7,
+                                  child: DecoratedBox(
+                                    decoration: ShapeDecoration(
+                                      color: PrismToneColors.of(
+                                        context,
+                                        _hasChanges
+                                            ? PrismTone.warning
+                                            : PrismTone.success,
+                                      ).fg,
+                                      shape: const CircleBorder(),
+                                    ),
+                                  ),
                                 ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: AnimatedSwitcher(
+                                  duration: PrismMotionSpec.current.enabled
+                                      ? const Duration(milliseconds: 220)
+                                      : Duration.zero,
+                                  layoutBuilder: (currentChild, previous) =>
+                                      Stack(
+                                        alignment: Alignment.centerLeft,
+                                        children: [
+                                          ...previous,
+                                          if (currentChild != null) currentChild,
+                                        ],
+                                      ),
+                                  child: Text(
+                                    _loading || _saving
+                                        ? '正在同步…'
+                                        : _hasChanges
+                                        ? '有未保存更改'
+                                        : '配置已同步',
+                                    key: ValueKey(
+                                      _loading || _saving
+                                          ? 'syncing'
+                                          : _hasChanges
+                                          ? 'dirty'
+                                          : 'synced',
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: prism.AppTextStyle.footnote
+                                        .of(context, emphasized: true)
+                                        .copyWith(
+                                          color: _hasChanges
+                                              ? PrismToneColors.of(
+                                                  context,
+                                                  PrismTone.warning,
+                                                ).fg
+                                              : colors.onSurfaceVariant,
+                                        ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                        prism.TonalButtonGroup(
-                          size: prism.TonalButtonSize.compact,
-                          children: [
-                            prism.IconButton(
-                              tooltip: '恢复默认',
-                              onPressed: _saving ? null : _reset,
-                              icon: const PrismGlyph(
-                                AntGlyphs.restore,
-                                size: 16,
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              _railActionPill(
+                                context,
+                                glyph: AntGlyphs.refresh,
+                                label: '重新加载',
+                                onTap: _loading || _saving
+                                    ? null
+                                    : () => _load(
+                                        forceReloadStored: true,
+                                        notify: true,
+                                      ),
                               ),
-                            ),
-                            prism.IconButton(
-                              tooltip: '重新加载',
-                              onPressed: _loading || _saving ? null : _load,
-                              icon: const PrismGlyph(
-                                AntGlyphs.refresh,
-                                size: 16,
+                              const SizedBox(width: 6),
+                              _railActionPill(
+                                context,
+                                glyph: AntGlyphs.restore,
+                                label: '恢复默认',
+                                destructive: true,
+                                onTap: _saving ? null : _reset,
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -711,7 +868,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     children: [
                       Expanded(
                         child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 380),
+                          duration: PrismMotionSpec.current.barDuration,
                           transitionBuilder: PrismBarTransition.switcherBuilder,
                           layoutBuilder: (currentChild, previousChildren) =>
                               Stack(
@@ -767,10 +924,14 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                       ),
                       AnimatedSize(
-                        duration: const Duration(milliseconds: 220),
+                        duration: PrismMotionSpec.current.enabled
+                            ? const Duration(milliseconds: 220)
+                            : Duration.zero,
                         curve: kPrismSmooth,
                         child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 200),
+                          duration: PrismMotionSpec.current.enabled
+                              ? const Duration(milliseconds: 200)
+                              : Duration.zero,
                           child: _hasChanges
                               ? const Padding(
                                   key: ValueKey('dirty-badge'),
@@ -802,7 +963,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 Expanded(
                   child: prism.PageTransitionSwitcher(
-                    duration: const Duration(milliseconds: 440),
+                    duration: PrismMotionSpec.current.pageDuration,
                     layoutBuilder: (entries) => Stack(
                       alignment: Alignment.topLeft,
                       children: entries,
@@ -844,6 +1005,11 @@ class _SettingsPageState extends State<SettingsPage> {
     final currentTheme = '${_settings['theme'] ?? 'light'}';
     final currentStyle = '${_settings['themeStyle'] ?? 'tinted'}';
     final currentLang = '${_settings['language'] ?? 'zh-CN'}';
+    final currentMotion =
+        (_settings['motionIntensity'] is num
+                ? (_settings['motionIntensity'] as num).round()
+                : int.tryParse('${_settings['motionIntensity'] ?? 100}') ?? 100)
+            .clamp(kMinMotionIntensity, kMaxMotionIntensity);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1002,8 +1168,89 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
         ),
+        const SizedBox(height: 16),
+        _buildMotionSettingsCard(context, currentMotion),
       ],
     );
+  }
+
+  void _applyMotionIntensity(int next) {
+    final clamped = next.clamp(kMinMotionIntensity, kMaxMotionIntensity);
+    _change('motionIntensity', clamped);
+    setAppMotionIntensity(clamped);
+  }
+
+  Widget _buildMotionSettingsCard(BuildContext context, int currentMotion) {
+    final colors = prism.Theme.of(context).colorScheme;
+    final motionEnabled = currentMotion > 0;
+    final (tierLabel, tierTone) = switch (currentMotion) {
+      0 => ('已关闭', PrismTone.neutral),
+      <= 75 => ('克制', PrismTone.info),
+      <= 125 => ('推荐', PrismTone.success),
+      <= 195 => ('饱满', PrismTone.warning),
+      _ => ('极限', PrismTone.danger),
+    };
+    return _groupedCard([
+      prism.ListRow(
+        title: const Text('界面动效'),
+        subtitle: Text(
+          motionEnabled
+              ? '开启后全站启用过渡、悬停与弹簧动画'
+              : '已关闭 · 所有页面切换与交互均为即时响应',
+        ),
+        trailing: prism.Switch(
+          value: motionEnabled,
+          onChanged: (enabled) => _applyMotionIntensity(
+            enabled ? appLastNonZeroMotionIntensity : 0,
+          ),
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '动效强度',
+                        style: prism.AppTextStyle.subheadline.of(
+                          context,
+                          emphasized: true,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '拖到 0% 可关闭全部动画，向右最高增强至 250%',
+                        style: prism.AppTextStyle.caption1
+                            .of(context)
+                            .copyWith(color: colors.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                PrismBadge(label: tierLabel, tone: tierTone),
+                const SizedBox(width: 8),
+                PrismValueBadge(value: currentMotion, unit: '%'),
+              ],
+            ),
+            const SizedBox(height: 10),
+            prism.Slider(
+              value: currentMotion.toDouble(),
+              min: kMinMotionIntensity.toDouble(),
+              max: kMaxMotionIntensity.toDouble(),
+              label: '$currentMotion%',
+              onChanged: (value) => _applyMotionIntensity(value.round()),
+            ),
+          ],
+        ),
+      ),
+    ]);
   }
 
   Widget _buildGeneralSection(BuildContext context) {
@@ -1567,6 +1814,7 @@ class _ColorSwatchPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = prism.Theme.of(context).colorScheme;
+    final motionOn = PrismMotionSpec.current.enabled;
     return PrismHoverMotion(
       hoverScale: 1.06,
       pressScale: 0.93,
@@ -1574,7 +1822,7 @@ class _ColorSwatchPill extends StatelessWidget {
         onTap: onTap,
         shape: prism.AppShape.full,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
+          duration: motionOn ? const Duration(milliseconds: 220) : Duration.zero,
           curve: Curves.easeOutCubic,
           decoration: ShapeDecoration(
             color: selected
@@ -1597,10 +1845,14 @@ class _ColorSwatchPill extends StatelessWidget {
                   ),
                   child: AnimatedOpacity(
                     opacity: selected ? 1.0 : 0.0,
-                    duration: const Duration(milliseconds: 180),
+                    duration: motionOn
+                        ? const Duration(milliseconds: 180)
+                        : Duration.zero,
                     child: AnimatedScale(
-                      scale: selected ? 1.0 : 0.3,
-                      duration: const Duration(milliseconds: 320),
+                      scale: selected ? 1.0 : (motionOn ? 0.3 : 1.0),
+                      duration: motionOn
+                          ? const Duration(milliseconds: 320)
+                          : Duration.zero,
                       curve: kPrismSpring,
                       child: const Center(
                         child: PrismGlyph(
@@ -1614,7 +1866,9 @@ class _ColorSwatchPill extends StatelessWidget {
                 ),
               ),
               AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 200),
+                duration: motionOn
+                    ? const Duration(milliseconds: 200)
+                    : Duration.zero,
                 curve: Curves.easeOut,
                 style: prism.AppTextStyle.footnote
                     .of(context, emphasized: selected)

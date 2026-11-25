@@ -408,11 +408,16 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                         ),
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  '↑↓ 选择实例 · 双击或 Enter 直接启动 · 支持直接输入启动码启动',
-                  style: prism.AppTextStyle.caption1
-                      .of(context)
-                      .copyWith(color: colors.onSurfaceVariant),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    _keyHint(context, '↑↓', '选择实例'),
+                    _keyHint(context, 'Enter', '启动选中'),
+                    _keyHint(context, '双击', '快速启动'),
+                    _keyHint(context, 'Esc', '关闭'),
+                  ],
                 ),
               ],
             ),
@@ -464,9 +469,25 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
       padding: const EdgeInsets.only(bottom: 6),
       child: GestureDetector(
         onDoubleTap: _starting ? null : () => _startProfile(profile),
-        child: prism.Surface(
-          color: selected ? colors.secondaryContainer : colors.surfaceContainerLow,
-          shape: prism.AppShape.lg,
+        child: AnimatedContainer(
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          decoration: ShapeDecoration(
+            color: selected
+                ? colors.secondaryContainer
+                : colors.surfaceContainerLow,
+            shape: RoundedSuperellipseBorder(
+              borderRadius: prism.AppRadius.lg,
+              side: BorderSide(
+                color: selected
+                    ? colors.primary.withValues(alpha: 0.35)
+                    : const Color(0x00000000),
+                width: 1.2,
+              ),
+            ),
+          ),
           child: prism.PressRegion(
             onTap: _starting ? null : () => _selectProfile(index, filtered),
             shape: prism.AppShape.lg,
@@ -571,22 +592,61 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
     );
   }
 
+  Widget _keyHint(BuildContext context, String keycap, String label) {
+    final colors = prism.Theme.of(context).colorScheme;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      spacing: 5,
+      children: [
+        prism.Surface(
+          color: colors.surfaceContainerHigh,
+          shape: prism.AppShape.sm,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            child: Text(
+              keycap,
+              style: prism.AppTextStyle.caption2
+                  .of(context, emphasized: true)
+                  .copyWith(color: colors.onSurface),
+            ),
+          ),
+        ),
+        Text(
+          label,
+          style: prism.AppTextStyle.caption1
+              .of(context)
+              .copyWith(color: colors.onSurfaceVariant),
+        ),
+      ],
+    );
+  }
+
   Widget _filterButton(String label, String filter) {
     final selected = _groupFilter == filter;
     final colors = prism.Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(right: 6),
-      child: prism.PressRegion(
-        onTap: () => setState(() {
-          _groupFilter = filter;
-          _selectedIndex = 0;
-          _activeTag = '';
-        }),
-        shape: prism.AppShape.full,
-        child: prism.Surface(
-          color: selected ? colors.primaryContainer : colors.surfaceContainerLow,
+      child: PrismHoverMotion(
+        hoverScale: 1.04,
+        pressScale: 0.95,
+        child: prism.PressRegion(
+          onTap: () => setState(() {
+            _groupFilter = filter;
+            _selectedIndex = 0;
+            _activeTag = '';
+          }),
           shape: prism.AppShape.full,
-          child: Padding(
+          child: AnimatedContainer(
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+            decoration: ShapeDecoration(
+              color: selected
+                  ? colors.primaryContainer
+                  : colors.surfaceContainerLow,
+              shape: prism.AppShape.full,
+            ),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
             child: Text(
               label,

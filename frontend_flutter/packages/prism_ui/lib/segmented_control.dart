@@ -37,7 +37,9 @@ class SegmentedControl<T> extends StatelessWidget {
         children: [
           if (index >= 0)
             AnimatedAlign(
-              duration: const Duration(milliseconds: 250),
+              duration: context.motionDuration(
+                const Duration(milliseconds: 250),
+              ),
               curve: Curves.easeOutCubic,
               alignment: AlignmentDirectional(
                 count == 1 ? 0 : index * 2 / (count - 1) - 1,
@@ -96,7 +98,10 @@ class _SegmentButtonState extends State<_SegmentButton> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = context.colorScheme;
-    final scale = _pressed
+    final noMotion = context.disableAnimations;
+    final scale = noMotion
+        ? 1.0
+        : _pressed
         ? 0.94
         : _hovered
         ? 1.05
@@ -123,10 +128,14 @@ class _SegmentButtonState extends State<_SegmentButton> {
           child: Center(
             child: AnimatedScale(
               scale: scale,
-              duration: Duration(milliseconds: _pressed ? 85 : 165),
+              duration: noMotion
+                  ? Duration.zero
+                  : Duration(milliseconds: _pressed ? 85 : 165),
               curve: Curves.easeOutCubic,
               child: AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 200),
+                duration: context.motionDuration(
+                  const Duration(milliseconds: 200),
+                ),
                 style: AppTextStyle.subheadline
                     .of(context, emphasized: widget.selected || _hovered)
                     .copyWith(

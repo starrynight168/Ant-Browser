@@ -185,7 +185,7 @@ class _DocsPageState extends State<DocsPage> {
         ),
         Expanded(
           child: prism.PageTransitionSwitcher(
-            duration: const Duration(milliseconds: 440),
+            duration: PrismMotionSpec.current.pageDuration,
             transitionBuilder: PrismSlideThroughTransition.builder,
             child: ListView(
               key: ValueKey(_selected),

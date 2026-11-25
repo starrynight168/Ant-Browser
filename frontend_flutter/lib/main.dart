@@ -30,7 +30,6 @@ import 'proxy_pages.dart';
 import 'quick_launch_dialog.dart';
 import 'tags_page.dart';
 import 'settings_page.dart';
-import 'theme_state.dart';
 import 'app_bridge.dart';
 
 Future<void> main() async {
@@ -47,6 +46,8 @@ Future<void> main() async {
       if (color is String) setAppThemeColor(color);
       final style = saved['themeStyle'];
       if (style is String) setAppThemeStyle(style);
+      final motion = saved['motionIntensity'];
+      if (motion is num) setAppMotionIntensity(motion);
     }
   } catch (_) {}
   runApp(const AntBrowserApp());
@@ -117,10 +118,18 @@ class AntBrowserApp extends StatelessWidget {
             final textSoftFill = cs.onSurface.withValues(
               alpha: isDark ? 0.06 : 0.04,
             );
-            return prism.ViewScope(
-              size: size,
-              isMobile: size.width < 600,
-              child: prism.ButtonTheme.merge(
+            return ValueListenableBuilder<bool>(
+              valueListenable: appMotionEnabled,
+              builder: (context, motionEnabled, inner) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(disableAnimations: !motionEnabled),
+                child: inner!,
+              ),
+              child: prism.ViewScope(
+                size: size,
+                isMobile: size.width < 600,
+                child: prism.ButtonTheme.merge(
                 data: prism.ButtonThemeData(
                   outlined: prism.ButtonStyle(
                     backgroundColor: WidgetStateProperty.fromMap({
@@ -207,6 +216,7 @@ class AntBrowserApp extends StatelessWidget {
                 ),
                 child: child!,
               ),
+            ),
             );
           },
           home: const AntBrowserShell(),
@@ -443,9 +453,15 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
                         onQuickLaunch: _showQuickLaunch,
                       ),
                       Expanded(
-                        child: prism.PageTransitionSwitcher(
-                          duration: const Duration(milliseconds: 440),
-                          transitionBuilder: PrismSlideThroughTransition.builder,
+                        child: ListenableBuilder(
+                          listenable: appMotionIntensity,
+                          builder: (context, child) =>
+                              prism.PageTransitionSwitcher(
+                                duration: PrismMotionSpec.current.pageDuration,
+                                transitionBuilder:
+                                    PrismSlideThroughTransition.builder,
+                                child: child!,
+                              ),
                           child: KeyedSubtree(
                             key: ValueKey(_activePath),
                             child:
@@ -692,15 +708,19 @@ class _PageHeader extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 380),
-              transitionBuilder: PrismBarTransition.switcherBuilder,
-              layoutBuilder: (currentChild, previousChildren) => Stack(
-                alignment: Alignment.centerLeft,
-                children: [
-                  ...previousChildren,
-                  if (currentChild != null) currentChild,
-                ],
+            child: ListenableBuilder(
+              listenable: appMotionIntensity,
+              builder: (context, child) => AnimatedSwitcher(
+                duration: PrismMotionSpec.current.barDuration,
+                transitionBuilder: PrismBarTransition.switcherBuilder,
+                layoutBuilder: (currentChild, previousChildren) => Stack(
+                  alignment: Alignment.centerLeft,
+                  children: [
+                    ...previousChildren,
+                    if (currentChild != null) currentChild,
+                  ],
+                ),
+                child: child!,
               ),
               child: Align(
                 alignment: Alignment.centerLeft,
@@ -716,13 +736,90 @@ class _PageHeader extends StatelessWidget {
             ),
           ),
           if (onQuickLaunch != null)
-            PrismBadge(
-              label: '快捷启动  Ctrl+K',
-              glyph: AntGlyphs.bolt,
-              tone: PrismTone.neutral,
-              onPressed: onQuickLaunch,
-            ),
+            _QuickLaunchTrigger(onPressed: onQuickLaunch!),
         ],
+      ),
+    );
+  }
+}
+
+class _QuickLaunchTrigger extends StatefulWidget {
+  const _QuickLaunchTrigger({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  State<_QuickLaunchTrigger> createState() => _QuickLaunchTriggerState();
+}
+
+class _QuickLaunchTriggerState extends State<_QuickLaunchTrigger> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: PrismHoverMotion(
+        hoverScale: 1.06,
+        pressScale: 0.925,
+        child: prism.PressRegion(
+          onTap: widget.onPressed,
+          shape: prism.AppShape.full,
+          child: AnimatedContainer(
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+            height: 38,
+            padding: const EdgeInsets.fromLTRB(13, 0, 8, 0),
+            decoration: ShapeDecoration(
+              color: _hovered
+                  ? colors.surfaceContainerHighest
+                  : colors.surfaceContainerHigh,
+              shape: RoundedSuperellipseBorder(
+                borderRadius: prism.AppRadius.full,
+                side: BorderSide(
+                  color: _hovered
+                      ? colors.primary.withValues(alpha: 0.35)
+                      : colors.outlineVariant.withValues(alpha: 0.45),
+                  width: 1.0,
+                ),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                PrismGlyph(AntGlyphs.bolt, size: 15, color: colors.primary),
+                const SizedBox(width: 7),
+                Text(
+                  '快捷启动',
+                  style: prism.AppTextStyle.footnote
+                      .of(context, emphasized: true)
+                      .copyWith(color: colors.onSurface),
+                ),
+                const SizedBox(width: 10),
+                prism.Surface(
+                  color: colors.surfaceContainerLowest,
+                  shape: prism.AppShape.sm,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 2,
+                    ),
+                    child: Text(
+                      'Ctrl K',
+                      style: prism.AppTextStyle.caption2
+                          .of(context, emphasized: true)
+                          .copyWith(color: colors.onSurfaceVariant),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

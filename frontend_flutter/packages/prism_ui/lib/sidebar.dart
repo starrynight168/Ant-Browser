@@ -148,7 +148,7 @@ class _NavigationSidebarState extends State<NavigationSidebar>
       child: SafeArea(
         child: TweenAnimationBuilder<double>(
           tween: Tween(end: widget.expanded ? 1.0 : 0.0),
-          duration: _expandDuration,
+          duration: context.motionDuration(_expandDuration),
           curve: Easing.standard,
           builder: (context, progress, _) => _SidebarPane(
             progress: progress,

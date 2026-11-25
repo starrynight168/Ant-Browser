@@ -723,17 +723,22 @@ class _StyledButtonState extends State<_StyledButton> {
     if (widget.tooltip case final tooltip?) {
       content = Tooltip(message: tooltip, child: content);
     }
+    final noMotion = MediaQuery.disableAnimationsOf(context);
     final enabled = widget.onPressed != null;
     final pressed = enabled && _states.value.contains(WidgetState.pressed);
     final hovered = enabled && _states.value.contains(WidgetState.hovered);
-    final scale = pressed
+    final scale = noMotion
+        ? 1.0
+        : pressed
         ? 0.96
         : hovered
         ? 1.035
         : 1.0;
     return AnimatedScale(
       scale: scale,
-      duration: Duration(milliseconds: pressed ? 85 : 170),
+      duration: noMotion
+          ? Duration.zero
+          : Duration(milliseconds: pressed ? 85 : 170),
       curve: Curves.easeOutCubic,
       child: PressSurface(
         fill: fill,

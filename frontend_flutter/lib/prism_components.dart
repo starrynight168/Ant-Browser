@@ -4,6 +4,7 @@ import 'package:prism_ui/icons/icons.dart' as prism_icons;
 import 'package:prism_ui/prism_ui.dart' as prism;
 
 import 'prism_glyphs.dart';
+import 'theme_state.dart';
 
 enum PrismTone { neutral, primary, success, warning, danger, info }
 
@@ -274,16 +275,16 @@ class PrismPageContextBar extends StatelessWidget {
   }
 }
 
-/// iOS 弹簧曲线：明显的 38% 过冲回弹，用于分类胶囊、顶栏滑入、数值徽章、色板勾选。
-const Cubic kPrismSpring = Cubic(0.28, 1.38, 0.42, 1.0);
+/// iOS 弹簧曲线：52% 弹性过冲回弹（1.25× 甜点基线），用于分类胶囊、顶栏滑入、数值徽章、按钮按压。
+const Cubic kPrismSpring = Cubic(0.29, 1.52, 0.42, 1.0);
 
 /// iOS 临界阻尼平滑曲线：零过冲减速，用于高度展开与阴影渐变。
 const Cubic kPrismSmooth = Cubic(0.22, 1.0, 0.36, 1.0);
 
-/// 轻盈浮起曲线：12% 柔和过冲落位，用于整页/卡片纵向位移（无缩放，文字保持锐利）。
-const Cubic kPrismLift = Cubic(0.20, 1.12, 0.32, 1.0);
+/// 轻盈浮起曲线：28% 柔和落位过冲（1.25× 甜点基线），用于整页/卡片纵向位移。
+const Cubic kPrismLift = Cubic(0.23, 1.28, 0.36, 1.0);
 
-/// 进场 stagger：按 [index] 延迟依次淡入 + 明显上浮（460ms，55ms 步进，无缩放）。
+/// 进场 stagger：受全局 `appMotionIntensity` 实时驱动，支持从 0%（关闭）到 250%（极限）。
 class PrismStaggerIn extends StatefulWidget {
   const PrismStaggerIn({
     super.key,
@@ -306,19 +307,24 @@ class _PrismStaggerInState extends State<PrismStaggerIn>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 460),
+    duration: PrismMotionSpec.current.staggerDuration,
   );
 
   @override
   void initState() {
     super.initState();
-    if (!widget.enabled) {
+    final spec = PrismMotionSpec.current;
+    if (!widget.enabled || !spec.enabled) {
       _controller.value = 1;
       return;
     }
-    // 前 4 张卡按 0 / 55 / 110 / 165ms 阶梯进场。
+    _controller.duration = spec.staggerDuration;
     final delay =
-        widget.initialDelay + Duration(milliseconds: widget.index.clamp(0, 3) * 55);
+        widget.initialDelay +
+        Duration(
+          milliseconds:
+              widget.index.clamp(0, spec.staggerMaxIndex) * spec.staggerStepMs,
+        );
     if (delay == Duration.zero) {
       _controller.forward();
     } else {
@@ -340,15 +346,27 @@ class _PrismStaggerInState extends State<PrismStaggerIn>
       animation: _controller,
       child: widget.child,
       builder: (context, child) {
+        final spec = PrismMotionSpec.current;
+        if (!spec.enabled || _controller.value >= 1.0) {
+          return child!;
+        }
         final v = _controller.value;
-        final lift = kPrismLift.transform(v);
-        final opacity = Curves.easeOut.transform((v / 0.72).clamp(0.0, 1.0));
-        final offset = (1 - lift) * 22.0;
+        final lift = spec.liftCurve.transform(v);
+        final opacity = Curves.easeOut.transform((v / 0.62).clamp(0.0, 1.0));
         return Opacity(
           opacity: opacity,
           child: Transform.translate(
-            offset: Offset(0, offset),
-            child: child,
+            offset: Offset(
+              (1 - lift) * spec.staggerOffsetX,
+              (1 - lift) * spec.staggerOffsetY,
+            ),
+            child: Transform.scale(
+              scale: (1.0 - spec.staggerScaleDelta) + spec.staggerScaleDelta * lift,
+              child: Transform.rotate(
+                angle: (1 - lift) * spec.staggerTilt,
+                child: child,
+              ),
+            ),
           ),
         );
       },
@@ -356,7 +374,7 @@ class _PrismStaggerInState extends State<PrismStaggerIn>
   }
 }
 
-/// 悬停高光：hover 时卡片外圈淡入鲜明的玻璃高光描边与悬浮阴影，文字保持静止锐利。
+/// 悬停高光：受全局 `appMotionIntensity` 实时驱动，滑块拖动后立即生效。
 class PrismHoverGlow extends StatefulWidget {
   const PrismHoverGlow({
     super.key,
@@ -379,45 +397,75 @@ class _PrismHoverGlowState extends State<PrismHoverGlow> {
   @override
   Widget build(BuildContext context) {
     if (!widget.enabled) return widget.child;
-    final scheme = prism.Theme.of(context).colorScheme;
-    final dark = scheme.brightness == Brightness.dark;
-    final cardShape = RoundedSuperellipseBorder(
-      borderRadius: prism.AppRadius.all(widget.radius),
-    );
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hover = true),
-      onExit: (_) => setState(() => _hover = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 240),
-        curve: kPrismSmooth,
-        decoration: ShapeDecoration(
-          shape: cardShape,
-          shadows: [
-            BoxShadow(
-              color: dark
-                  ? const Color(0xFF000000).withValues(alpha: _hover ? 0.48 : 0)
-                  : const Color(0xFF101828).withValues(alpha: _hover ? 0.15 : 0),
-              blurRadius: 32,
-              offset: const Offset(0, 12),
+    return ListenableBuilder(
+      listenable: appMotionIntensity,
+      child: widget.child,
+      builder: (context, child) {
+        final spec = PrismMotionSpec.current;
+        final activeHover = spec.enabled && _hover;
+        final scheme = prism.Theme.of(context).colorScheme;
+        final dark = scheme.brightness == Brightness.dark;
+        final cardShape = RoundedSuperellipseBorder(
+          borderRadius: prism.AppRadius.all(widget.radius),
+        );
+        // 保持子树结构恒定，避免开关动效瞬间卸载重建子组件导致拖动中断。
+        return MouseRegion(
+          onEnter: (_) => setState(() => _hover = true),
+          onExit: (_) => setState(() => _hover = false),
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.0, end: activeHover ? 1.0 : 0.0),
+            duration: spec.enabled ? spec.hoverDuration : Duration.zero,
+            curve: spec.enabled ? spec.springCurve : Curves.linear,
+            builder: (context, t, inner) => Transform.translate(
+              offset: Offset(0, -spec.hoverLiftY * t),
+              child: Transform.rotate(
+                angle: spec.hoverTilt * t,
+                child: Transform.scale(
+                  scale: 1.0 + spec.hoverScaleDelta * t,
+                  child: inner,
+                ),
+              ),
             ),
-          ],
-        ),
-        foregroundDecoration: ShapeDecoration(
-          shape: RoundedSuperellipseBorder(
-            borderRadius: prism.AppRadius.all(widget.radius),
-            side: BorderSide(
-              color: scheme.primary.withValues(alpha: _hover ? 0.42 : 0),
-              width: 1.5,
+            child: AnimatedContainer(
+              duration: spec.enabled ? spec.hoverDuration : Duration.zero,
+              curve: spec.enabled ? spec.smoothCurve : Curves.linear,
+              decoration: ShapeDecoration(
+                shape: cardShape,
+                shadows: [
+                  BoxShadow(
+                    color: dark
+                        ? const Color(0xFF000000).withValues(
+                            alpha: activeHover ? spec.hoverShadowDarkAlpha : 0,
+                          )
+                        : const Color(0xFF101828).withValues(
+                            alpha: activeHover ? spec.hoverShadowLightAlpha : 0,
+                          ),
+                    blurRadius: spec.hoverShadowBlur,
+                    offset: Offset(0, spec.hoverShadowOffsetY),
+                  ),
+                ],
+              ),
+              foregroundDecoration: ShapeDecoration(
+                shape: RoundedSuperellipseBorder(
+                  borderRadius: prism.AppRadius.all(widget.radius),
+                  side: BorderSide(
+                    color: scheme.primary.withValues(
+                      alpha: activeHover ? spec.hoverRimAlpha : 0,
+                    ),
+                    width: spec.hoverRimWidth,
+                  ),
+                ),
+              ),
+              child: child,
             ),
           ),
-        ),
-        child: widget.child,
-      ),
+        );
+      },
     );
   }
 }
 
-/// 值变化弹跳徽章：[value] 变化时明显弹簧弹跳（1.26x → 1.0x）。
+/// 值变化弹跳徽章：受全局 `appMotionIntensity` 实时驱动。
 class PrismValueBadge extends StatefulWidget {
   const PrismValueBadge({
     super.key,
@@ -438,7 +486,7 @@ class _PrismValueBadgeState extends State<PrismValueBadge>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 340),
+    duration: PrismMotionSpec.current.badgeDuration,
     value: 1,
   );
 
@@ -446,6 +494,12 @@ class _PrismValueBadgeState extends State<PrismValueBadge>
   void didUpdateWidget(covariant PrismValueBadge oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.value != widget.value) {
+      final spec = PrismMotionSpec.current;
+      if (!spec.enabled) {
+        _controller.value = 1;
+        return;
+      }
+      _controller.duration = spec.badgeDuration;
       _controller.forward(from: 0);
     }
   }
@@ -458,22 +512,30 @@ class _PrismValueBadgeState extends State<PrismValueBadge>
 
   @override
   Widget build(BuildContext context) {
+    final badge = PrismBadge(
+      label: '${widget.value} ${widget.unit}',
+      tone: widget.tone,
+    );
     return AnimatedBuilder(
-      animation: _controller,
-      child: PrismBadge(
-        label: '${widget.value} ${widget.unit}',
-        tone: widget.tone,
-      ),
+      animation: Listenable.merge([_controller, appMotionIntensity]),
+      child: badge,
       builder: (context, child) {
-        final spring = kPrismSpring.transform(_controller.value);
-        return Transform.scale(scale: 1.26 - 0.26 * spring, child: child);
+        final spec = PrismMotionSpec.current;
+        if (!spec.enabled || _controller.value >= 1.0) return child!;
+        final spring = spec.springCurve.transform(_controller.value);
+        return Transform.rotate(
+          angle: (1 - spring) * spec.badgeTilt,
+          child: Transform.scale(
+            scale: (1.0 + spec.badgeScaleDelta) - spec.badgeScaleDelta * spring,
+            child: child,
+          ),
+        );
       },
     );
   }
 }
 
-/// 页面/分区切换过渡（440ms 舒展浮入版）：
-/// 旧页在前 24%（~105ms）淡出上移 14px；新页从 16% 开始衔接浮入 26px，无缩放保文字清晰。
+/// 页面/分区切换过渡：受全局 `appMotionIntensity` 实时驱动。
 class PrismSlideThroughTransition extends StatelessWidget {
   const PrismSlideThroughTransition({
     super.key,
@@ -502,29 +564,45 @@ class PrismSlideThroughTransition extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: Listenable.merge([primary, secondary]),
+      animation: Listenable.merge([primary, secondary, appMotionIntensity]),
       child: child,
       builder: (context, child) {
+        final spec = PrismMotionSpec.current;
+        if (!spec.enabled) {
+          return secondary.value > 0 ? const SizedBox.shrink() : child!;
+        }
         if (secondary.value > 0) {
           final p = Curves.easeOutCubic
-              .transform((secondary.value / 0.24).clamp(0.0, 1.0))
+              .transform((secondary.value / 0.25).clamp(0.0, 1.0))
               .clamp(0.0, 1.0);
           return Opacity(
             opacity: 1 - p,
-            child: Transform.translate(
-              offset: Offset(0, -14 * p),
-              child: child,
+            child: Transform.rotate(
+              angle: -spec.pageExitTilt * p,
+              child: Transform.scale(
+                scale: 1 - spec.pageExitScaleDelta * p,
+                child: Transform.translate(
+                  offset: Offset(0, -spec.pageExitY * p),
+                  child: child,
+                ),
+              ),
             ),
           );
         }
         final t = ((primary.value - 0.16) / 0.84).clamp(0.0, 1.0);
-        final lift = kPrismLift.transform(t);
-        final fade = Curves.easeOut.transform((t / 0.62).clamp(0.0, 1.0));
+        final lift = spec.liftCurve.transform(t);
+        final fade = Curves.easeOut.transform((t / 0.55).clamp(0.0, 1.0));
         return Opacity(
           opacity: fade,
-          child: Transform.translate(
-            offset: Offset(0, (1 - lift) * 26.0),
-            child: child,
+          child: Transform.rotate(
+            angle: (1 - lift) * spec.pageEnterTilt,
+            child: Transform.scale(
+              scale: (1.0 - spec.pageEnterScaleDelta) + spec.pageEnterScaleDelta * lift,
+              child: Transform.translate(
+                offset: Offset(0, (1 - lift) * spec.pageEnterY),
+                child: child,
+              ),
+            ),
           ),
         );
       },
@@ -532,8 +610,7 @@ class PrismSlideThroughTransition extends StatelessWidget {
   }
 }
 
-/// 上下文栏切换过渡（380ms 弹性推拉版）：
-/// 退出前 26% 淡出左滑 10px；进入从右侧 26px 弹簧滑入。
+/// 上下文栏切换过渡：受全局 `appMotionIntensity` 实时驱动。
 class PrismBarTransition extends StatelessWidget {
   const PrismBarTransition({
     super.key,
@@ -561,9 +638,15 @@ class PrismBarTransition extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: animation,
+      animation: Listenable.merge([animation, appMotionIntensity]),
       child: child,
       builder: (context, child) {
+        final spec = PrismMotionSpec.current;
+        if (!spec.enabled) {
+          return animation.status == AnimationStatus.reverse
+              ? const SizedBox.shrink()
+              : child!;
+        }
         final v = animation.value.clamp(0.0, 1.0);
         if (animation.status == AnimationStatus.reverse) {
           final p = Curves.easeOut
@@ -571,20 +654,26 @@ class PrismBarTransition extends StatelessWidget {
               .clamp(0.0, 1.0);
           return Opacity(
             opacity: 1 - p,
-            child: Transform.translate(
-              offset: Offset(-10 * p, 0),
-              child: child,
+            child: Transform.scale(
+              scale: 1 - spec.barExitScaleDelta * p,
+              child: Transform.translate(
+                offset: Offset(-spec.barExitX * p, 0),
+                child: child,
+              ),
             ),
           );
         }
-        final t = ((v - 0.18) / 0.82).clamp(0.0, 1.0);
-        final spring = kPrismSpring.transform(t);
-        final fade = Curves.easeOut.transform((t / 0.58).clamp(0.0, 1.0));
+        final t = ((v - 0.16) / 0.84).clamp(0.0, 1.0);
+        final spring = spec.springCurve.transform(t);
+        final fade = Curves.easeOut.transform((t / 0.51).clamp(0.0, 1.0));
         return Opacity(
           opacity: fade,
-          child: Transform.translate(
-            offset: Offset((1 - spring) * 26.0, 0),
-            child: child,
+          child: Transform.scale(
+            scale: (1.0 - spec.barEnterScaleDelta) + spec.barEnterScaleDelta * spring,
+            child: Transform.translate(
+              offset: Offset((1 - spring) * spec.barEnterX, 0),
+              child: child,
+            ),
           ),
         );
       },
@@ -592,30 +681,36 @@ class PrismBarTransition extends StatelessWidget {
   }
 }
 
-/// 平滑折叠容器：按 [expanded] 展开或收起子组件（用于表单开关联动显隐，避免硬切跳变）。
+/// 平滑折叠容器：按 [expanded] 展开或收起子组件（受全局动效强度驱动）。
 class PrismCollapsible extends StatelessWidget {
   const PrismCollapsible({
     super.key,
     required this.expanded,
     required this.child,
-    this.duration = const Duration(milliseconds: 360),
+    this.duration,
     this.curve = kPrismSmooth,
     this.alignment = Alignment.topCenter,
   });
 
   final bool expanded;
   final Widget child;
-  final Duration duration;
+  final Duration? duration;
   final Curve curve;
   final AlignmentGeometry alignment;
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedSize(
-      duration: duration,
-      curve: curve,
-      alignment: alignment,
-      child: expanded ? child : const SizedBox.shrink(),
+    return ListenableBuilder(
+      listenable: appMotionIntensity,
+      builder: (context, _) {
+        final spec = PrismMotionSpec.current;
+        return AnimatedSize(
+          duration: duration ?? spec.collapsibleDuration,
+          curve: spec.enabled ? curve : Curves.linear,
+          alignment: alignment,
+          child: expanded ? child : const SizedBox.shrink(),
+        );
+      },
     );
   }
 }
@@ -662,38 +757,44 @@ class PrismSlidingRail<T> extends StatelessWidget {
     final activeIndex = rawIndex < 0 ? 0 : rawIndex;
     final pitch = itemHeight + gap;
 
-    return Stack(
-      children: [
-        AnimatedPositioned(
-          duration: const Duration(milliseconds: 380),
-          curve: kPrismSpring,
-          left: 0,
-          right: 0,
-          top: activeIndex * pitch,
-          height: itemHeight,
-          child: prism.Surface(
-            color: colors.primaryContainer,
-            shape: prism.AppShape.lg,
-            child: const SizedBox.expand(),
-          ),
-        ),
-        Column(
-          mainAxisSize: MainAxisSize.min,
+    return ListenableBuilder(
+      listenable: appMotionIntensity,
+      builder: (context, _) {
+        final spec = PrismMotionSpec.current;
+        return Stack(
           children: [
-            for (var i = 0; i < items.length; i++) ...[
-              if (i > 0) SizedBox(height: gap),
-              SizedBox(
-                height: itemHeight,
-                child: _PrismSlidingRailTile<T>(
-                  item: items[i],
-                  selected: items[i].value == selectedValue,
-                  onTap: () => onSelected(items[i].value),
-                ),
+            AnimatedPositioned(
+              duration: spec.railDuration,
+              curve: spec.springCurve,
+              left: 0,
+              right: 0,
+              top: activeIndex * pitch,
+              height: itemHeight,
+              child: prism.Surface(
+                color: colors.primaryContainer,
+                shape: prism.AppShape.lg,
+                child: const SizedBox.expand(),
               ),
-            ],
+            ),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var i = 0; i < items.length; i++) ...[
+                  if (i > 0) SizedBox(height: gap),
+                  SizedBox(
+                    height: itemHeight,
+                    child: _PrismSlidingRailTile<T>(
+                      item: items[i],
+                      selected: items[i].value == selectedValue,
+                      onTap: () => onSelected(items[i].value),
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ],
-        ),
-      ],
+        );
+      },
     );
   }
 }
@@ -731,18 +832,22 @@ class _PrismSlidingRailTileState<T> extends State<_PrismSlidingRailTile<T>> {
         ? colors.onPrimaryContainer.withValues(alpha: 0.78)
         : colors.onSurfaceVariant;
 
-    // 不做 hoverScale，防止文字重栅格化抖动；背景由外层 Stack 滑动胶囊承担。
+    final spec = PrismMotionSpec.current;
+    // 背景由外层 Stack 滑动胶囊承担；缩放/左推由全局动效强度驱动。
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: PrismHoverMotion(
-        hoverScale: 1.0,
-        pressScale: 0.965,
+        hoverScale: spec.railHoverScale,
+        pressScale: spec.railPressScale,
+        scaleByIntensity: false,
         child: prism.PressRegion(
           onTap: widget.onTap,
           shape: prism.AppShape.lg,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
+            duration: spec.enabled
+                ? const Duration(milliseconds: 160)
+                : Duration.zero,
             curve: Curves.easeOut,
             decoration: ShapeDecoration(
               color: !widget.selected && _hovered
@@ -751,10 +856,10 @@ class _PrismSlidingRailTileState<T> extends State<_PrismSlidingRailTile<T>> {
               shape: prism.AppShape.lg,
             ),
             child: AnimatedPadding(
-              duration: const Duration(milliseconds: 220),
-              curve: kPrismSpring,
+              duration: spec.railPaddingDuration,
+              curve: spec.springCurve,
               padding: EdgeInsets.fromLTRB(
-                (_hovered || widget.selected) ? 16 : 12,
+                (_hovered || widget.selected) ? 12.0 + spec.railNudgePx : 12.0,
                 8,
                 12,
                 8,
@@ -778,7 +883,9 @@ class _PrismSlidingRailTileState<T> extends State<_PrismSlidingRailTile<T>> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         AnimatedDefaultTextStyle(
-                          duration: const Duration(milliseconds: 220),
+                          duration: spec.enabled
+                              ? const Duration(milliseconds: 220)
+                              : Duration.zero,
                           curve: Curves.easeOut,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -790,7 +897,9 @@ class _PrismSlidingRailTileState<T> extends State<_PrismSlidingRailTile<T>> {
                         if (item.subtitle != null &&
                             item.subtitle!.isNotEmpty) ...[
                           AnimatedDefaultTextStyle(
-                            duration: const Duration(milliseconds: 220),
+                            duration: spec.enabled
+                                ? const Duration(milliseconds: 220)
+                                : Duration.zero,
                             curve: Curves.easeOut,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -1871,14 +1980,16 @@ class PrismHoverMotion extends StatefulWidget {
     super.key,
     required this.child,
     this.enabled = true,
-    this.hoverScale = 1.025,
-    this.pressScale = 0.97,
+    this.hoverScale = 1.056,
+    this.pressScale = 0.925,
+    this.scaleByIntensity = true,
   });
 
   final Widget child;
   final bool enabled;
   final double hoverScale;
   final double pressScale;
+  final bool scaleByIntensity;
 
   @override
   State<PrismHoverMotion> createState() => _PrismHoverMotionState();
@@ -1891,29 +2002,53 @@ class _PrismHoverMotionState extends State<PrismHoverMotion> {
   @override
   Widget build(BuildContext context) {
     if (!widget.enabled) return widget.child;
-    final scale = _pressed
-        ? widget.pressScale
-        : _hovered
-        ? widget.hoverScale
-        : 1.0;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() {
-        _hovered = false;
-        _pressed = false;
-      }),
-      child: Listener(
-        onPointerDown: (_) => setState(() => _pressed = true),
-        onPointerUp: (_) => setState(() => _pressed = false),
-        onPointerCancel: (_) => setState(() => _pressed = false),
-        child: AnimatedScale(
-          scale: scale,
-          duration: Duration(milliseconds: _pressed ? 90 : 180),
-          curve: Curves.easeOutCubic,
-          child: widget.child,
-        ),
-      ),
+    return ListenableBuilder(
+      listenable: appMotionIntensity,
+      child: widget.child,
+      builder: (context, child) {
+        final spec = PrismMotionSpec.current;
+        final effectiveHover = widget.scaleByIntensity
+            ? 1.0 + (widget.hoverScale - 1.0) * spec.hoverScaleFactor
+            : widget.hoverScale;
+        final effectivePress = widget.scaleByIntensity
+            ? (1.0 - (1.0 - widget.pressScale) * spec.pressScaleFactor)
+                  .clamp(0.75, 1.0)
+            : widget.pressScale;
+        final scale = !spec.enabled
+            ? 1.0
+            : _pressed
+            ? effectivePress
+            : _hovered
+            ? effectiveHover
+            : 1.0;
+        return MouseRegion(
+          cursor: SystemMouseCursors.click,
+          onEnter: (_) => setState(() => _hovered = true),
+          onExit: (_) => setState(() {
+            _hovered = false;
+            _pressed = false;
+          }),
+          child: Listener(
+            onPointerDown: (_) => setState(() => _pressed = true),
+            onPointerUp: (_) => setState(() => _pressed = false),
+            onPointerCancel: (_) => setState(() => _pressed = false),
+            child: AnimatedScale(
+              scale: scale,
+              duration: !spec.enabled
+                  ? Duration.zero
+                  : _pressed
+                  ? const Duration(milliseconds: 90)
+                  : spec.motionReleaseDuration,
+              curve: !spec.enabled
+                  ? Curves.linear
+                  : _pressed
+                  ? Curves.easeOutCubic
+                  : spec.springCurve,
+              child: child,
+            ),
+          ),
+        );
+      },
     );
   }
 }
