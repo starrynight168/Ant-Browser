@@ -53,6 +53,261 @@ List<Map<String, dynamic>> _parseClashNodes(String content, String prefix) {
   return nodes;
 }
 
+Map<String, dynamic>? _decodeChainProxyConfig(String config) {
+  const prefix = 'chain+socks5://';
+  if (!config.toLowerCase().startsWith(prefix)) return null;
+  try {
+    final value = jsonDecode(
+      Uri.decodeComponent(config.substring(prefix.length)),
+    );
+    if (value is! Map || value['first'] is! Map || value['second'] is! Map) {
+      return null;
+    }
+    return Map<String, dynamic>.from(value);
+  } catch (_) {
+    return null;
+  }
+}
+
+String _encodeChainProxyConfig({
+  required String localPort,
+  required Map<String, String> first,
+  required Map<String, String> second,
+}) {
+  Map<String, dynamic> hop(Map<String, String> value, String label) {
+    final server = value['server']!.trim();
+    final port = int.tryParse(value['port']!.trim()) ?? 0;
+    if (!{'http', 'socks5'}.contains(value['protocol']) ||
+        server.isEmpty ||
+        port < 1 ||
+        port > 65535) {
+      throw FormatException('$label代理协议、地址或端口无效');
+    }
+    final username = value['username']!.trim();
+    final password = value['password']!;
+    if (password.isNotEmpty && username.isEmpty) {
+      throw FormatException('$label填写密码时请同时填写账号');
+    }
+    return {
+      'protocol': value['protocol'],
+      'server': server,
+      'port': port,
+      if (username.isNotEmpty) 'username': username,
+      if (password.isNotEmpty) 'password': password,
+    };
+  }
+
+  final portText = localPort.trim();
+  final listenPort = portText.isEmpty ? 0 : (int.tryParse(portText) ?? -1);
+  if (listenPort < 0 || listenPort > 65535) {
+    throw const FormatException('本地监听端口必须在 1-65535 之间');
+  }
+  final payload = {
+    'first': hop(first, '第一层'),
+    'second': hop(second, '第二层'),
+    if (listenPort > 0) 'localPort': listenPort,
+  };
+  return 'chain+socks5://${Uri.encodeComponent(jsonEncode(payload))}';
+}
+
+List<Map<String, dynamic>> _parseProxyImport(
+  String mode,
+  String content,
+  String prefix,
+) {
+  if (mode == 'clash') return _parseClashNodes(content, prefix);
+  final raw = content.trim();
+  if (raw.isEmpty) throw const FormatException('请粘贴代理配置');
+  dynamic decoded;
+  try {
+    decoded = jsonDecode(raw);
+  } catch (_) {
+    decoded = null;
+  }
+  var fallbackGroup = '';
+  var entries = <dynamic>[];
+  if (decoded is List) {
+    entries = decoded;
+  } else if (decoded is Map) {
+    final map = Map<String, dynamic>.from(decoded);
+    fallbackGroup = (map['group'] ?? map['groupName'] ?? '').toString();
+    final source = map['proxies'] ?? map['proxy'] ?? map['items'];
+    entries = source is List ? source : [map];
+  } else {
+    entries = raw
+        .split(RegExp(r'\r?\n'))
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty && !line.startsWith('#'))
+        .toList();
+  }
+  final result = <Map<String, dynamic>>[];
+  for (final entry in entries) {
+    if (entry is String) {
+      final value = entry.trim();
+      if (mode == 'chain' ||
+          value.toLowerCase().startsWith('chain+socks5://')) {
+        if (!value.toLowerCase().startsWith('chain+socks5://')) {
+          throw const FormatException('链式代理请填写 chain+socks5:// 配置或双层 JSON');
+        }
+        result.add({'name': '链式代理 ${result.length + 1}', 'config': value});
+        continue;
+      }
+      final uri = Uri.tryParse(
+        value.replaceFirst(
+          RegExp(r'^(socket|socks)://', caseSensitive: false),
+          'socks5://',
+        ),
+      );
+      if (uri == null ||
+          !uri.hasScheme ||
+          uri.host.isEmpty ||
+          uri.port < 1 ||
+          uri.port > 65535) {
+        throw FormatException('无效的代理地址：$value');
+      }
+      final scheme =
+          uri.scheme.toLowerCase() == 'socks' ||
+              uri.scheme.toLowerCase() == 'socket'
+          ? 'socks5'
+          : uri.scheme.toLowerCase();
+      if (!{'http', 'https', 'socks5'}.contains(scheme)) {
+        throw FormatException('不支持的代理协议：${uri.scheme}');
+      }
+      final normalized = Uri(
+        scheme: scheme,
+        userInfo: uri.userInfo,
+        host: uri.host.replaceAll(RegExp(r'^\[|\]$'), ''),
+        port: uri.port,
+      ).toString();
+      result.add({
+        'name': '${scheme.toUpperCase()}-${uri.host}:${uri.port}',
+        'config': normalized,
+      });
+      continue;
+    }
+    if (entry is! Map) continue;
+    final item = Map<String, dynamic>.from(entry);
+    final name = (item['name'] ?? item['proxyName'] ?? '').toString().trim();
+    final groupName = (item['group'] ?? item['groupName'] ?? fallbackGroup)
+        .toString()
+        .trim();
+    if (mode == 'chain' || item['first'] is Map || item['second'] is Map) {
+      final first = item['first'];
+      final second = item['second'];
+      if (first is! Map || second is! Map)
+        throw const FormatException('链式代理需要填写 first 和 second');
+      Map<String, dynamic> hop(Map source, String label) {
+        final protocol = (source['protocol'] ?? 'socks5')
+            .toString()
+            .toLowerCase();
+        final server = (source['server'] ?? source['host'] ?? '')
+            .toString()
+            .trim();
+        final port = int.tryParse((source['port'] ?? '').toString()) ?? 0;
+        if (!{'http', 'socks5'}.contains(protocol) ||
+            server.isEmpty ||
+            port < 1 ||
+            port > 65535) {
+          throw FormatException('$label代理协议、地址或端口无效');
+        }
+        return {
+          'protocol': protocol,
+          'server': server,
+          'port': port,
+          if ((source['username'] ?? '').toString().isNotEmpty)
+            'username': source['username'],
+          if ((source['password'] ?? '').toString().isNotEmpty)
+            'password': source['password'],
+        };
+      }
+
+      final localPortRaw = (item['localPort'] ?? '').toString().trim();
+      final localPort = localPortRaw.isEmpty
+          ? 0
+          : (int.tryParse(localPortRaw) ?? -1);
+      if (localPort < 0 || localPort > 65535)
+        throw const FormatException('本地监听端口必须在 1-65535 之间');
+      final chain = {
+        'first': hop(first, '第一层'),
+        'second': hop(second, '第二层'),
+        if (localPort > 0) 'localPort': localPort,
+      };
+      result.add({
+        'name': name.isEmpty ? '链式代理 ${result.length + 1}' : name,
+        'groupName': groupName,
+        'config': 'chain+socks5://${Uri.encodeComponent(jsonEncode(chain))}',
+      });
+      continue;
+    }
+    final uriText =
+        (item['url'] ??
+                item['proxyUrl'] ??
+                item['proxy'] ??
+                item['proxyConfig'] ??
+                '')
+            .toString()
+            .trim();
+    if (uriText.isNotEmpty) {
+      final parsed = _parseProxyImport('direct', uriText, '').single;
+      result.add({
+        ...parsed,
+        'name': name.isEmpty ? parsed['name'] : name,
+        'groupName': groupName,
+      });
+      continue;
+    }
+    final protocolRaw = (item['protocol'] ?? item['scheme'] ?? 'http')
+        .toString()
+        .toLowerCase();
+    final protocol = protocolRaw == 'socks' || protocolRaw == 'socket'
+        ? 'socks5'
+        : protocolRaw;
+    final host = (item['server'] ?? item['host'] ?? '').toString().trim();
+    final port = int.tryParse((item['port'] ?? '').toString()) ?? 0;
+    if (!{'http', 'https', 'socks5'}.contains(protocol) ||
+        host.isEmpty ||
+        port < 1 ||
+        port > 65535) {
+      throw const FormatException('代理 JSON 需要有效 protocol、server 和 port');
+    }
+    final username = (item['username'] ?? item['user'] ?? '').toString();
+    final password = (item['password'] ?? '').toString();
+    final config = Uri(
+      scheme: protocol,
+      userInfo: username.isEmpty
+          ? ''
+          : password.isEmpty
+          ? username
+          : '$username:$password',
+      host: host.replaceAll(RegExp(r'^\[|\]$'), ''),
+      port: port,
+    ).toString();
+    result.add({
+      'name': name.isEmpty ? '${protocol.toUpperCase()}-$host:$port' : name,
+      'groupName': groupName,
+      'config': config,
+    });
+  }
+  if (result.isEmpty) throw const FormatException('没有解析到可导入的代理');
+  if (mode == 'chain' &&
+      result.any(
+        (item) => !(item['config'] as String).startsWith('chain+socks5://'),
+      )) {
+    throw const FormatException('链式模式只接受双层代理 JSON');
+  }
+  return result
+      .map(
+        (item) => {
+          ...item,
+          'name': prefix.trim().isEmpty
+              ? item['name']
+              : '${prefix.trim()}-${item['name']}',
+          'groupName': item['groupName'] ?? fallbackGroup,
+        },
+      )
+      .toList();
+}
+
 String _stableSourceId(String url, String prefix) {
   final parsed = Uri.parse(url.trim());
   final normalizedUrl = parsed.replace(fragment: '').toString();
@@ -277,50 +532,228 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
     final group = TextEditingController(
       text: (proxy?['groupName'] ?? '').toString(),
     );
+    final dns = TextEditingController(
+      text: (proxy?['dnsServers'] ?? '').toString(),
+    );
+    final chainConfig = _decodeChainProxyConfig(config.text);
+    Map<String, dynamic> chainHop(String key) => chainConfig?[key] is Map
+        ? Map<String, dynamic>.from(chainConfig![key] as Map)
+        : <String, dynamic>{};
+    final firstHop = chainHop('first');
+    final secondHop = chainHop('second');
+    final localPort = TextEditingController(
+      text: (chainConfig?['localPort'] ?? '').toString(),
+    );
+    final firstServer = TextEditingController(
+      text: (firstHop['server'] ?? '').toString(),
+    );
+    final firstPort = TextEditingController(
+      text: (firstHop['port'] ?? '').toString(),
+    );
+    final firstUsername = TextEditingController(
+      text: (firstHop['username'] ?? '').toString(),
+    );
+    final firstPassword = TextEditingController(
+      text: (firstHop['password'] ?? '').toString(),
+    );
+    final secondServer = TextEditingController(
+      text: (secondHop['server'] ?? '').toString(),
+    );
+    final secondPort = TextEditingController(
+      text: (secondHop['port'] ?? '').toString(),
+    );
+    final secondUsername = TextEditingController(
+      text: (secondHop['username'] ?? '').toString(),
+    );
+    final secondPassword = TextEditingController(
+      text: (secondHop['password'] ?? '').toString(),
+    );
+    var firstProtocol = (firstHop['protocol'] ?? 'http').toString();
+    var secondProtocol = (secondHop['protocol'] ?? 'http').toString();
+    final rawKernel = (proxy?['preferredKernel'] ?? 'auto').toString();
+    var preferredKernel = {'auto', 'xray', 'sing-box'}.contains(rawKernel)
+        ? rawKernel
+        : 'auto';
     final result = await showPrismDialog<bool>(
       context: context,
       useRootNavigator: false,
-      builder: (context) => PrismDialog(
-        title: Text(proxy == null ? '添加代理' : '编辑代理'),
-        content: SizedBox(
-          width: 480,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              PrismTextField(
-                controller: name,
-                autofocus: true,
-                decoration: const PrismInputDecoration(labelText: '代理名称'),
-              ),
-              PrismTextField(
-                controller: config,
-                decoration: const PrismInputDecoration(
-                  labelText: '代理地址',
-                  hintText: 'http://127.0.0.1:8080',
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialog) => PrismDialog(
+          title: Text(proxy == null ? '添加代理' : '编辑代理'),
+          content: SizedBox(
+            width: 480,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                PrismTextField(
+                  controller: name,
+                  autofocus: true,
+                  decoration: const PrismInputDecoration(labelText: '代理名称'),
                 ),
-              ),
-              PrismTextField(
-                controller: group,
-                decoration: const PrismInputDecoration(labelText: '分组（可选）'),
-              ),
-            ],
+                if (chainConfig == null)
+                  PrismTextField(
+                    controller: config,
+                    decoration: const PrismInputDecoration(
+                      labelText: '代理地址',
+                      hintText: 'http://127.0.0.1:8080',
+                    ),
+                  )
+                else ...[
+                  PrismTextField(
+                    controller: localPort,
+                    keyboardType: TextInputType.number,
+                    decoration: const PrismInputDecoration(
+                      labelText: '本地监听端口（可选）',
+                    ),
+                  ),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('第一层代理'),
+                  ),
+                  PrismDropdownField<String>(
+                    value: firstProtocol,
+                    decoration: const PrismInputDecoration(labelText: '第一层协议'),
+                    items: const [
+                      PrismDropdownItem(value: 'http', child: Text('HTTP')),
+                      PrismDropdownItem(value: 'socks5', child: Text('SOCKS5')),
+                    ],
+                    onChanged: (value) =>
+                        setDialog(() => firstProtocol = value ?? 'http'),
+                  ),
+                  PrismTextField(
+                    controller: firstServer,
+                    decoration: const PrismInputDecoration(labelText: '第一层地址'),
+                  ),
+                  PrismTextField(
+                    controller: firstPort,
+                    keyboardType: TextInputType.number,
+                    decoration: const PrismInputDecoration(labelText: '第一层端口'),
+                  ),
+                  PrismTextField(
+                    controller: firstUsername,
+                    decoration: const PrismInputDecoration(labelText: '第一层账号'),
+                  ),
+                  PrismTextField(
+                    controller: firstPassword,
+                    obscureText: true,
+                    decoration: const PrismInputDecoration(labelText: '第一层密码'),
+                  ),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('第二层代理'),
+                  ),
+                  PrismDropdownField<String>(
+                    value: secondProtocol,
+                    decoration: const PrismInputDecoration(labelText: '第二层协议'),
+                    items: const [
+                      PrismDropdownItem(value: 'http', child: Text('HTTP')),
+                      PrismDropdownItem(value: 'socks5', child: Text('SOCKS5')),
+                    ],
+                    onChanged: (value) =>
+                        setDialog(() => secondProtocol = value ?? 'http'),
+                  ),
+                  PrismTextField(
+                    controller: secondServer,
+                    decoration: const PrismInputDecoration(labelText: '第二层地址'),
+                  ),
+                  PrismTextField(
+                    controller: secondPort,
+                    keyboardType: TextInputType.number,
+                    decoration: const PrismInputDecoration(labelText: '第二层端口'),
+                  ),
+                  PrismTextField(
+                    controller: secondUsername,
+                    decoration: const PrismInputDecoration(labelText: '第二层账号'),
+                  ),
+                  PrismTextField(
+                    controller: secondPassword,
+                    obscureText: true,
+                    decoration: const PrismInputDecoration(labelText: '第二层密码'),
+                  ),
+                ],
+                PrismTextField(
+                  controller: group,
+                  decoration: const PrismInputDecoration(labelText: '分组（可选）'),
+                ),
+                PrismDropdownField<String>(
+                  value: preferredKernel,
+                  decoration: const PrismInputDecoration(labelText: '代理内核'),
+                  items: const [
+                    PrismDropdownItem(value: 'auto', child: Text('自动')),
+                    PrismDropdownItem(value: 'xray', child: Text('Xray')),
+                    PrismDropdownItem(
+                      value: 'sing-box',
+                      child: Text('sing-box'),
+                    ),
+                  ],
+                  onChanged: (value) =>
+                      setDialog(() => preferredKernel = value ?? 'auto'),
+                ),
+                PrismTextField(
+                  controller: dns,
+                  minLines: 3,
+                  maxLines: 6,
+                  decoration: const PrismInputDecoration(
+                    labelText: 'DNS 服务器（可选）',
+                    hintText: 'dns:\n  enable: true\n  nameserver:\n    - 119.29.29.29',
+                  ),
+                ),
+              ],
+            ),
           ),
+          actions: [
+            prism.TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('取消'),
+            ),
+            prism.FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('保存'),
+            ),
+          ],
         ),
-        actions: [
-          prism.TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          prism.FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('保存'),
-          ),
-        ],
       ),
     );
-    if (result == true &&
-        name.text.trim().isNotEmpty &&
-        config.text.trim().isNotEmpty) {
+    if (result == true && name.text.trim().isNotEmpty) {
+      String proxyConfig;
+      try {
+        proxyConfig = chainConfig == null
+            ? config.text.trim()
+            : _encodeChainProxyConfig(
+                localPort: localPort.text,
+                first: {
+                  'protocol': firstProtocol,
+                  'server': firstServer.text,
+                  'port': firstPort.text,
+                  'username': firstUsername.text,
+                  'password': firstPassword.text,
+                },
+                second: {
+                  'protocol': secondProtocol,
+                  'server': secondServer.text,
+                  'port': secondPort.text,
+                  'username': secondUsername.text,
+                  'password': secondPassword.text,
+                },
+              );
+        if (proxyConfig.isEmpty) throw const FormatException('请填写代理地址');
+      } catch (error) {
+        showPrismNotice(context, error.toString());
+        name.dispose();
+        config.dispose();
+        group.dispose();
+        dns.dispose();
+        localPort.dispose();
+        firstServer.dispose();
+        firstPort.dispose();
+        firstUsername.dispose();
+        firstPassword.dispose();
+        secondServer.dispose();
+        secondPort.dispose();
+        secondUsername.dispose();
+        secondPassword.dispose();
+        return;
+      }
       final id =
           (proxy?['proxyId'] ??
                   'proxy-${DateTime.now().millisecondsSinceEpoch}')
@@ -329,8 +762,10 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
         ...?proxy,
         'proxyId': id,
         'proxyName': name.text.trim(),
-        'proxyConfig': config.text.trim(),
+        'proxyConfig': proxyConfig,
         'groupName': group.text.trim(),
+        'preferredKernel': preferredKernel,
+        'dnsServers': dns.text.trim(),
       };
       await _save(
         proxy == null
@@ -343,6 +778,456 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
     name.dispose();
     config.dispose();
     group.dispose();
+    dns.dispose();
+    localPort.dispose();
+    firstServer.dispose();
+    firstPort.dispose();
+    firstUsername.dispose();
+    firstPassword.dispose();
+    secondServer.dispose();
+    secondPort.dispose();
+    secondUsername.dispose();
+    secondPassword.dispose();
+  }
+
+  Future<void> _importProxies() async {
+    final content = TextEditingController();
+    final prefix = TextEditingController();
+    final group = TextEditingController();
+    final dns = TextEditingController();
+    final proxyName = TextEditingController();
+    final server = TextEditingController();
+    final port = TextEditingController();
+    final username = TextEditingController();
+    final password = TextEditingController();
+    final localPort = TextEditingController();
+    final firstServer = TextEditingController();
+    final firstPort = TextEditingController();
+    final firstUsername = TextEditingController();
+    final firstPassword = TextEditingController();
+    final secondServer = TextEditingController();
+    final secondPort = TextEditingController();
+    final secondUsername = TextEditingController();
+    final secondPassword = TextEditingController();
+    var mode = 'clash';
+    var kernel = 'auto';
+    var protocol = 'http';
+    var firstProtocol = 'http';
+    var secondProtocol = 'http';
+    var candidates = <Map<String, dynamic>>[];
+    try {
+      final accepted = await showPrismDialog<bool>(
+        context: context,
+        useRootNavigator: false,
+        builder: (context) => StatefulBuilder(
+          builder: (context, setDialog) => PrismDialog(
+            title: const Text('导入代理配置'),
+            content: SizedBox(
+              width: 640,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    PrismDropdownField<String>(
+                      value: mode,
+                      decoration: const PrismInputDecoration(labelText: '导入类型'),
+                      items: const [
+                        PrismDropdownItem(
+                          value: 'clash',
+                          child: Text('Clash YAML / 节点列表'),
+                        ),
+                        PrismDropdownItem(
+                          value: 'direct',
+                          child: Text('HTTP / HTTPS / SOCKS5'),
+                        ),
+                        PrismDropdownItem(
+                          value: 'chain',
+                          child: Text('双层链式代理 JSON'),
+                        ),
+                      ],
+                      onChanged: (value) =>
+                          setDialog(() => mode = value ?? 'clash'),
+                    ),
+                    if (mode == 'direct') ...[
+                      PrismDropdownField<String>(
+                        value: protocol,
+                        decoration: const PrismInputDecoration(
+                          labelText: '代理协议',
+                        ),
+                        items: const [
+                          PrismDropdownItem(value: 'http', child: Text('HTTP')),
+                          PrismDropdownItem(
+                            value: 'https',
+                            child: Text('HTTPS'),
+                          ),
+                          PrismDropdownItem(
+                            value: 'socks5',
+                            child: Text('SOCKS5'),
+                          ),
+                        ],
+                        onChanged: (value) =>
+                            setDialog(() => protocol = value ?? 'http'),
+                      ),
+                      PrismTextField(
+                        controller: proxyName,
+                        decoration: const PrismInputDecoration(
+                          labelText: '代理名称（可选）',
+                        ),
+                      ),
+                      PrismTextField(
+                        controller: server,
+                        decoration: const PrismInputDecoration(
+                          labelText: '代理地址',
+                        ),
+                      ),
+                      PrismTextField(
+                        controller: port,
+                        keyboardType: TextInputType.number,
+                        decoration: const PrismInputDecoration(
+                          labelText: '代理端口',
+                        ),
+                      ),
+                      PrismTextField(
+                        controller: username,
+                        decoration: const PrismInputDecoration(
+                          labelText: '账号（可选）',
+                        ),
+                      ),
+                      PrismTextField(
+                        controller: password,
+                        obscureText: true,
+                        decoration: const PrismInputDecoration(
+                          labelText: '密码（可选）',
+                        ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: prism.TextButton(
+                          onPressed: () => content.text = jsonEncode({
+                            'name': proxyName.text.trim(),
+                            'group': group.text.trim(),
+                            'protocol': protocol,
+                            'server': server.text.trim(),
+                            'port': port.text.trim(),
+                            'username': username.text.trim(),
+                            'password': password.text,
+                          }),
+                          child: const Text('填入解析框'),
+                        ),
+                      ),
+                    ],
+                    if (mode == 'chain') ...[
+                      PrismTextField(
+                        controller: proxyName,
+                        decoration: const PrismInputDecoration(
+                          labelText: '代理名称（可选）',
+                        ),
+                      ),
+                      PrismTextField(
+                        controller: localPort,
+                        keyboardType: TextInputType.number,
+                        decoration: const PrismInputDecoration(
+                          labelText: '本地监听端口（可选）',
+                        ),
+                      ),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text('第一层代理'),
+                      ),
+                      PrismDropdownField<String>(
+                        value: firstProtocol,
+                        decoration: const PrismInputDecoration(
+                          labelText: '第一层协议',
+                        ),
+                        items: const [
+                          PrismDropdownItem(value: 'http', child: Text('HTTP')),
+                          PrismDropdownItem(
+                            value: 'socks5',
+                            child: Text('SOCKS5'),
+                          ),
+                        ],
+                        onChanged: (value) =>
+                            setDialog(() => firstProtocol = value ?? 'http'),
+                      ),
+                      PrismTextField(
+                        controller: firstServer,
+                        decoration: const PrismInputDecoration(
+                          labelText: '第一层代理地址',
+                        ),
+                      ),
+                      PrismTextField(
+                        controller: firstPort,
+                        keyboardType: TextInputType.number,
+                        decoration: const PrismInputDecoration(
+                          labelText: '第一层端口',
+                        ),
+                      ),
+                      PrismTextField(
+                        controller: firstUsername,
+                        decoration: const PrismInputDecoration(
+                          labelText: '第一层账号（可选）',
+                        ),
+                      ),
+                      PrismTextField(
+                        controller: firstPassword,
+                        obscureText: true,
+                        decoration: const PrismInputDecoration(
+                          labelText: '第一层密码（可选）',
+                        ),
+                      ),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text('第二层代理'),
+                      ),
+                      PrismDropdownField<String>(
+                        value: secondProtocol,
+                        decoration: const PrismInputDecoration(
+                          labelText: '第二层协议',
+                        ),
+                        items: const [
+                          PrismDropdownItem(value: 'http', child: Text('HTTP')),
+                          PrismDropdownItem(
+                            value: 'socks5',
+                            child: Text('SOCKS5'),
+                          ),
+                        ],
+                        onChanged: (value) =>
+                            setDialog(() => secondProtocol = value ?? 'http'),
+                      ),
+                      PrismTextField(
+                        controller: secondServer,
+                        decoration: const PrismInputDecoration(
+                          labelText: '第二层代理地址',
+                        ),
+                      ),
+                      PrismTextField(
+                        controller: secondPort,
+                        keyboardType: TextInputType.number,
+                        decoration: const PrismInputDecoration(
+                          labelText: '第二层端口',
+                        ),
+                      ),
+                      PrismTextField(
+                        controller: secondUsername,
+                        decoration: const PrismInputDecoration(
+                          labelText: '第二层账号（可选）',
+                        ),
+                      ),
+                      PrismTextField(
+                        controller: secondPassword,
+                        obscureText: true,
+                        decoration: const PrismInputDecoration(
+                          labelText: '第二层密码（可选）',
+                        ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: prism.TextButton(
+                          onPressed: () => content.text = jsonEncode({
+                            'name': proxyName.text.trim(),
+                            'group': group.text.trim(),
+                            'localPort': localPort.text.trim(),
+                            'first': {
+                              'protocol': firstProtocol,
+                              'server': firstServer.text.trim(),
+                              'port': firstPort.text.trim(),
+                              'username': firstUsername.text.trim(),
+                              'password': firstPassword.text,
+                            },
+                            'second': {
+                              'protocol': secondProtocol,
+                              'server': secondServer.text.trim(),
+                              'port': secondPort.text.trim(),
+                              'username': secondUsername.text.trim(),
+                              'password': secondPassword.text,
+                            },
+                          }),
+                          child: const Text('填入解析框'),
+                        ),
+                      ),
+                    ],
+                    PrismTextField(
+                      controller: content,
+                      minLines: 8,
+                      maxLines: 14,
+                      decoration: PrismInputDecoration(
+                        labelText: mode == 'clash'
+                            ? '粘贴 Clash YAML'
+                            : mode == 'direct'
+                            ? '粘贴代理 JSON 或地址，每行一个'
+                            : '粘贴双层代理 JSON',
+                        hintText: mode == 'direct'
+                            ? 'socks5://user:password@127.0.0.1:1080'
+                            : null,
+                      ),
+                    ),
+                    if (mode != 'chain')
+                      PrismTextField(
+                        controller: prefix,
+                        decoration: const PrismInputDecoration(
+                          labelText: '节点名称前缀（可选）',
+                        ),
+                      ),
+                    PrismTextField(
+                      controller: group,
+                      decoration: const PrismInputDecoration(
+                        labelText: '分组名称（可选）',
+                      ),
+                    ),
+                    PrismDropdownField<String>(
+                      value: kernel,
+                      decoration: const PrismInputDecoration(labelText: '代理内核'),
+                      items: const [
+                        PrismDropdownItem(value: 'auto', child: Text('自动')),
+                        PrismDropdownItem(value: 'xray', child: Text('Xray')),
+                        PrismDropdownItem(
+                          value: 'sing-box',
+                          child: Text('sing-box'),
+                        ),
+                      ],
+                      onChanged: (value) =>
+                          setDialog(() => kernel = value ?? 'auto'),
+                    ),
+                    PrismTextField(
+                      controller: dns,
+                      minLines: 2,
+                      maxLines: 5,
+                      decoration: const PrismInputDecoration(
+                        labelText: '批量 DNS 配置（可选）',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              prism.TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('取消'),
+              ),
+              prism.FilledButton(
+                onPressed: () {
+                  try {
+                    candidates = _parseProxyImport(
+                      mode,
+                      content.text,
+                      prefix.text,
+                    );
+                    Navigator.pop(context, true);
+                  } catch (error) {
+                    showPrismNotice(context, error.toString());
+                  }
+                },
+                child: const Text('解析并预览'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (accepted != true || !mounted) return;
+      final selected = List<bool>.filled(candidates.length, true);
+      final confirmed = await showPrismDialog<bool>(
+        context: context,
+        useRootNavigator: false,
+        builder: (context) => StatefulBuilder(
+          builder: (context, setDialog) => PrismDialog(
+            title: Text('导入预览（${candidates.length} 个）'),
+            content: SizedBox(
+              width: 560,
+              height: 420,
+              child: ListView.builder(
+                itemCount: candidates.length,
+                itemBuilder: (context, index) {
+                  final item = candidates[index];
+                  return PrismCheckboxTile(
+                    value: selected[index],
+                    title: Text((item['name'] ?? '').toString()),
+                    subtitle: Text(
+                      (item['config'] ?? '').toString(),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    onChanged: (value) =>
+                        setDialog(() => selected[index] = value ?? false),
+                  );
+                },
+              ),
+            ),
+            actions: [
+              prism.TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('取消'),
+              ),
+              prism.FilledButton(
+                onPressed: selected.any((item) => item)
+                    ? () => Navigator.pop(context, true)
+                    : null,
+                child: Text('导入 ${selected.where((item) => item).length} 个'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (confirmed != true) return;
+      final retained = candidates
+          .where((item) => selected[candidates.indexOf(item)])
+          .toList();
+      final next = [..._proxies];
+      for (var index = 0; index < retained.length; index++) {
+        final item = retained[index];
+        final name = (item['name'] ?? '').toString().trim();
+        final config = (item['config'] ?? '').toString().trim();
+        final groupName = group.text.trim().isNotEmpty
+            ? group.text.trim()
+            : (item['groupName'] ?? '').toString().trim();
+        final existingIndex = next.indexWhere(
+          (proxy) =>
+              proxy['proxyName'] == name && proxy['proxyConfig'] == config,
+        );
+        final existing = existingIndex >= 0 ? next[existingIndex] : null;
+        final row = <String, dynamic>{
+          ...?existing,
+          'proxyId':
+              existing?['proxyId'] ??
+              'proxy-${DateTime.now().microsecondsSinceEpoch}-$index',
+          'proxyName': name,
+          'proxyConfig': config,
+          'groupName': groupName,
+          'preferredKernel': existing?['preferredKernel'] ?? kernel,
+          'dnsServers': dns.text.trim().isEmpty
+              ? (existing?['dnsServers'] ?? '')
+              : dns.text.trim(),
+        };
+        if (existingIndex >= 0) {
+          next[existingIndex] = row;
+        } else {
+          next.add(row);
+        }
+      }
+      await _save(next);
+      if (mounted) showPrismNotice(context, '已导入 ${retained.length} 个代理');
+    } catch (error) {
+      if (mounted) showPrismNotice(context, error.toString());
+    } finally {
+      content.dispose();
+      prefix.dispose();
+      group.dispose();
+      dns.dispose();
+      proxyName.dispose();
+      server.dispose();
+      port.dispose();
+      username.dispose();
+      password.dispose();
+      localPort.dispose();
+      firstServer.dispose();
+      firstPort.dispose();
+      firstUsername.dispose();
+      firstPassword.dispose();
+      secondServer.dispose();
+      secondPort.dispose();
+      secondUsername.dispose();
+      secondPassword.dispose();
+    }
   }
 
   Future<void> _delete(Map<String, dynamic> proxy) async {
@@ -979,6 +1864,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
     final url = TextEditingController();
     final prefix = TextEditingController();
     final group = TextEditingController();
+    final dns = TextEditingController();
     final interval = TextEditingController(text: '30');
     var autoRefresh = false;
     var fetchProxyId = '';
@@ -1007,6 +1893,15 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                 PrismTextField(
                   controller: group,
                   decoration: const PrismInputDecoration(labelText: '代理分组（可选）'),
+                ),
+                PrismTextField(
+                  controller: dns,
+                  minLines: 2,
+                  maxLines: 5,
+                  decoration: const PrismInputDecoration(
+                    labelText: '批量 DNS 配置（可选）',
+                    hintText: 'dns:\n  enable: true\n  nameserver:\n    - 119.29.29.29',
+                  ),
                 ),
                 PrismDropdownField<String>(
                   initialValue: fetchProxyId,
@@ -1084,6 +1979,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
           url.dispose();
           prefix.dispose();
           group.dispose();
+          dns.dispose();
           interval.dispose();
           return;
         }
@@ -1132,7 +2028,9 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
             'proxyName': name,
             'proxyConfig': node['config'],
             'preferredKernel': old?['preferredKernel'] ?? 'auto',
-            'dnsServers': (fetched['dnsServers'] ?? '').toString(),
+            'dnsServers': dns.text.trim().isEmpty
+                ? (fetched['dnsServers'] ?? '').toString()
+                : dns.text.trim(),
             'groupName': group.text.trim(),
             'sourceId': sourceId,
             'sourceUrl': (fetched['url'] ?? importUrl).toString(),
@@ -1197,6 +2095,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
     url.dispose();
     prefix.dispose();
     group.dispose();
+    dns.dispose();
     interval.dispose();
   }
 
@@ -1453,6 +2352,11 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                 onPressed: _busy.isEmpty ? _importSubscription : null,
                 icon: const Icon(Icons.download_outlined),
                 label: Text(_busy == 'subscription' ? '导入中…' : '导入订阅'),
+              ),
+              prism.OutlinedButton.icon(
+                onPressed: _busy.isEmpty ? _importProxies : null,
+                icon: const Icon(Icons.content_paste_go_outlined),
+                label: const Text('导入代理'),
               ),
               prism.OutlinedButton(
                 onPressed: _showUsageGuide,
