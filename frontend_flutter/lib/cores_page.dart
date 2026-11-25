@@ -1258,11 +1258,56 @@ class _CoresPageState extends State<CoresPage> {
                         context,
                         valid ? PrismTone.success : PrismTone.danger,
                       );
-                      return PrismCard(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 17,
-                          vertical: 14,
-                        ),
+                      // 右键/长按弹出 iOS 风格上下文菜单（对标 Web PoC）。
+                      return prism.ContextMenuRegion(
+                        menuItems: [
+                          prism.PopupMenuItem(
+                            label: '设为默认内核',
+                            glyph: AntGlyphs.check,
+                            onPressed: isDefault || _busy
+                                ? null
+                                : () => _setDefault('${core['coreId'] ?? ''}'),
+                          ),
+                          prism.PopupMenuItem(
+                            label: '编辑',
+                            glyph: AntGlyphs.edit,
+                            onPressed: _busy ? null : () => _edit(core),
+                          ),
+                          prism.PopupMenuItem(
+                            label: '重新下载',
+                            glyph: AntGlyphs.download,
+                            onPressed: _busy
+                                ? null
+                                : () => _openDownloadModal(
+                                    redownloadCore: core,
+                                  ),
+                          ),
+                          prism.PopupMenuItem(
+                            label: '打开所在位置',
+                            glyph: AntGlyphs.folder,
+                            onPressed: () async {
+                              try {
+                                await AppBridge.call('OpenCorePath', [
+                                  '${core['corePath'] ?? ''}',
+                                ]);
+                              } catch (error) {
+                                _message('$error');
+                              }
+                            },
+                          ),
+                          if (_coreDeleteReason(core) == null)
+                            prism.PopupMenuItem(
+                              label: '删除',
+                              glyph: AntGlyphs.delete,
+                              danger: true,
+                              onPressed: _busy ? null : () => _delete(core),
+                            ),
+                        ],
+                        child: PrismCard(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 17,
+                            vertical: 14,
+                          ),
                         child: Row(
                           children: [
                             prism.Surface(
@@ -1399,6 +1444,7 @@ class _CoresPageState extends State<CoresPage> {
                               ),
                             ),
                           ],
+                        ),
                         ),
                       );
                     },

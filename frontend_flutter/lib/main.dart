@@ -444,14 +444,8 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
                       ),
                       Expanded(
                         child: prism.PageTransitionSwitcher(
-                          duration: const Duration(milliseconds: 240),
-                          transitionBuilder:
-                              (child, animation, secondaryAnimation) =>
-                                  prism.FadeThroughTransition(
-                                    animation: animation,
-                                    secondaryAnimation: secondaryAnimation,
-                                    child: child,
-                                  ),
+                          duration: const Duration(milliseconds: 440),
+                          transitionBuilder: PrismSlideThroughTransition.builder,
                           child: KeyedSubtree(
                             key: ValueKey(_activePath),
                             child:
@@ -699,9 +693,15 @@ class _PageHeader extends StatelessWidget {
         children: [
           Expanded(
             child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 220),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
+              duration: const Duration(milliseconds: 380),
+              transitionBuilder: PrismBarTransition.switcherBuilder,
+              layoutBuilder: (currentChild, previousChildren) => Stack(
+                alignment: Alignment.centerLeft,
+                children: [
+                  ...previousChildren,
+                  if (currentChild != null) currentChild,
+                ],
+              ),
               child: Align(
                 alignment: Alignment.centerLeft,
                 key: ValueKey(title),

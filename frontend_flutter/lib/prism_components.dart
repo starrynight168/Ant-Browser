@@ -116,8 +116,8 @@ class PrismBadge extends StatelessWidget {
     );
     if (onPressed == null) return content;
     return PrismHoverMotion(
-      hoverScale: 1.03,
-      pressScale: 0.96,
+      hoverScale: 1.04,
+      pressScale: 0.95,
       child: prism.PressRegion(
         onTap: onPressed,
         shape: prism.AppShape.full,
@@ -217,54 +217,610 @@ class PrismPageContextBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = prism.Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Row(
-        children: [
-          prism.Surface(
+    return PrismStaggerIn(
+      index: 0,
+      initialDelay: const Duration(milliseconds: 30),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: Row(
+          children: [
+            prism.Surface(
+              color: colors.primaryContainer,
+              shape: prism.AppShape.md,
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: prism_icons.GlyphIcon(
+                  glyph,
+                  size: 20,
+                  color: colors.onPrimaryContainer,
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: prism.AppTextStyle.title3.of(context, emphasized: true),
+                  ),
+                  Text(
+                    subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: prism.AppTextStyle.footnote
+                        .of(context)
+                        .copyWith(color: colors.onSurfaceVariant),
+                  ),
+                ],
+              ),
+            ),
+            if (actions.isNotEmpty) ...[
+              const SizedBox(width: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: actions,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// iOS 弹簧曲线：明显的 38% 过冲回弹，用于分类胶囊、顶栏滑入、数值徽章、色板勾选。
+const Cubic kPrismSpring = Cubic(0.28, 1.38, 0.42, 1.0);
+
+/// iOS 临界阻尼平滑曲线：零过冲减速，用于高度展开与阴影渐变。
+const Cubic kPrismSmooth = Cubic(0.22, 1.0, 0.36, 1.0);
+
+/// 轻盈浮起曲线：12% 柔和过冲落位，用于整页/卡片纵向位移（无缩放，文字保持锐利）。
+const Cubic kPrismLift = Cubic(0.20, 1.12, 0.32, 1.0);
+
+/// 进场 stagger：按 [index] 延迟依次淡入 + 明显上浮（460ms，55ms 步进，无缩放）。
+class PrismStaggerIn extends StatefulWidget {
+  const PrismStaggerIn({
+    super.key,
+    required this.child,
+    this.index = 0,
+    this.initialDelay = Duration.zero,
+    this.enabled = true,
+  });
+
+  final Widget child;
+  final int index;
+  final Duration initialDelay;
+  final bool enabled;
+
+  @override
+  State<PrismStaggerIn> createState() => _PrismStaggerInState();
+}
+
+class _PrismStaggerInState extends State<PrismStaggerIn>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 460),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (!widget.enabled) {
+      _controller.value = 1;
+      return;
+    }
+    // 前 4 张卡按 0 / 55 / 110 / 165ms 阶梯进场。
+    final delay =
+        widget.initialDelay + Duration(milliseconds: widget.index.clamp(0, 3) * 55);
+    if (delay == Duration.zero) {
+      _controller.forward();
+    } else {
+      Future<void>.delayed(delay, () {
+        if (mounted) _controller.forward();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      child: widget.child,
+      builder: (context, child) {
+        final v = _controller.value;
+        final lift = kPrismLift.transform(v);
+        final opacity = Curves.easeOut.transform((v / 0.72).clamp(0.0, 1.0));
+        final offset = (1 - lift) * 22.0;
+        return Opacity(
+          opacity: opacity,
+          child: Transform.translate(
+            offset: Offset(0, offset),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// 悬停高光：hover 时卡片外圈淡入鲜明的玻璃高光描边与悬浮阴影，文字保持静止锐利。
+class PrismHoverGlow extends StatefulWidget {
+  const PrismHoverGlow({
+    super.key,
+    required this.child,
+    this.radius = 18,
+    this.enabled = true,
+  });
+
+  final Widget child;
+  final double radius;
+  final bool enabled;
+
+  @override
+  State<PrismHoverGlow> createState() => _PrismHoverGlowState();
+}
+
+class _PrismHoverGlowState extends State<PrismHoverGlow> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.enabled) return widget.child;
+    final scheme = prism.Theme.of(context).colorScheme;
+    final dark = scheme.brightness == Brightness.dark;
+    final cardShape = RoundedSuperellipseBorder(
+      borderRadius: prism.AppRadius.all(widget.radius),
+    );
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 240),
+        curve: kPrismSmooth,
+        decoration: ShapeDecoration(
+          shape: cardShape,
+          shadows: [
+            BoxShadow(
+              color: dark
+                  ? const Color(0xFF000000).withValues(alpha: _hover ? 0.48 : 0)
+                  : const Color(0xFF101828).withValues(alpha: _hover ? 0.15 : 0),
+              blurRadius: 32,
+              offset: const Offset(0, 12),
+            ),
+          ],
+        ),
+        foregroundDecoration: ShapeDecoration(
+          shape: RoundedSuperellipseBorder(
+            borderRadius: prism.AppRadius.all(widget.radius),
+            side: BorderSide(
+              color: scheme.primary.withValues(alpha: _hover ? 0.42 : 0),
+              width: 1.5,
+            ),
+          ),
+        ),
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+/// 值变化弹跳徽章：[value] 变化时明显弹簧弹跳（1.26x → 1.0x）。
+class PrismValueBadge extends StatefulWidget {
+  const PrismValueBadge({
+    super.key,
+    required this.value,
+    required this.unit,
+    this.tone = PrismTone.primary,
+  });
+
+  final Object value;
+  final String unit;
+  final PrismTone tone;
+
+  @override
+  State<PrismValueBadge> createState() => _PrismValueBadgeState();
+}
+
+class _PrismValueBadgeState extends State<PrismValueBadge>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 340),
+    value: 1,
+  );
+
+  @override
+  void didUpdateWidget(covariant PrismValueBadge oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.value != widget.value) {
+      _controller.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      child: PrismBadge(
+        label: '${widget.value} ${widget.unit}',
+        tone: widget.tone,
+      ),
+      builder: (context, child) {
+        final spring = kPrismSpring.transform(_controller.value);
+        return Transform.scale(scale: 1.26 - 0.26 * spring, child: child);
+      },
+    );
+  }
+}
+
+/// 页面/分区切换过渡（440ms 舒展浮入版）：
+/// 旧页在前 24%（~105ms）淡出上移 14px；新页从 16% 开始衔接浮入 26px，无缩放保文字清晰。
+class PrismSlideThroughTransition extends StatelessWidget {
+  const PrismSlideThroughTransition({
+    super.key,
+    required this.primary,
+    required this.secondary,
+    required this.child,
+  });
+
+  final Animation<double> primary;
+  final Animation<double> secondary;
+  final Widget child;
+
+  /// PageTransitionSwitcher.transitionBuilder 直接可用。
+  static Widget builder(
+    Widget child,
+    Animation<double> primary,
+    Animation<double> secondary,
+  ) {
+    return PrismSlideThroughTransition(
+      primary: primary,
+      secondary: secondary,
+      child: child,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([primary, secondary]),
+      child: child,
+      builder: (context, child) {
+        if (secondary.value > 0) {
+          final p = Curves.easeOutCubic
+              .transform((secondary.value / 0.24).clamp(0.0, 1.0))
+              .clamp(0.0, 1.0);
+          return Opacity(
+            opacity: 1 - p,
+            child: Transform.translate(
+              offset: Offset(0, -14 * p),
+              child: child,
+            ),
+          );
+        }
+        final t = ((primary.value - 0.16) / 0.84).clamp(0.0, 1.0);
+        final lift = kPrismLift.transform(t);
+        final fade = Curves.easeOut.transform((t / 0.62).clamp(0.0, 1.0));
+        return Opacity(
+          opacity: fade,
+          child: Transform.translate(
+            offset: Offset(0, (1 - lift) * 26.0),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// 上下文栏切换过渡（380ms 弹性推拉版）：
+/// 退出前 26% 淡出左滑 10px；进入从右侧 26px 弹簧滑入。
+class PrismBarTransition extends StatelessWidget {
+  const PrismBarTransition({
+    super.key,
+    required this.animation,
+    required this.child,
+  });
+
+  final Animation<double> animation;
+  final Widget child;
+
+  /// PageTransitionSwitcher.transitionBuilder 直接可用。
+  static Widget builder(
+    Widget child,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+  ) {
+    return PrismBarTransition(animation: animation, child: child);
+  }
+
+  /// AnimatedSwitcher.transitionBuilder（两参签名）直接可用。
+  static Widget switcherBuilder(Widget child, Animation<double> animation) {
+    return PrismBarTransition(animation: animation, child: child);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: animation,
+      child: child,
+      builder: (context, child) {
+        final v = animation.value.clamp(0.0, 1.0);
+        if (animation.status == AnimationStatus.reverse) {
+          final p = Curves.easeOut
+              .transform(((1 - v) / 0.26).clamp(0.0, 1.0))
+              .clamp(0.0, 1.0);
+          return Opacity(
+            opacity: 1 - p,
+            child: Transform.translate(
+              offset: Offset(-10 * p, 0),
+              child: child,
+            ),
+          );
+        }
+        final t = ((v - 0.18) / 0.82).clamp(0.0, 1.0);
+        final spring = kPrismSpring.transform(t);
+        final fade = Curves.easeOut.transform((t / 0.58).clamp(0.0, 1.0));
+        return Opacity(
+          opacity: fade,
+          child: Transform.translate(
+            offset: Offset((1 - spring) * 26.0, 0),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// 平滑折叠容器：按 [expanded] 展开或收起子组件（用于表单开关联动显隐，避免硬切跳变）。
+class PrismCollapsible extends StatelessWidget {
+  const PrismCollapsible({
+    super.key,
+    required this.expanded,
+    required this.child,
+    this.duration = const Duration(milliseconds: 360),
+    this.curve = kPrismSmooth,
+    this.alignment = Alignment.topCenter,
+  });
+
+  final bool expanded;
+  final Widget child;
+  final Duration duration;
+  final Curve curve;
+  final AlignmentGeometry alignment;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSize(
+      duration: duration,
+      curve: curve,
+      alignment: alignment,
+      child: expanded ? child : const SizedBox.shrink(),
+    );
+  }
+}
+
+/// 滑动胶囊导航栏的数据项定义。
+class PrismSlidingRailItem<T> {
+  const PrismSlidingRailItem({
+    required this.value,
+    required this.title,
+    this.subtitle,
+    this.glyph,
+    this.statusTone,
+  });
+
+  final T value;
+  final String title;
+  final String? subtitle;
+  final prism_icons.Glyph? glyph;
+  final PrismTone? statusTone;
+}
+
+/// 滑动弹簧胶囊导航栏：选中项背景以弹簧轨迹在列表项间无缝滑动，悬停/选中附带轻推与颜色渐变。
+class PrismSlidingRail<T> extends StatelessWidget {
+  const PrismSlidingRail({
+    super.key,
+    required this.items,
+    required this.selectedValue,
+    required this.onSelected,
+    this.itemHeight = 54.0,
+    this.gap = 4.0,
+  });
+
+  final List<PrismSlidingRailItem<T>> items;
+  final T selectedValue;
+  final ValueChanged<T> onSelected;
+  final double itemHeight;
+  final double gap;
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) return const SizedBox.shrink();
+    final colors = prism.Theme.of(context).colorScheme;
+    final rawIndex = items.indexWhere((item) => item.value == selectedValue);
+    final activeIndex = rawIndex < 0 ? 0 : rawIndex;
+    final pitch = itemHeight + gap;
+
+    return Stack(
+      children: [
+        AnimatedPositioned(
+          duration: const Duration(milliseconds: 380),
+          curve: kPrismSpring,
+          left: 0,
+          right: 0,
+          top: activeIndex * pitch,
+          height: itemHeight,
+          child: prism.Surface(
             color: colors.primaryContainer,
-            shape: prism.AppShape.md,
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: prism_icons.GlyphIcon(
-                glyph,
-                size: 20,
-                color: colors.onPrimaryContainer,
+            shape: prism.AppShape.lg,
+            child: const SizedBox.expand(),
+          ),
+        ),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (var i = 0; i < items.length; i++) ...[
+              if (i > 0) SizedBox(height: gap),
+              SizedBox(
+                height: itemHeight,
+                child: _PrismSlidingRailTile<T>(
+                  item: items[i],
+                  selected: items[i].value == selectedValue,
+                  onTap: () => onSelected(items[i].value),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _PrismSlidingRailTile<T> extends StatefulWidget {
+  const _PrismSlidingRailTile({
+    required this.item,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final PrismSlidingRailItem<T> item;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  State<_PrismSlidingRailTile<T>> createState() =>
+      _PrismSlidingRailTileState<T>();
+}
+
+class _PrismSlidingRailTileState<T> extends State<_PrismSlidingRailTile<T>> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
+    final item = widget.item;
+    final dotColor = item.statusTone == null
+        ? null
+        : PrismToneColors.of(context, item.statusTone!).fg;
+    final titleColor = widget.selected
+        ? colors.onPrimaryContainer
+        : colors.onSurface;
+    final subtitleColor = widget.selected
+        ? colors.onPrimaryContainer.withValues(alpha: 0.78)
+        : colors.onSurfaceVariant;
+
+    // 不做 hoverScale，防止文字重栅格化抖动；背景由外层 Stack 滑动胶囊承担。
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: PrismHoverMotion(
+        hoverScale: 1.0,
+        pressScale: 0.965,
+        child: prism.PressRegion(
+          onTap: widget.onTap,
+          shape: prism.AppShape.lg,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            curve: Curves.easeOut,
+            decoration: ShapeDecoration(
+              color: !widget.selected && _hovered
+                  ? colors.onSurface.withValues(alpha: 0.05)
+                  : const Color(0x00000000),
+              shape: prism.AppShape.lg,
+            ),
+            child: AnimatedPadding(
+              duration: const Duration(milliseconds: 220),
+              curve: kPrismSpring,
+              padding: EdgeInsets.fromLTRB(
+                (_hovered || widget.selected) ? 16 : 12,
+                8,
+                12,
+                8,
+              ),
+              child: Row(
+                children: [
+                  if (item.glyph != null) ...[
+                    PrismGlyph(
+                      item.glyph!,
+                      size: 18,
+                      color: widget.selected
+                          ? colors.onPrimaryContainer
+                          : colors.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 10),
+                  ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AnimatedDefaultTextStyle(
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeOut,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: prism.AppTextStyle.subheadline
+                              .of(context, emphasized: widget.selected)
+                              .copyWith(color: titleColor),
+                          child: Text(item.title),
+                        ),
+                        if (item.subtitle != null &&
+                            item.subtitle!.isNotEmpty) ...[
+                          AnimatedDefaultTextStyle(
+                            duration: const Duration(milliseconds: 220),
+                            curve: Curves.easeOut,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: prism.AppTextStyle.caption2
+                                .of(context)
+                                .copyWith(color: subtitleColor),
+                            child: Text(item.subtitle!),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  if (dotColor != null) ...[
+                    const SizedBox(width: 6),
+                    SizedBox(
+                      width: 7,
+                      height: 7,
+                      child: DecoratedBox(
+                        decoration: ShapeDecoration(
+                          color: dotColor,
+                          shape: const CircleBorder(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: prism.AppTextStyle.title3.of(context, emphasized: true),
-                ),
-                Text(
-                  subtitle,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: prism.AppTextStyle.footnote
-                      .of(context)
-                      .copyWith(color: colors.onSurfaceVariant),
-                ),
-              ],
-            ),
-          ),
-          if (actions.isNotEmpty) ...[
-            const SizedBox(width: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: actions,
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
@@ -280,6 +836,8 @@ class PrismSectionCard extends StatelessWidget {
     this.padding = const EdgeInsets.all(16),
     this.margin = EdgeInsets.zero,
     this.radius = prism.AppCorner.xl,
+    this.staggerIndex = 0,
+    this.staggerDelay = Duration.zero,
   });
 
   final String? title;
@@ -289,30 +847,40 @@ class PrismSectionCard extends StatelessWidget {
   final EdgeInsets padding;
   final EdgeInsetsGeometry margin;
   final double radius;
+  final int staggerIndex;
+  final Duration staggerDelay;
 
   @override
   Widget build(BuildContext context) {
     return RepaintBoundary(
       child: Padding(
         padding: margin,
-        child: prism.Card(
-          radius: radius,
-          inert: true,
-          padding: EdgeInsets.zero,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (title != null && title!.isNotEmpty) ...[
-                prism.InfoHeader(
-                  info: prism.Info(label: title!, glyph: glyph),
-                  actions: actions,
-                  padding: const EdgeInsets.fromLTRB(16, 14, 14, 10),
-                ),
-                const prism.Divider(height: 1),
-              ],
-              Padding(padding: padding, child: child),
-            ],
+        // 悬停高光描边 + 进场 stagger（文字完全静止，不随卡片位移）。
+        child: PrismStaggerIn(
+          index: staggerIndex,
+          initialDelay: staggerDelay,
+          child: PrismHoverGlow(
+            radius: radius,
+            child: prism.Card(
+              radius: radius,
+              inert: true,
+              padding: EdgeInsets.zero,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (title != null && title!.isNotEmpty) ...[
+                    prism.InfoHeader(
+                      info: prism.Info(label: title!, glyph: glyph),
+                      actions: actions,
+                      padding: const EdgeInsets.fromLTRB(16, 14, 14, 10),
+                    ),
+                    const prism.Divider(height: 1),
+                  ],
+                  Padding(padding: padding, child: child),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -342,63 +910,66 @@ class PrismMetricTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = prism.Theme.of(context).colorScheme;
     final palette = PrismToneColors.of(context, tone);
-    final card = prism.Card(
+    final card = PrismHoverGlow(
       radius: prism.AppCorner.lg,
-      onPressed: onPressed,
-      inert: onPressed == null,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (glyph != null) ...[
-            prism.Surface(
-              color: palette.bg,
-              shape: prism.AppShape.md,
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: prism_icons.GlyphIcon(
-                  glyph!,
-                  size: 18,
-                  color: palette.fg,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-          ],
-          Flexible(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  label,
-                  style: prism.AppTextStyle.caption1
-                      .of(context)
-                      .copyWith(color: colors.onSurfaceVariant),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: prism.AppTextStyle.title3.of(
-                    context,
-                    emphasized: true,
+      child: prism.Card(
+        radius: prism.AppCorner.lg,
+        onPressed: onPressed,
+        inert: onPressed == null,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (glyph != null) ...[
+              prism.Surface(
+                color: palette.bg,
+                shape: prism.AppShape.md,
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: prism_icons.GlyphIcon(
+                    glyph!,
+                    size: 18,
+                    color: palette.fg,
                   ),
                 ),
-                if (subtitle != null && subtitle!.isNotEmpty) ...[
-                  const SizedBox(height: 2),
+              ),
+              const SizedBox(width: 12),
+            ],
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Text(
-                    subtitle!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: prism.AppTextStyle.caption2
+                    label,
+                    style: prism.AppTextStyle.caption1
                         .of(context)
                         .copyWith(color: colors.onSurfaceVariant),
                   ),
+                  const SizedBox(height: 2),
+                  Text(
+                    value,
+                    style: prism.AppTextStyle.title3.of(
+                      context,
+                      emphasized: true,
+                    ),
+                  ),
+                  if (subtitle != null && subtitle!.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: prism.AppTextStyle.caption2
+                          .of(context)
+                          .copyWith(color: colors.onSurfaceVariant),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
     if (onPressed == null) return card;
@@ -1471,6 +2042,7 @@ class PrismCard extends StatelessWidget {
     this.onPressed,
     this.shape,
     this.clipBehavior = Clip.none,
+    this.hoverGlow = true,
   });
 
   final Widget child;
@@ -1480,18 +2052,24 @@ class PrismCard extends StatelessWidget {
   final VoidCallback? onPressed;
   final ShapeBorder? shape;
   final Clip clipBehavior;
+  final bool hoverGlow;
 
   @override
   Widget build(BuildContext context) {
+    final effectiveRadius = radius ?? prism.AppCorner.xl;
     final card = Padding(
       padding: margin,
-      child: prism.Card(
-        radius: radius ?? prism.AppCorner.xl,
-        shape: shape is OutlinedBorder ? shape as OutlinedBorder : null,
-        padding: padding,
-        onPressed: onPressed,
-        inert: onPressed == null,
-        child: child,
+      child: PrismHoverGlow(
+        radius: effectiveRadius,
+        enabled: hoverGlow,
+        child: prism.Card(
+          radius: effectiveRadius,
+          shape: shape is OutlinedBorder ? shape as OutlinedBorder : null,
+          padding: padding,
+          onPressed: onPressed,
+          inert: onPressed == null,
+          child: child,
+        ),
       ),
     );
     if (clipBehavior == Clip.none || shape == null) return card;

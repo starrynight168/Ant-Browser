@@ -1,10 +1,7 @@
-import 'dart:async';
 import 'dart:math';
-import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:prism_ui/scroll.dart';
 import 'package:prism_ui/theme_data.dart';
@@ -64,31 +61,21 @@ class BaseScrollBehavior extends ScrollBehavior {
     ScrollableDetails details,
   ) {
     final platform = getPlatform(context);
-    ScrollPosition? position;
-    if (context is StatefulElement && context.state is ScrollableState) {
-      position = (context.state as ScrollableState).position;
-    }
-    final wrapped =
-        axisDirectionToAxis(details.direction) == Axis.vertical &&
-            !isTouchPlatform(platform) &&
-            position != null
-        ? _SmoothWheelScroll(position: position, child: child)
-        : child;
     return switch (platform) {
       TargetPlatform.android => StretchingOverscrollIndicator(
         axisDirection: details.direction,
         clipBehavior: details.decorationClipBehavior ?? Clip.hardEdge,
-        child: wrapped,
+        child: child,
       ),
       TargetPlatform.fuchsia => GlowingOverscrollIndicator(
         axisDirection: details.direction,
         color: Theme.of(context).colorScheme.secondary,
-        child: wrapped,
+        child: child,
       ),
       TargetPlatform.iOS ||
       TargetPlatform.linux ||
       TargetPlatform.macOS ||
-      TargetPlatform.windows => wrapped,
+      TargetPlatform.windows => child,
     };
   }
 
@@ -98,173 +85,6 @@ class BaseScrollBehavior extends ScrollBehavior {
   }
 }
 
-class _SmoothWheelScroll extends StatefulWidget {
-  const _SmoothWheelScroll({required this.position, required this.child});
-
-  final ScrollPosition position;
-  final Widget child;
-
-  @override
-  State<_SmoothWheelScroll> createState() => _SmoothWheelScrollState();
-}
-
-class _SmoothWheelScrollState extends State<_SmoothWheelScroll>
-    with SingleTickerProviderStateMixin {
-  static const double _damping = 14.0;
-
-  late final Ticker _ticker;
-  double _target = 0.0;
-  double _lastApplied = 0.0;
-  Duration _lastElapsed = Duration.zero;
-  bool _pendingMicrotask = false;
-  double _visualBefore = 0.0;
-
-  @override
-  void initState() {
-    super.initState();
-    _ticker = createTicker(_onTick);
-  }
-
-  @override
-  void didUpdateWidget(covariant _SmoothWheelScroll oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.position != widget.position) {
-      _stop();
-    }
-  }
-
-  @override
-  void dispose() {
-    _ticker.dispose();
-    super.dispose();
-  }
-
-  void _stop() {
-    if (_ticker.isActive) {
-      _ticker.stop();
-    }
-    _lastElapsed = Duration.zero;
-  }
-
-  void _handlePointerSignal(PointerSignalEvent event) {
-    if (event is! PointerScrollEvent) return;
-    if (event.kind != PointerDeviceKind.mouse) return;
-    if (event.scrollDelta.dy == 0) return;
-    final position = widget.position;
-    if (!position.hasPixels) return;
-    if (position.maxScrollExtent <= position.minScrollExtent) return;
-
-    if (!_pendingMicrotask) {
-      _pendingMicrotask = true;
-      _visualBefore = position.pixels;
-      scheduleMicrotask(_consumeResolvedScroll);
-    }
-  }
-
-  void _consumeResolvedScroll() {
-    _pendingMicrotask = false;
-    if (!mounted) return;
-    final position = widget.position;
-    if (!position.hasPixels) return;
-
-    final after = position.pixels;
-    final actualDelta = after - _visualBefore;
-    // Ignore if an inner nested scrollable handled the event or already at edge.
-    if (actualDelta.abs() < 0.01) return;
-
-    // Silently revert Scrollable's synchronous jump before layout/paint.
-    position.correctPixels(_visualBefore);
-
-    final dpr = View.maybeOf(context)?.devicePixelRatio ?? 1.0;
-    final reversing =
-        _ticker.isActive && ((_target - _visualBefore) * actualDelta < 0);
-    final base = (_ticker.isActive && !reversing) ? _target : _visualBefore;
-    final rawTarget = base + actualDelta;
-    final snappedTarget = (rawTarget * dpr).roundToDouble() / dpr;
-    _target = snappedTarget.clamp(
-      position.minScrollExtent,
-      position.maxScrollExtent,
-    );
-    _lastApplied = _visualBefore;
-
-    if (!_ticker.isActive) {
-      _lastElapsed = Duration.zero;
-      _ticker.start();
-    }
-  }
-
-  void _onTick(Duration elapsed) {
-    if (!mounted) {
-      _stop();
-      return;
-    }
-    final position = widget.position;
-    if (!position.hasPixels) {
-      _stop();
-      return;
-    }
-
-    final current = position.pixels;
-    // Yield immediately if user drags scrollbar or something else jumps position.
-    if ((current - _lastApplied).abs() > 1.0) {
-      _stop();
-      return;
-    }
-
-    final double dt;
-    if (_lastElapsed == Duration.zero) {
-      dt = 1.0 / 60.0;
-    } else {
-      dt = ((elapsed - _lastElapsed).inMicroseconds / 1000000.0).clamp(
-        0.001,
-        0.05,
-      );
-    }
-    _lastElapsed = elapsed;
-
-    final dpr = View.maybeOf(context)?.devicePixelRatio ?? 1.0;
-    final onePhysicalPx = 1.0 / dpr;
-
-    _target = _target.clamp(position.minScrollExtent, position.maxScrollExtent);
-    final remaining = _target - current;
-    if (remaining.abs() <= onePhysicalPx * 1.5) {
-      _lastApplied = _target;
-      position.jumpTo(_target);
-      _stop();
-      return;
-    }
-
-    final factor = 1.0 - exp(-_damping * dt);
-    var step = remaining * factor;
-    if (step.abs() < onePhysicalPx) {
-      step = remaining.sign * onePhysicalPx;
-    }
-    final rawNext = current + step;
-    final snappedNext = ((rawNext * dpr).roundToDouble() / dpr).clamp(
-      position.minScrollExtent,
-      position.maxScrollExtent,
-    );
-    // Guarantee forward progress toward _target without stalling or overshooting.
-    final next =
-        ((snappedNext - current) * remaining <= 0 ||
-            (snappedNext - _target) * remaining > 0)
-        ? _target
-        : snappedNext;
-    _lastApplied = next;
-    position.jumpTo(next);
-    if ((_target - next).abs() <= onePhysicalPx * 0.5) {
-      _stop();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Listener(
-      onPointerSignal: _handlePointerSignal,
-      child: widget.child,
-    );
-  }
-}
 
 class HiddenBarScrollBehavior extends BaseScrollBehavior {
   const HiddenBarScrollBehavior();

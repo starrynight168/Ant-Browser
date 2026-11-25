@@ -184,20 +184,9 @@ class _DocsPageState extends State<DocsPage> {
           child: ColoredBox(color: colors.outlineVariant),
         ),
         Expanded(
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 220),
-            switchInCurve: Curves.easeOutCubic,
-            switchOutCurve: Curves.easeInCubic,
-            transitionBuilder: (child, animation) => FadeTransition(
-              opacity: animation,
-              child: SlideTransition(
-                position: Tween(
-                  begin: const Offset(0, .012),
-                  end: Offset.zero,
-                ).animate(animation),
-                child: child,
-              ),
-            ),
+          child: prism.PageTransitionSwitcher(
+            duration: const Duration(milliseconds: 440),
+            transitionBuilder: PrismSlideThroughTransition.builder,
             child: ListView(
               key: ValueKey(_selected),
               padding: const EdgeInsets.fromLTRB(30, 24, 30, 36),

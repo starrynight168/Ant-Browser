@@ -1950,7 +1950,16 @@ class _BackupPageState extends State<BackupPage>
             ],
           ),
           const SizedBox(height: 10),
-          Expanded(child: _buildHistoryBody()),
+          Expanded(
+            child: prism.PageTransitionSwitcher(
+              duration: const Duration(milliseconds: 440),
+              transitionBuilder: PrismSlideThroughTransition.builder,
+              child: KeyedSubtree(
+                key: ValueKey(_historyTab),
+                child: _buildHistoryBody(),
+              ),
+            ),
+          ),
         ],
       ),
     );
