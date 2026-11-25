@@ -57,12 +57,13 @@ class _NotificationsPageState extends State<NotificationsPage> {
     if (confirmed == true) widget.store.clear();
   }
 
-  String _sourceLabel(dynamic rawSource) => switch ('${rawSource ?? 'system'}') {
-    'operation' => '操作',
-    'runtime' => '运行状态',
-    'frontend' => '前端',
-    _ => '系统',
-  };
+  String _sourceLabel(dynamic rawSource) =>
+      switch ('${rawSource ?? 'system'}') {
+        'operation' => '操作',
+        'runtime' => '运行状态',
+        'frontend' => '前端',
+        _ => '系统',
+      };
 
   Widget _buildOverviewStrip({
     required int total,
@@ -87,9 +88,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
         subtitle: _filter == 'unread' ? '已筛选 · 点击恢复全部' : '点击仅看未读',
         glyph: AntGlyphs.mail,
         tone: unread > 0 ? PrismTone.info : PrismTone.neutral,
-        onPressed: () => setState(
-          () => _filter = _filter == 'unread' ? 'all' : 'unread',
-        ),
+        onPressed: () =>
+            setState(() => _filter = _filter == 'unread' ? 'all' : 'unread'),
         staggerIndex: 1,
         staggerDelay: const Duration(milliseconds: 45),
       ),
@@ -99,9 +99,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
         subtitle: _filter == 'error' ? '已筛选 · 点击恢复全部' : '点击仅看错误',
         glyph: AntGlyphs.error,
         tone: errorCount > 0 ? PrismTone.danger : PrismTone.neutral,
-        onPressed: () => setState(
-          () => _filter = _filter == 'error' ? 'all' : 'error',
-        ),
+        onPressed: () =>
+            setState(() => _filter = _filter == 'error' ? 'all' : 'error'),
         staggerIndex: 2,
         staggerDelay: const Duration(milliseconds: 45),
       ),
@@ -111,9 +110,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
         subtitle: _filter == 'warning' ? '已筛选 · 点击恢复全部' : '点击仅看警告',
         glyph: AntGlyphs.warning,
         tone: warningCount > 0 ? PrismTone.warning : PrismTone.neutral,
-        onPressed: () => setState(
-          () => _filter = _filter == 'warning' ? 'all' : 'warning',
-        ),
+        onPressed: () =>
+            setState(() => _filter = _filter == 'warning' ? 'all' : 'warning'),
         staggerIndex: 3,
         staggerDelay: const Duration(milliseconds: 45),
       ),
@@ -197,7 +195,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
       staggerDelay: const Duration(milliseconds: 45),
       radius: prism.AppCorner.xl,
       lift: false,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= 860;
@@ -212,9 +210,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
                     onChanged: (_) => setState(() {}),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 filterControl,
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 Wrap(
                   spacing: 8,
                   runSpacing: 6,
@@ -319,7 +317,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
       staggerIndex: index.clamp(0, 6),
       staggerDelay: const Duration(milliseconds: 40),
       radius: prism.AppCorner.xl,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -390,7 +388,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
             ),
           ),
           if (!isRead) ...[
-            const SizedBox(width: 8),
+            const SizedBox(width: 12),
             prism.IconButton(
               tooltip: '标记为已读',
               onPressed: () => widget.store.markRead(id),
@@ -522,7 +520,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                       padding: kPrismListPadding,
                                       itemCount: filtered.length,
                                       separatorBuilder: (context, index) =>
-                                          const SizedBox(height: 8),
+                                          const SizedBox(height: 12),
                                       itemBuilder: (context, index) =>
                                           _buildNotificationCard(
                                             context,

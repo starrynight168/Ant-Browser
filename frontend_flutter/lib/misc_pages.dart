@@ -135,8 +135,9 @@ class _DocsPageState extends State<DocsPage> {
       orElse: () => _groups.first,
     );
     final prevItem = safeIndex > 0 ? _allItems[safeIndex - 1] : null;
-    final nextItem =
-        safeIndex < _allItems.length - 1 ? _allItems[safeIndex + 1] : null;
+    final nextItem = safeIndex < _allItems.length - 1
+        ? _allItems[safeIndex + 1]
+        : null;
     final colors = prism.Theme.of(context).colorScheme;
     final rawSource = [
       docsContent[section.id] ?? '',
@@ -526,7 +527,7 @@ class _DocsMarkdown extends StatelessWidget {
     );
     if (colCount == 0) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: prism.Surface(
         color: colors.surfaceContainerLow,
         shape: prism.AppShape.lg,
@@ -595,7 +596,7 @@ class _DocsMarkdown extends StatelessWidget {
     void addCodeBlock() {
       children.add(
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
+          padding: const EdgeInsets.symmetric(vertical: 12),
           child: PrismCodeSurface(
             code: code.toString().trimRight(),
             language: codeLanguage.isEmpty ? null : codeLanguage,
@@ -631,13 +632,13 @@ class _DocsMarkdown extends StatelessWidget {
       }
       flushTable();
       if (value.isEmpty) {
-        children.add(const SizedBox(height: 8));
+        children.add(const SizedBox(height: 12));
         continue;
       }
       if (value.startsWith('# ')) {
         children.add(
           Padding(
-            padding: const EdgeInsets.only(top: 6, bottom: 4),
+            padding: const EdgeInsets.only(top: 6, bottom: 10),
             child: Text(
               value.substring(2),
               style: prism.AppTextStyle.title3.of(context, emphasized: true),
@@ -652,7 +653,7 @@ class _DocsMarkdown extends StatelessWidget {
             : value.substring(3);
         children.add(
           Padding(
-            padding: const EdgeInsets.only(top: 12, bottom: 4),
+            padding: const EdgeInsets.only(top: 12, bottom: 10),
             child: Text(
               heading,
               style: prism.AppTextStyle.headline
@@ -746,14 +747,20 @@ class ChartsPage extends StatelessWidget {
                   width: cardWidth,
                   staggerIndex: 0,
                   title: '折线图示例（Prism LineChart）',
-                  legend: [
-                    ('活跃实例数', colors.primary),
-                  ],
+                  legend: [('活跃实例数', colors.primary)],
                   child: _PrismLineChartBox(
                     values: _lineData,
                     color: colors.primary,
                     minScale: 100,
-                    xLabels: const ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00'],
+                    xLabels: const [
+                      '00:00',
+                      '04:00',
+                      '08:00',
+                      '12:00',
+                      '16:00',
+                      '20:00',
+                      '24:00',
+                    ],
                     yLabels: const ['100', '50', '0'],
                   ),
                 ),
@@ -815,14 +822,20 @@ class ChartsPage extends StatelessWidget {
                   width: cardWidth,
                   staggerIndex: 3,
                   title: '面积图示例（Prism LineChart）',
-                  legend: [
-                    ('请求吞吐量 (req/min)', colors.tertiary),
-                  ],
+                  legend: [('请求吞吐量 (req/min)', colors.tertiary)],
                   child: _PrismLineChartBox(
                     values: _areaData,
                     color: colors.tertiary,
                     minScale: 100,
-                    xLabels: const ['T-7', 'T-6', 'T-5', 'T-4', 'T-3', 'T-2', '现在'],
+                    xLabels: const [
+                      'T-7',
+                      'T-6',
+                      'T-5',
+                      'T-4',
+                      'T-3',
+                      'T-2',
+                      '现在',
+                    ],
                     yLabels: const ['100', '50', '0'],
                   ),
                 ),
@@ -994,7 +1007,7 @@ class _ChartCard extends StatelessWidget {
                             child: const SizedBox.shrink(),
                           ),
                         ),
-                        const SizedBox(width: 5),
+                        const SizedBox(width: 8),
                         Text(
                           label,
                           style: prism.AppTextStyle.caption2
@@ -1306,10 +1319,7 @@ class _LaunchApiDemoPanelState extends State<_LaunchApiDemoPanel> {
         mainAxisSize: MainAxisSize.min,
         children: [
           prism.InfoHeader(
-            info: const prism.Info(
-              label: '启动 API 交互演示',
-              glyph: AntGlyphs.api,
-            ),
+            info: const prism.Info(label: '启动 API 交互演示', glyph: AntGlyphs.api),
             actions: [
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 280),
@@ -1387,8 +1397,8 @@ class _LaunchApiDemoPanelState extends State<_LaunchApiDemoPanel> {
                     shape: prism.AppShape.lg,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
+                        horizontal: 14,
+                        vertical: 12,
                       ),
                       child: Row(
                         children: [
@@ -1406,7 +1416,7 @@ class _LaunchApiDemoPanelState extends State<_LaunchApiDemoPanel> {
                               ),
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 12),
                           prism.IconButton(
                             tooltip: '复制 CDP URL',
                             onPressed: () {

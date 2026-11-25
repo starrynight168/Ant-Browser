@@ -175,8 +175,8 @@ String _formatSourceLabel(Map<String, dynamic>? record) {
     'manual' => '手动创建',
     _ => type,
   };
-  final detail =
-      '${source['label'] ?? source['uri'] ?? source['path'] ?? ''}'.trim();
+  final detail = '${source['label'] ?? source['uri'] ?? source['path'] ?? ''}'
+      .trim();
   final ref = '${source['ref'] ?? ''}'.trim();
   if (detail.isEmpty) return typeLabel;
   return ref.isEmpty ? '$typeLabel · $detail' : '$typeLabel · $detail ($ref)';
@@ -194,10 +194,7 @@ PrismTone _statusTone(String status) => switch (status) {
   _ => PrismTone.warning,
 };
 
-String _buildScriptApiUrl(
-  Map<String, dynamic> script,
-  String baseUrl,
-) {
+String _buildScriptApiUrl(Map<String, dynamic> script, String baseUrl) {
   final cleanBase = baseUrl.isEmpty
       ? 'http://127.0.0.1:19876'
       : baseUrl.replaceAll(RegExp(r'/+$'), '');
@@ -235,10 +232,8 @@ String _buildScriptRequestJson(
   }
   final params = _tryDecodeMap(script['paramsText']);
   if ('${script['type'] ?? ''}' == 'launch-api') {
-    return const JsonEncoder.withIndent('  ').convert({
-      if (selector.isNotEmpty) 'selector': selector,
-      ...params,
-    });
+    return const JsonEncoder.withIndent('  ')
+        .convert({if (selector.isNotEmpty) 'selector': selector, ...params});
   }
   return const JsonEncoder.withIndent('  ').convert({
     if (selector.isNotEmpty) 'selector': selector,
@@ -326,10 +321,7 @@ Future<void> _showLogViewerDialog(
         width: 780,
         height: 480,
         child: logText.trim().isEmpty
-            ? const PrismEmptyState(
-                glyph: AntGlyphs.logs,
-                title: '暂无执行日志',
-              )
+            ? const PrismEmptyState(glyph: AntGlyphs.logs, title: '暂无执行日志')
             : PrismCodeSurface(
                 code: logText,
                 language: 'log',
@@ -358,11 +350,10 @@ Future<void> _showPublicApiQuickDialog(
   final url = _buildScriptApiUrl(script, baseUrl);
   final publicApi = _tryDecodeMap(script['publicAPI']);
   final apiEnabled = publicApi['enabled'] == true;
-  final timeoutMs =
-      ((publicApi['timeoutMs'] as num?)?.toInt() ?? 300000).clamp(
-        1000,
-        1800000,
-      );
+  final timeoutMs = ((publicApi['timeoutMs'] as num?)?.toInt() ?? 300000).clamp(
+    1000,
+    1800000,
+  );
   final bodyController = TextEditingController(
     text: _buildScriptRequestJson(script, launchCode: launchCode),
   );
@@ -501,7 +492,9 @@ Future<void> _showPublicApiQuickDialog(
                         final map = res is Map
                             ? Map<String, dynamic>.from(res)
                             : <String, dynamic>{};
-                        final bodyText = _prettyJson('${map['bodyText'] ?? ''}');
+                        final bodyText = _prettyJson(
+                          '${map['bodyText'] ?? ''}',
+                        );
                         if (context.mounted) {
                           setDialog(() {
                             output =
@@ -853,7 +846,6 @@ class _AutomationScriptRunModalState extends State<AutomationScriptRunModal> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: PrismSwitchTile(
-                        contentPadding: EdgeInsets.zero,
                         title: const Text('运行前按 Code 码启动'),
                         subtitle: const Text('若实例未运行则先自动拉起'),
                         value: _startByCodeBeforeRun,
@@ -893,7 +885,9 @@ class _AutomationScriptRunModalState extends State<AutomationScriptRunModal> {
                                 labelText:
                                     '${v['name']}${v['required'] == true ? ' *' : ''}',
                                 hintText:
-                                    '${v['description'] ?? ''}'.trim().isNotEmpty
+                                    '${v['description'] ?? ''}'
+                                        .trim()
+                                        .isNotEmpty
                                     ? '${v['description']}'
                                     : '默认值：${v['defaultValue'] ?? ''}',
                               ),
@@ -1003,7 +997,7 @@ class _AutomationScriptRunModalState extends State<AutomationScriptRunModal> {
                               .of(context, emphasized: true)
                               .copyWith(color: colors.onSurfaceVariant),
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 8),
                         for (final path in outputPaths)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 6),
@@ -1427,8 +1421,7 @@ class _AutomationPageState extends State<AutomationPage> {
     final resultText = _prettyJson('${run['resultText'] ?? ''}');
     final errorText = '${run['error'] ?? ''}'.trim();
     final summary = '${run['summary'] ?? ''}'.trim();
-    final scriptTitle =
-        '${run['scriptName'] ?? run['scriptId'] ?? '运行记录'}';
+    final scriptTitle = '${run['scriptName'] ?? run['scriptId'] ?? '运行记录'}';
 
     await showPrismDialog<void>(
       context: context,
@@ -1498,7 +1491,7 @@ class _AutomationPageState extends State<AutomationPage> {
                     emphasized: true,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 10),
                 PrismCodeSurface(
                   code: resultText,
                   language: 'json',
@@ -1531,7 +1524,7 @@ class _AutomationPageState extends State<AutomationPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 10),
                 PrismCodeSurface(
                   code: logText,
                   language: 'log',
@@ -1702,7 +1695,7 @@ class _AutomationPageState extends State<AutomationPage> {
                                 statusTone,
                               );
                               return PrismCard(
-                                margin: const EdgeInsets.only(bottom: 8),
+                                margin: const EdgeInsets.only(bottom: 12),
                                 child: Column(
                                   children: [
                                     PrismListTile(
@@ -1761,13 +1754,12 @@ class _AutomationPageState extends State<AutomationPage> {
                                         children: [
                                           if (logText.isNotEmpty) ...[
                                             prism.OutlinedButton.icon(
-                                              onPressed: () =>
-                                                  _showLogViewerDialog(
-                                                    context,
-                                                    title:
-                                                        '${run['scriptName'] ?? run['scriptId'] ?? ''}',
-                                                    logText: logText,
-                                                  ),
+                                              onPressed: () => _showLogViewerDialog(
+                                                context,
+                                                title:
+                                                    '${run['scriptName'] ?? run['scriptId'] ?? ''}',
+                                                logText: logText,
+                                              ),
                                               icon: const PrismGlyph(
                                                 AntGlyphs.logs,
                                                 size: 14,
@@ -1805,7 +1797,8 @@ class _AutomationPageState extends State<AutomationPage> {
                                               runSpacing: 6,
                                               children: [
                                                 PrismBadge(
-                                                  label: '记录 ID：${id.isEmpty ? '-' : id}',
+                                                  label:
+                                                      '记录 ID：${id.isEmpty ? '-' : id}',
                                                   tone: PrismTone.neutral,
                                                 ),
                                                 PrismBadge(
@@ -1824,9 +1817,7 @@ class _AutomationPageState extends State<AutomationPage> {
                                             Text(
                                               '开始：${_formatDateTime(run['startedAt'])} · '
                                               '结束：${_formatDateTime(run['finishedAt'])}',
-                                              style: prism
-                                                  .AppTextStyle
-                                                  .caption1
+                                              style: prism.AppTextStyle.caption1
                                                   .of(context)
                                                   .copyWith(
                                                     color:
@@ -1905,206 +1896,197 @@ class _AutomationPageState extends State<AutomationPage> {
       staggerIndex: index.clamp(0, 6),
       staggerDelay: const Duration(milliseconds: 35),
       radius: prism.AppCorner.xl,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                prism.Checkbox(
-                  value: _selectedScriptIds.contains(id),
-                  onChanged: (selected) => setState(() {
-                    if (selected == true) {
-                      _selectedScriptIds.add(id);
-                    } else {
-                      _selectedScriptIds.remove(id);
-                    }
-                  }),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: prism.PressRegion(
-                    onTap: () => widget.onOpen(id),
-                    shape: prism.AppShape.md,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 6,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            if (pinned)
-                              const PrismBadge(
-                                label: '置顶',
-                                glyph: AntGlyphs.pin,
-                                tone: PrismTone.primary,
-                              ),
-                            Text(
-                              name,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: prism.AppTextStyle.headline.of(
-                                context,
-                                emphasized: true,
-                              ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              prism.Checkbox(
+                value: _selectedScriptIds.contains(id),
+                onChanged: (selected) => setState(() {
+                  if (selected == true) {
+                    _selectedScriptIds.add(id);
+                  } else {
+                    _selectedScriptIds.remove(id);
+                  }
+                }),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: prism.PressRegion(
+                  onTap: () => widget.onOpen(id),
+                  shape: prism.AppShape.md,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (pinned)
+                            const PrismBadge(
+                              label: '置顶',
+                              glyph: AntGlyphs.pin,
+                              tone: PrismTone.primary,
                             ),
-                            PrismBadge(
-                              label: interfaceMode ? '接口模式' : '脚本模式',
-                              glyph: interfaceMode
-                                  ? AntGlyphs.api
-                                  : AntGlyphs.code,
-                              tone: interfaceMode
-                                  ? PrismTone.primary
-                                  : PrismTone.info,
-                            ),
-                            PrismBadge(
-                              label: _statusLabel(status),
-                              tone: _statusTone(status),
-                              dot: true,
-                            ),
-                            if (launchCode.isNotEmpty)
-                              PrismBadge(
-                                label: 'Code 码：$launchCode',
-                                glyph: AntGlyphs.bolt,
-                                tone: PrismTone.neutral,
-                              ),
-                            if (versionTime.isNotEmpty)
-                              PrismBadge(
-                                label: versionTime,
-                                tone: PrismTone.neutral,
-                              ),
-                          ],
-                        ),
-                        if (desc.isNotEmpty) ...[
-                          const SizedBox(height: 6),
                           Text(
-                            desc,
+                            name,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: prism.AppTextStyle.footnote
-                                .of(context)
-                                .copyWith(color: colors.onSurfaceVariant),
+                            style: prism.AppTextStyle.headline.of(
+                              context,
+                              emphasized: true,
+                            ),
                           ),
+                          PrismBadge(
+                            label: interfaceMode ? '接口模式' : '脚本模式',
+                            glyph: interfaceMode
+                                ? AntGlyphs.api
+                                : AntGlyphs.code,
+                            tone: interfaceMode
+                                ? PrismTone.primary
+                                : PrismTone.info,
+                          ),
+                          PrismBadge(
+                            label: _statusLabel(status),
+                            tone: _statusTone(status),
+                            dot: true,
+                          ),
+                          if (launchCode.isNotEmpty)
+                            PrismBadge(
+                              label: 'Code 码：$launchCode',
+                              glyph: AntGlyphs.bolt,
+                              tone: PrismTone.neutral,
+                            ),
+                          if (versionTime.isNotEmpty)
+                            PrismBadge(
+                              label: versionTime,
+                              tone: PrismTone.neutral,
+                            ),
                         ],
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                PrismPopupMenuButton<String>(
-                  onSelected: (action) {
-                    if (action == 'open') {
-                      widget.onOpen(id);
-                    } else if (action == 'run') {
-                      _openRunModal(script);
-                    } else if (action.startsWith('export-')) {
-                      _exportScript(id, action.substring('export-'.length));
-                    } else if (action == 'delete') {
-                      _deleteScript(id, name);
-                    }
-                  },
-                  itemBuilder: (_) => [
-                    const PrismMenuItem(value: 'open', child: Text('编辑')),
-                    if (!isLaunchApi)
-                      PrismMenuItem(
-                        value: 'run',
-                        enabled: !isDisabled,
-                        child: const Text('运行脚本'),
                       ),
-                    const PrismMenuItem(
-                      value: 'export-json',
-                      child: Text('导出 JSON 模板'),
-                    ),
-                    const PrismMenuItem(
-                      value: 'export-directory',
-                      child: Text('导出目录'),
-                    ),
-                    const PrismMenuItem(
-                      value: 'export-zip',
-                      child: Text('导出 ZIP'),
-                    ),
-                    const PrismMenuItem(
-                      value: 'delete',
-                      danger: true,
-                      child: Text('删除'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            const prism.Divider(height: 1),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              alignment: WrapAlignment.end,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                if (!isLaunchApi)
-                  PrismTonalButton.icon(
-                    onPressed: isDisabled ? null : () => _openRunModal(script),
-                    icon: const PrismGlyph(AntGlyphs.play, size: 14),
-                    child: const Text('运行脚本'),
+                      if (desc.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          desc,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: prism.AppTextStyle.footnote
+                              .of(context)
+                              .copyWith(color: colors.onSurfaceVariant),
+                        ),
+                      ],
+                    ],
                   ),
-                prism.TextButton.icon(
-                  onPressed: () => widget.onOpen(id),
-                  icon: const PrismGlyph(AntGlyphs.edit, size: 14),
-                  label: const Text('编辑'),
                 ),
-                // 接口调试工具收进菜单，保持卡片操作行克制。
-                PrismPopupMenuButton<String>(
-                  tooltip: '接口调试',
-                  icon: const PrismGlyph(AntGlyphs.api, size: 16),
-                  onSelected: (action) {
-                    final url = _buildScriptApiUrl(script, _launchBaseUrl);
-                    final body = _buildScriptRequestJson(
-                      script,
+              ),
+              const SizedBox(width: 8),
+              PrismPopupMenuButton<String>(
+                onSelected: (action) {
+                  if (action == 'open') {
+                    widget.onOpen(id);
+                  } else if (action == 'run') {
+                    _openRunModal(script);
+                  } else if (action.startsWith('export-')) {
+                    _exportScript(id, action.substring('export-'.length));
+                  } else if (action == 'delete') {
+                    _deleteScript(id, name);
+                  }
+                },
+                itemBuilder: (_) => [
+                  const PrismMenuItem(value: 'open', child: Text('编辑')),
+                  if (!isLaunchApi)
+                    PrismMenuItem(
+                      value: 'run',
+                      enabled: !isDisabled,
+                      child: const Text('运行脚本'),
+                    ),
+                  const PrismMenuItem(
+                    value: 'export-json',
+                    child: Text('导出 JSON 模板'),
+                  ),
+                  const PrismMenuItem(
+                    value: 'export-directory',
+                    child: Text('导出目录'),
+                  ),
+                  const PrismMenuItem(
+                    value: 'export-zip',
+                    child: Text('导出 ZIP'),
+                  ),
+                  const PrismMenuItem(
+                    value: 'delete',
+                    danger: true,
+                    child: Text('删除'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          const prism.Divider(height: 1),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            alignment: WrapAlignment.end,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              if (!isLaunchApi)
+                PrismTonalButton.icon(
+                  onPressed: isDisabled ? null : () => _openRunModal(script),
+                  icon: const PrismGlyph(AntGlyphs.play, size: 14),
+                  child: const Text('运行脚本'),
+                ),
+              prism.TextButton.icon(
+                onPressed: () => widget.onOpen(id),
+                icon: const PrismGlyph(AntGlyphs.edit, size: 14),
+                label: const Text('编辑'),
+              ),
+              // 接口调试工具收进菜单，保持卡片操作行克制。
+              PrismPopupMenuButton<String>(
+                tooltip: '接口调试',
+                icon: const PrismGlyph(AntGlyphs.api, size: 16),
+                onSelected: (action) {
+                  final url = _buildScriptApiUrl(script, _launchBaseUrl);
+                  final body = _buildScriptRequestJson(
+                    script,
+                    launchCode: launchCode,
+                  );
+                  if (action == 'curl') {
+                    final curl = _buildCurlCommand(
+                      url: url,
+                      bodyJson: body,
+                      authHeader: _apiAuthHeader,
+                    );
+                    Clipboard.setData(ClipboardData(text: curl));
+                    showPrismNotice(context, '已复制 cURL 命令');
+                  } else if (action == 'json') {
+                    Clipboard.setData(ClipboardData(text: body));
+                    showPrismNotice(context, '已复制 JSON 请求体');
+                  } else if (action == 'api') {
+                    _showPublicApiQuickDialog(
+                      context,
+                      script: script,
+                      baseUrl: _launchBaseUrl,
+                      authHeader: _apiAuthHeader,
+                      authEnabled: _apiAuthEnabled,
                       launchCode: launchCode,
                     );
-                    if (action == 'curl') {
-                      final curl = _buildCurlCommand(
-                        url: url,
-                        bodyJson: body,
-                        authHeader: _apiAuthHeader,
-                      );
-                      Clipboard.setData(ClipboardData(text: curl));
-                      showPrismNotice(context, '已复制 cURL 命令');
-                    } else if (action == 'json') {
-                      Clipboard.setData(ClipboardData(text: body));
-                      showPrismNotice(context, '已复制 JSON 请求体');
-                    } else if (action == 'api') {
-                      _showPublicApiQuickDialog(
-                        context,
-                        script: script,
-                        baseUrl: _launchBaseUrl,
-                        authHeader: _apiAuthHeader,
-                        authEnabled: _apiAuthEnabled,
-                        launchCode: launchCode,
-                      );
-                    }
-                  },
-                  itemBuilder: (_) => const [
-                    PrismMenuItem(
-                      value: 'curl',
-                      child: Text('复制 cURL 命令'),
-                    ),
-                    PrismMenuItem(
-                      value: 'json',
-                      child: Text('复制 JSON 请求体'),
-                    ),
-                    PrismMenuItem(
-                      value: 'api',
-                      child: Text('接口调试窗口'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ],
-        ),
+                  }
+                },
+                itemBuilder: (_) => const [
+                  PrismMenuItem(value: 'curl', child: Text('复制 cURL 命令')),
+                  PrismMenuItem(value: 'json', child: Text('复制 JSON 请求体')),
+                  PrismMenuItem(value: 'api', child: Text('接口调试窗口')),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -2116,9 +2098,7 @@ class _AutomationPageState extends State<AutomationPage> {
     final apiModeCount = _scripts.where(_isInterfaceMode).length;
     final successRuns = _runs.where((r) => r['status'] == 'success').length;
     final failedRuns = _runs.length - successRuns;
-    final runningProfiles = _profiles
-        .where((p) => p['running'] == true)
-        .length;
+    final runningProfiles = _profiles.where((p) => p['running'] == true).length;
 
     final tiles = [
       PrismMetricTile(
@@ -2144,9 +2124,7 @@ class _AutomationPageState extends State<AutomationPage> {
       PrismMetricTile(
         label: '近期运行',
         value: '${_runs.length}',
-        subtitle: _runs.isEmpty
-            ? '暂无执行记录'
-            : '成功 $successRuns · 失败 $failedRuns',
+        subtitle: _runs.isEmpty ? '暂无执行记录' : '成功 $successRuns · 失败 $failedRuns',
         glyph: AntGlyphs.history,
         tone: failedRuns > 0 ? PrismTone.warning : PrismTone.success,
         onPressed: _showHistory,
@@ -2403,8 +2381,7 @@ class _AutomationPageState extends State<AutomationPage> {
                     : ListView.separated(
                         padding: const EdgeInsets.all(12),
                         itemCount: filteredScripts.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(height: 10),
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
                         itemBuilder: (context, index) => _buildScriptCard(
                           context,
                           filteredScripts[index],
@@ -2651,8 +2628,7 @@ class _AutomationScriptDetailPageState
   String _targetMode = 'manual';
   String? _templateProfileId;
 
-  bool get _isDirty =>
-      !_loading && _savedDraftSnapshot != _draftSnapshot();
+  bool get _isDirty => !_loading && _savedDraftSnapshot != _draftSnapshot();
 
   bool get _isLaunchApi => '${_record?['type'] ?? ''}' == 'launch-api';
 
@@ -2829,10 +2805,8 @@ class _AutomationScriptDetailPageState
         'entryFile': 'index.cjs',
         'tags': <String>['Playwright', '示例'],
         'selectorText': '',
-        'paramsText':
-            '{\n  "url": "https://www.baidu.com",\n  "keyword": "OpenAI",\n  "timeoutMs": 30000\n}',
-        'scriptText':
-            "module.exports.run = async ({ useBrowser, selector, params, log }) => {\n  const url = params.url || 'https://www.baidu.com'\n  const runtime = await useBrowser({ selector, startUrls: [url], skipDefaultStartUrls: true })\n  const page = runtime.page\n  const keyword = params.keyword || 'OpenAI'\n  const input = page.locator('textarea[name=wd], input[name=wd]').first()\n  await input.fill(keyword)\n  await input.press('Enter')\n  const title = await page.title()\n  log('title', title)\n  return { ok: true, summary: `已搜索 \${keyword}`, url: page.url(), title }\n}",
+        'paramsText': '{\n  "url": "https://www.baidu.com",\n  "keyword": "OpenAI",\n  "timeoutMs": 30000\n}',
+        'scriptText': "module.exports.run = async ({ useBrowser, selector, params, log }) => {\n  const url = params.url || 'https://www.baidu.com'\n  const runtime = await useBrowser({ selector, startUrls: [url], skipDefaultStartUrls: true })\n  const page = runtime.page\n  const keyword = params.keyword || 'OpenAI'\n  const input = page.locator('textarea[name=wd], input[name=wd]').first()\n  await input.fill(keyword)\n  await input.press('Enter')\n  const title = await page.title()\n  log('title', title)\n  return { ok: true, summary: `已搜索 \${keyword}`, url: page.url(), title }\n}",
         'publicAPI': {
           'enabled': false,
           'method': 'POST',
@@ -3035,10 +3009,7 @@ class _AutomationScriptDetailPageState
       return false;
     }
     if (_script.text.trim().isEmpty) {
-      showPrismNotice(
-        context,
-        _isLaunchApi ? '固定接口模板不能为空' : '脚本内容不能为空',
-      );
+      showPrismNotice(context, _isLaunchApi ? '固定接口模板不能为空' : '脚本内容不能为空');
       return false;
     }
     if (_apiVarEditorMode == 0) {
@@ -3261,10 +3232,8 @@ class _AutomationScriptDetailPageState
   String _openClawTemplate() {
     final selector = _tryDecodeMap(_selector.text);
     final params = _tryDecodeMap(_params.text);
-    final body = const JsonEncoder.withIndent('  ').convert({
-      if (selector.isNotEmpty) 'selector': selector,
-      ...params,
-    });
+    final body = const JsonEncoder.withIndent('  ')
+        .convert({if (selector.isNotEmpty) 'selector': selector, ...params});
     return _buildCurlCommand(
       url: '$_launchBaseUrl/api/launch',
       bodyJson: body,
@@ -3492,7 +3461,7 @@ class _AutomationScriptDetailPageState
                               _syncJsonFromVarRows();
                             },
                           ),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: 12),
                           const Text('必填'),
                           const Spacer(),
                           prism.TextButton.icon(
@@ -3534,8 +3503,7 @@ class _AutomationScriptDetailPageState
             maxLines: 8,
             decoration: const PrismInputDecoration(
               labelText: '变量配置 JSON 数组',
-              hintText:
-                  '[{"name":"keyword","defaultValue":"OpenAI","description":"关键词","required":true}]',
+              hintText: '[{"name":"keyword","defaultValue":"OpenAI","description":"关键词","required":true}]',
             ),
           ),
       ],
@@ -3611,9 +3579,7 @@ class _AutomationScriptDetailPageState
                     onSelected: (action) async {
                       if (action.startsWith('export-')) {
                         try {
-                          final format = action.substring(
-                            'export-'.length,
-                          );
+                          final format = action.substring('export-'.length);
                           final method = switch (format) {
                             'json' => 'AutomationScriptExport',
                             'directory' => 'AutomationScriptExportDirectory',
@@ -3645,13 +3611,11 @@ class _AutomationScriptDetailPageState
                             content: Text('将删除“${_name.text}”及其本地文件。'),
                             actions: [
                               prism.TextButton(
-                                onPressed: () =>
-                                    Navigator.pop(context, false),
+                                onPressed: () => Navigator.pop(context, false),
                                 child: const Text('取消'),
                               ),
                               prism.FilledButton(
-                                onPressed: () =>
-                                    Navigator.pop(context, true),
+                                onPressed: () => Navigator.pop(context, true),
                                 child: const Text('删除'),
                               ),
                             ],
@@ -3675,9 +3639,7 @@ class _AutomationScriptDetailPageState
                             'AutomationScriptRefresh',
                             [widget.scriptId],
                           );
-                          _record = Map<String, dynamic>.from(
-                            refreshed as Map,
-                          );
+                          _record = Map<String, dynamic>.from(refreshed as Map);
                           _hydrateFromRecord(_record!);
                           _savedDraftSnapshot = _draftSnapshot();
                           if (mounted) {
@@ -3708,9 +3670,7 @@ class _AutomationScriptDetailPageState
                         value: 'refresh',
                         enabled: refreshable,
                         child: Text(
-                          refreshable
-                              ? '按来源重新导入'
-                              : '按来源重新导入（当前来源不支持）',
+                          refreshable ? '按来源重新导入' : '按来源重新导入（当前来源不支持）',
                         ),
                       ),
                       const PrismMenuItem(
@@ -3863,8 +3823,7 @@ class _AutomationScriptDetailPageState
                 PrismDropdownField<String>(
                   value:
                       _profiles.any(
-                        (profile) =>
-                            profile['profileId'] == _templateProfileId,
+                        (profile) => profile['profileId'] == _templateProfileId,
                       )
                       ? _templateProfileId
                       : null,
@@ -3912,7 +3871,7 @@ class _AutomationScriptDetailPageState
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 8),
               PrismTextField(
                 controller: _params,
                 minLines: 3,
@@ -3961,7 +3920,10 @@ class _AutomationScriptDetailPageState
               controller: _script,
               minLines: 12,
               maxLines: 30,
-              style: const TextStyle(fontFamily: prismMonoFontFamily, fontSize: 12.5),
+              style: const TextStyle(
+                fontFamily: prismMonoFontFamily,
+                fontSize: 12.5,
+              ),
             ),
           ),
         const SizedBox(height: 14),
@@ -3974,7 +3936,6 @@ class _AutomationScriptDetailPageState
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               PrismSwitchTile(
-                contentPadding: EdgeInsets.zero,
                 title: const Text('启用对外 API'),
                 subtitle: const Text('通过 Launch Server 的 HTTP 接口触发此脚本'),
                 value: _apiEnabled,
@@ -4187,9 +4148,7 @@ class _AutomationScriptDetailPageState
                     child: prism.FilledButton.icon(
                       onPressed: _busy.isEmpty ? _testPublicAPI : null,
                       icon: const PrismGlyph(AntGlyphs.play, size: 15),
-                      label: Text(
-                        _busy == 'public-api' ? '测试中…' : '保存并测试接口',
-                      ),
+                      label: Text(_busy == 'public-api' ? '测试中…' : '保存并测试接口'),
                     ),
                   ),
                 ),

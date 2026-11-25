@@ -77,8 +77,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
         _groupNames = {
           for (final row in (groups as List? ?? []).whereType<Map>())
             if ('${row['groupId'] ?? ''}'.trim().isNotEmpty)
-              '${row['groupId']}'.trim():
-                  '${row['groupName'] ?? '分组'}'.trim(),
+              '${row['groupId']}'.trim(): '${row['groupName'] ?? '分组'}'.trim(),
         };
         _loading = false;
         _loadError = '';
@@ -188,11 +187,14 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
       final target = key.currentContext;
       if (target != null) {
         final spec = PrismMotionSpec.current;
-        final motionOn = spec.enabled && !MediaQuery.disableAnimationsOf(context);
+        final motionOn =
+            spec.enabled && !MediaQuery.disableAnimationsOf(context);
         Scrollable.ensureVisible(
           target,
           alignment: 0.35,
-          duration: motionOn ? const Duration(milliseconds: 180) : Duration.zero,
+          duration: motionOn
+              ? const Duration(milliseconds: 180)
+              : Duration.zero,
           curve: motionOn ? spec.smoothCurve : Curves.linear,
         );
       }
@@ -348,10 +350,9 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                       children: [
                         for (final section in sections)
                           Padding(
-                            padding: const EdgeInsets.only(right: 6),
+                            padding: const EdgeInsets.only(right: 10),
                             child: PrismBadge(
-                              label:
-                                  '${section.key} (${section.value.length})',
+                              label: '${section.key} (${section.value.length})',
                               glyph: AntGlyphs.tag,
                               tone: _activeTag == section.key
                                   ? PrismTone.primary
@@ -415,11 +416,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                                   ),
                                 ),
                                 for (final profile in section.value)
-                                  _buildProfileCard(
-                                    context,
-                                    profile,
-                                    filtered,
-                                  ),
+                                  _buildProfileCard(context, profile, filtered),
                               ],
                             ],
                           ),
@@ -490,7 +487,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
 
     return Padding(
       key: _profileKey(profile),
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 12),
       child: PrismHoverGlow(
         radius: prism.AppCorner.lg,
         child: GestureDetector(
@@ -517,8 +514,8 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
               shape: prism.AppShape.lg,
               child: Padding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
+                  horizontal: 18,
+                  vertical: 12,
                 ),
                 child: Row(
                   children: [
@@ -554,7 +551,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                                 ),
                               ),
                               if (running) ...[
-                                const SizedBox(width: 6),
+                                const SizedBox(width: 10),
                                 const PrismBadge(
                                   label: '运行中',
                                   tone: PrismTone.success,
@@ -563,7 +560,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                               ],
                             ],
                           ),
-                          const SizedBox(height: 3),
+                          const SizedBox(height: 6),
                           Text(
                             '启动码 ${launchCode.isEmpty ? '未分配' : launchCode} · ${_groupLabel(profile)}',
                             maxLines: 1,
@@ -573,10 +570,10 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                                 .copyWith(color: colors.onSurfaceVariant),
                           ),
                           if (tags.isNotEmpty) ...[
-                            const SizedBox(height: 5),
+                            const SizedBox(height: 6),
                             Wrap(
-                              spacing: 4,
-                              runSpacing: 4,
+                              spacing: 10,
+                              runSpacing: 6,
                               children: [
                                 for (final tag in tags.take(4))
                                   PrismBadge(
@@ -595,7 +592,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                         ],
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 12),
                     if (isStartingThis)
                       const SizedBox(
                         width: 20,
@@ -614,7 +611,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                 ),
               ),
             ),
-        ),
+          ),
         ),
       ),
     );
@@ -655,7 +652,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
     final spec = PrismMotionSpec.current;
     final motionOn = spec.enabled && !MediaQuery.disableAnimationsOf(context);
     return Padding(
-      padding: const EdgeInsets.only(right: 6),
+      padding: const EdgeInsets.only(right: 10),
       child: PrismHoverMotion(
         hoverScale: 1.04,
         pressScale: 0.95,

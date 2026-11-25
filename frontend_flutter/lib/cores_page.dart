@@ -456,13 +456,10 @@ class _CoresPageState extends State<CoresPage> {
                                 dimension: 14,
                                 child: PrismProgressIndicator(size: 14),
                               )
-                            : const PrismGlyph(
-                                AntGlyphs.checkCircle,
-                                size: 16,
-                              ),
+                            : const PrismGlyph(AntGlyphs.checkCircle, size: 16),
                         label: Text(validating ? '验证中…' : '验证路径'),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 12),
                       if (pathValid != null)
                         PrismBadge(
                           label: pathValid! ? '路径有效' : '路径无效',
@@ -473,7 +470,7 @@ class _CoresPageState extends State<CoresPage> {
                     ],
                   ),
                   if (validationMessage.isNotEmpty && !validating) ...[
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 12),
                     PrismBanner(
                       tone: pathValid == true
                           ? PrismTone.success
@@ -589,7 +586,9 @@ class _CoresPageState extends State<CoresPage> {
     }
   }
 
-  Future<void> _openDownloadModal({Map<String, dynamic>? redownloadCore}) async {
+  Future<void> _openDownloadModal({
+    Map<String, dynamic>? redownloadCore,
+  }) async {
     final isRedownload = redownloadCore != null;
     final coreName = isRedownload
         ? (redownloadCore['coreName'] ?? '内核').toString()
@@ -669,10 +668,11 @@ class _CoresPageState extends State<CoresPage> {
             );
             final proxyConfig = switch (proxyMode) {
               'direct' => '__direct__',
-              'custom' => selectedProxy.isEmpty
-                  ? ''
-                  : ((selectedProxy.first['proxyConfig'] ?? proxyId ?? '')
-                        .toString()),
+              'custom' =>
+                selectedProxy.isEmpty
+                    ? ''
+                    : ((selectedProxy.first['proxyConfig'] ?? proxyId ?? '')
+                          .toString()),
               _ => '__system__',
             };
             if (proxyConfig.isEmpty) {
@@ -709,8 +709,7 @@ class _CoresPageState extends State<CoresPage> {
                     downloadDone = true;
                   } else if (phase == 'error') {
                     downloading = false;
-                    downloadError =
-                        (progress['message'] ?? '下载失败').toString();
+                    downloadError = (progress['message'] ?? '下载失败').toString();
                   }
                 });
               },
@@ -769,8 +768,7 @@ class _CoresPageState extends State<CoresPage> {
                       const PrismBanner(
                         tone: PrismTone.warning,
                         title: '目录替换与回滚说明',
-                        message:
-                            '重新下载将替换当前内核目录；若下载、校验或解压失败，系统会自动回滚到原有内核，不会影响已配置的实例。',
+                        message: '重新下载将替换当前内核目录；若下载、校验或解压失败，系统会自动回滚到原有内核，不会影响已配置的实例。',
                       ),
                       const SizedBox(height: 12),
                     ],
@@ -787,14 +785,12 @@ class _CoresPageState extends State<CoresPage> {
                     PrismTextField(
                       controller: url,
                       enabled: !downloading,
-                      decoration: const PrismInputDecoration(
-                        labelText: '下载地址',
-                      ),
+                      decoration: const PrismInputDecoration(labelText: '下载地址'),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 10),
                     Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
+                      spacing: 10,
+                      runSpacing: 6,
                       children: [
                         prism.TextButton.icon(
                           onPressed: (recommendationLoading || downloading)
@@ -808,29 +804,24 @@ class _CoresPageState extends State<CoresPage> {
                                   dimension: 15,
                                   child: PrismProgressIndicator(size: 15),
                                 )
-                              : const PrismGlyph(
-                                  AntGlyphs.sparkles,
-                                  size: 16,
-                                ),
+                              : const PrismGlyph(AntGlyphs.sparkles, size: 16),
                           label: Text(
-                            recommendationLoading ? '正在匹配最新 Release…' : '匹配最新内核版本',
+                            recommendationLoading
+                                ? '正在匹配最新 Release…'
+                                : '匹配最新内核版本',
                           ),
                         ),
                         prism.TextButton.icon(
                           onPressed: () => _openExternalUrl(
-                            recommendation['releasesUrl'] ??
-                                'https://github.com/adryfish/fingerprint-chromium/releases',
+                            recommendation['releasesUrl'] ?? 'https://github.com/adryfish/fingerprint-chromium/releases',
                           ),
-                          icon: const PrismGlyph(
-                            AntGlyphs.openInNew,
-                            size: 15,
-                          ),
+                          icon: const PrismGlyph(AntGlyphs.openInNew, size: 15),
                           label: const Text('打开 Releases'),
                         ),
                       ],
                     ),
                     if (recommendation.isNotEmpty) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 8),
                       Text(
                         '已匹配 ${recommendation['assetName']}（${recommendation['releaseTag']}）',
                         maxLines: 2,
@@ -928,9 +919,7 @@ class _CoresPageState extends State<CoresPage> {
                 prism.FilledButton(
                   onPressed: downloading ? null : startDownload,
                   child: Text(
-                    downloading
-                        ? '下载中…'
-                        : (isRedownload ? '开始重新下载' : '开始下载'),
+                    downloading ? '下载中…' : (isRedownload ? '开始重新下载' : '开始下载'),
                   ),
                 ),
             ],
@@ -1180,8 +1169,7 @@ class _CoresPageState extends State<CoresPage> {
         subtitle: _settingsExpanded ? '点击收起全局设置' : '点击展开全局设置',
         glyph: AntGlyphs.bolt,
         tone: lightStartEnabled ? PrismTone.info : PrismTone.neutral,
-        onPressed: () =>
-            setState(() => _settingsExpanded = !_settingsExpanded),
+        onPressed: () => setState(() => _settingsExpanded = !_settingsExpanded),
         staggerIndex: 3,
         staggerDelay: const Duration(milliseconds: 45),
       ),
@@ -1228,11 +1216,7 @@ class _CoresPageState extends State<CoresPage> {
       child: prism.SegmentedControl<String>(
         value: _statusFilter,
         onChanged: (value) => setState(() => _statusFilter = value),
-        segments: const [
-          ('all', '全部'),
-          ('valid', '可用'),
-          ('invalid', '无效'),
-        ],
+        segments: const [('all', '全部'), ('valid', '可用'), ('invalid', '无效')],
       ),
     );
     final actionWidgets = <Widget>[
@@ -1307,7 +1291,7 @@ class _CoresPageState extends State<CoresPage> {
       staggerIndex: 4,
       staggerDelay: const Duration(milliseconds: 45),
       radius: prism.AppCorner.xl,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= 940;
@@ -1541,7 +1525,9 @@ class _CoresPageState extends State<CoresPage> {
           glyph: AntGlyphs.folder,
           onPressed: () async {
             try {
-              await AppBridge.call('OpenCorePath', ['${core['corePath'] ?? ''}']);
+              await AppBridge.call('OpenCorePath', [
+                '${core['corePath'] ?? ''}',
+              ]);
             } catch (error) {
               _message('$error');
             }
@@ -1581,8 +1567,8 @@ class _CoresPageState extends State<CoresPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
+                    spacing: 10,
+                    runSpacing: 6,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text(
@@ -1595,10 +1581,7 @@ class _CoresPageState extends State<CoresPage> {
                         ),
                       ),
                       if (isDefault)
-                        const PrismBadge(
-                          label: '默认',
-                          tone: PrismTone.primary,
-                        ),
+                        const PrismBadge(label: '默认', tone: PrismTone.primary),
                       PrismBadge(
                         label: valid ? '可用' : '路径无效',
                         tone: valid ? PrismTone.success : PrismTone.danger,
@@ -1625,7 +1608,7 @@ class _CoresPageState extends State<CoresPage> {
                         .copyWith(color: colors.onSurfaceVariant),
                   ),
                   if (!valid) ...[
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     Text(
                       '${validation['message'] ?? '路径无效'}',
                       maxLines: 2,
@@ -1646,7 +1629,7 @@ class _CoresPageState extends State<CoresPage> {
                     : () => _setDefault('${core['coreId'] ?? ''}'),
                 child: const Text('设为默认'),
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: 12),
             ],
             prism.IconButton(
               tooltip: '打开所在位置',
@@ -1769,7 +1752,7 @@ class _CoresPageState extends State<CoresPage> {
                               padding: kPrismListPadding,
                               itemCount: filteredCores.length,
                               separatorBuilder: (context, index) =>
-                                  const SizedBox(height: 9),
+                                  const SizedBox(height: 12),
                               itemBuilder: (context, index) =>
                                   _buildCoreItem(context, filteredCores[index]),
                             ),

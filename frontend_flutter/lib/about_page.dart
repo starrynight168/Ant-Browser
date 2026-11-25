@@ -342,8 +342,8 @@ class _AboutPageState extends State<AboutPage> {
           ],
           const SizedBox(height: 16),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 10,
+            runSpacing: 10,
             children: [
               if (github.isNotEmpty)
                 prism.OutlinedButton.icon(
@@ -546,8 +546,8 @@ class _AboutPageState extends State<AboutPage> {
           ),
           const SizedBox(height: 16),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 10,
+            runSpacing: 10,
             children: [
               for (final item in (_project['techStack'] as List? ?? []))
                 _SkillChip(label: item.toString()),
@@ -555,8 +555,8 @@ class _AboutPageState extends State<AboutPage> {
           ),
           const SizedBox(height: 16),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 10,
+            runSpacing: 10,
             children: [
               for (final action
                   in (_project['actions'] as List? ?? []).whereType<Map>())
@@ -646,7 +646,7 @@ class _MetaLabel extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         PrismGlyph(glyph, size: 15, color: colors.onSurfaceVariant),
-        const SizedBox(width: 5),
+        const SizedBox(width: 8),
         Text(
           text,
           style: prism.AppTextStyle.footnote

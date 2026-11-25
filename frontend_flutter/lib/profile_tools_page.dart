@@ -235,9 +235,8 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
   String _cookieExpiry(dynamic value) {
     final expires = double.tryParse(value?.toString() ?? '') ?? 0;
     if (expires <= 0) return '会话 Cookie';
-    final local = DateTime.fromMillisecondsSinceEpoch(
-      (expires * 1000).round(),
-    ).toLocal();
+    final local = DateTime.fromMillisecondsSinceEpoch((expires * 1000).round())
+        .toLocal();
     String two(int n) => n.toString().padLeft(2, '0');
     return '${local.year}-${two(local.month)}-${two(local.day)} '
         '${two(local.hour)}:${two(local.minute)}';
@@ -476,7 +475,8 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
     final safeName = '${_profile?['profileName'] ?? widget.profileId}'
         .replaceAll(RegExp(r'[\\/:*?"<>|\s]+'), '_');
     final baseDir = Directory.systemTemp.path;
-    final defaultPath = '$baseDir${Platform.pathSeparator}cookies_$safeName.txt';
+    final defaultPath =
+        '$baseDir${Platform.pathSeparator}cookies_$safeName.txt';
     final pathController = TextEditingController(text: defaultPath);
     final chosenPath = await showPrismDialog<String>(
       context: context,
@@ -537,8 +537,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
             maxLines: 16,
             decoration: const PrismInputDecoration(
               labelText: 'Cookie JSON 数组',
-              hintText:
-                  '[{"name":"session","value":"...","domain":"example.com","path":"/"}]',
+              hintText: '[{"name":"session","value":"...","domain":"example.com","path":"/"}]',
             ),
           ),
         ),
@@ -793,7 +792,9 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                               label: '进程 PID',
                               value: pid > 0 ? '$pid' : '-',
                               glyph: AntGlyphs.cpu,
-                              tone: pid > 0 ? PrismTone.info : PrismTone.neutral,
+                              tone: pid > 0
+                                  ? PrismTone.info
+                                  : PrismTone.neutral,
                               staggerIndex: 1,
                               staggerDelay: const Duration(milliseconds: 45),
                             ),
@@ -860,552 +861,560 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                         glyph: AntGlyphs.settings,
                         staggerIndex: 4,
                         staggerDelay: const Duration(milliseconds: 45),
-                      // 整卡单个 SelectionArea + 普通 Text，
-                      // 避免逐行 SelectableText 在滚动容器内堆叠。
-                      child: RepaintBoundary(
-                        child: prism.SelectionArea(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              _infoRow(
-                                context,
-                                '实例编号',
-                                '${profile['profileId'] ?? ''}',
-                              ),
-                              _infoRow(
-                                context,
-                                '浏览器内核',
-                                _resolveCoreName(profile),
-                              ),
-                              _infoRow(
-                                context,
-                                '所属分组',
-                                _resolveGroupName(profile),
-                              ),
-                              _infoRow(
-                                context,
-                                '代理配置',
-                                '${profile['proxyConfig'] ?? ''}'.trim().isEmpty
-                                    ? '直连'
-                                    : '${profile['proxyConfig']}',
-                              ),
-                              _infoRow(
-                                context,
-                                '参数概览',
-                                '指纹参数 ${_valueCount(profile['fingerprintArgs'])} 项 · '
-                                    '启动参数 ${_valueCount(profile['launchArgs'])} 项',
-                              ),
-                              _infoRow(
-                                context,
-                                '用户数据目录',
-                                '${profile['userDataDir'] ?? ''}',
-                              ),
-                              if (tags.isNotEmpty) ...[
-                                const SizedBox(height: 6),
-                                Wrap(
-                                  spacing: 6,
-                                  runSpacing: 6,
-                                  children: [
-                                    for (final tag in tags)
-                                      PrismBadge(
-                                        label: tag,
-                                        tone: PrismTone.info,
-                                        glyph: AntGlyphs.tag,
-                                      ),
-                                  ],
+                        // 整卡单个 SelectionArea + 普通 Text，
+                        // 避免逐行 SelectableText 在滚动容器内堆叠。
+                        child: RepaintBoundary(
+                          child: prism.SelectionArea(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _infoRow(
+                                  context,
+                                  '实例编号',
+                                  '${profile['profileId'] ?? ''}',
                                 ),
-                              ],
-                              const SizedBox(height: 10),
-                              const prism.Divider(height: 1),
-                              const SizedBox(height: 10),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      '启动码：${profile['launchCode'] ?? '未分配'}',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: prism.AppTextStyle.subheadline.of(
-                                        context,
-                                        emphasized: true,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  prism.IconButton(
-                                    tooltip: '复制启动码',
-                                    onPressed: () => _copyLaunchCode(profile),
-                                    icon: const PrismGlyph(
-                                      AntGlyphs.copy,
-                                      size: 16,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  prism.IconButton(
-                                    tooltip: '重新生成启动码',
-                                    onPressed: _busy.isEmpty
-                                        ? _regenerateLaunchCode
-                                        : null,
-                                    icon: const PrismGlyph(
-                                      AntGlyphs.refresh,
-                                      size: 16,
-                                    ),
+                                _infoRow(
+                                  context,
+                                  '浏览器内核',
+                                  _resolveCoreName(profile),
+                                ),
+                                _infoRow(
+                                  context,
+                                  '所属分组',
+                                  _resolveGroupName(profile),
+                                ),
+                                _infoRow(
+                                  context,
+                                  '代理配置',
+                                  '${profile['proxyConfig'] ?? ''}'
+                                          .trim()
+                                          .isEmpty
+                                      ? '直连'
+                                      : '${profile['proxyConfig']}',
+                                ),
+                                _infoRow(
+                                  context,
+                                  '参数概览',
+                                  '指纹参数 ${_valueCount(profile['fingerprintArgs'])} 项 · '
+                                      '启动参数 ${_valueCount(profile['launchArgs'])} 项',
+                                ),
+                                _infoRow(
+                                  context,
+                                  '用户数据目录',
+                                  '${profile['userDataDir'] ?? ''}',
+                                ),
+                                if (tags.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  Wrap(
+                                    spacing: 10,
+                                    runSpacing: 6,
+                                    children: [
+                                      for (final tag in tags)
+                                        PrismBadge(
+                                          label: tag,
+                                          tone: PrismTone.info,
+                                          glyph: AntGlyphs.tag,
+                                        ),
+                                    ],
                                   ),
                                 ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    PrismSectionCard(
-                      title: '打开网址与标签页',
-                      glyph: AntGlyphs.globe,
-                      staggerIndex: 5,
-                      staggerDelay: const Duration(milliseconds: 45),
-                      actions: [
-                        prism.IconButton(
-                          tooltip: '刷新标签页',
-                          onPressed: _debugReady ? _loadTabs : null,
-                          icon: const PrismGlyph(AntGlyphs.refresh, size: 16),
-                        ),
-                      ],
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: PrismTextField(
-                                  controller: _url,
-                                  enabled: _debugReady,
-                                  onSubmitted: (_) {
-                                    if (_debugReady && _busy.isEmpty) {
-                                      _openUrl();
-                                    }
-                                  },
-                                  decoration: const PrismInputDecoration(
-                                    hintText: 'https://example.com',
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              PrismHoverMotion(
-                                enabled: _debugReady && _busy.isEmpty,
-                                child: prism.FilledButton.icon(
-                                  onPressed: _debugReady && _busy.isEmpty
-                                      ? _openUrl
-                                      : null,
-                                  icon: const PrismGlyph(
-                                    AntGlyphs.openInNew,
-                                    size: 15,
-                                  ),
-                                  label: const Text('打开'),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          if (!_running)
-                            const PrismEmptyState(
-                              glyph: AntGlyphs.browser,
-                              title: '实例未启动',
-                              subtitle: '启动实例后可查看和管理当前标签页',
-                            )
-                          else if (!_debugReady)
-                            const PrismBanner(
-                              tone: PrismTone.warning,
-                              title: '等待调试端口就绪',
-                              message:
-                                  '实例进程已启动，正在等待 CDP 调试端口就绪，就绪后可加载标签页与打开网址。',
-                            )
-                          else if (_tabs.isEmpty)
-                            const PrismEmptyState(
-                              glyph: AntGlyphs.globe,
-                              title: '暂无可显示的标签页',
-                            )
-                          else
-                            for (final tab in _tabs)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: prism.Surface(
-                                  color: colors.surfaceContainerLow,
-                                  shape: prism.AppShape.lg,
-                                  child: PrismListTile(
-                                    leading: const PrismGlyph(
-                                      AntGlyphs.globe,
-                                      size: 17,
-                                    ),
-                                    title: Text(
-                                      (tab['title'] ?? '新标签页').toString(),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    subtitle: Text(
-                                      (tab['url'] ?? '').toString(),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                  1 => Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(top: 16, bottom: 10),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: PrismBanner(
-                              tone: _running
-                                  ? PrismTone.warning
-                                  : PrismTone.info,
-                              message: _running
-                                  ? '实例正在运行，请先关闭实例后再创建或恢复快照。'
-                                  : '快照用于备份或还原此实例的本地浏览器数据目录。',
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          PrismHoverMotion(
-                            enabled: !_running && _busy.isEmpty,
-                            child: prism.FilledButton.icon(
-                              onPressed: !_running && _busy.isEmpty
-                                  ? _createSnapshot
-                                  : null,
-                              icon: const PrismGlyph(AntGlyphs.add, size: 16),
-                              label: const Text('创建快照'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: _snapshots.isEmpty
-                          ? const PrismEmptyState(
-                              glyph: AntGlyphs.archive,
-                              title: '暂无数据快照',
-                              subtitle: '在实例停止状态下点击“创建快照”保存当前数据',
-                            )
-                          : ListView(
-                              padding: kPrismListPadding,
-                              children: [
-                                for (final snapshot in _snapshots)
-                                  PrismCard(
-                                    margin: const EdgeInsets.only(bottom: 8),
-                                    child: PrismListTile(
-                                      leading: const PrismGlyph(
-                                        AntGlyphs.archive,
-                                        size: 18,
-                                      ),
-                                      title: Text(
-                                        (snapshot['name'] ?? '未命名快照')
-                                            .toString(),
+                                const SizedBox(height: 10),
+                                const prism.Divider(height: 1),
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        '启动码：${profile['launchCode'] ?? '未分配'}',
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: prism.AppTextStyle.subheadline
                                             .of(context, emphasized: true),
                                       ),
-                                      subtitle: Text(
-                                        '${_formatDateTime(snapshot['createdAt'])} · '
-                                        '${_formatSnapshotSize(snapshot['sizeMB'])}',
+                                    ),
+                                    const SizedBox(width: 10),
+                                    prism.IconButton(
+                                      tooltip: '复制启动码',
+                                      onPressed: () => _copyLaunchCode(profile),
+                                      icon: const PrismGlyph(
+                                        AntGlyphs.copy,
+                                        size: 16,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    prism.IconButton(
+                                      tooltip: '重新生成启动码',
+                                      onPressed: _busy.isEmpty
+                                          ? _regenerateLaunchCode
+                                          : null,
+                                      icon: const PrismGlyph(
+                                        AntGlyphs.refresh,
+                                        size: 16,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      PrismSectionCard(
+                        title: '打开网址与标签页',
+                        glyph: AntGlyphs.globe,
+                        staggerIndex: 5,
+                        staggerDelay: const Duration(milliseconds: 45),
+                        actions: [
+                          prism.IconButton(
+                            tooltip: '刷新标签页',
+                            onPressed: _debugReady ? _loadTabs : null,
+                            icon: const PrismGlyph(AntGlyphs.refresh, size: 16),
+                          ),
+                        ],
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: PrismTextField(
+                                    controller: _url,
+                                    enabled: _debugReady,
+                                    onSubmitted: (_) {
+                                      if (_debugReady && _busy.isEmpty) {
+                                        _openUrl();
+                                      }
+                                    },
+                                    decoration: const PrismInputDecoration(
+                                      hintText: 'https://example.com',
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                PrismHoverMotion(
+                                  enabled: _debugReady && _busy.isEmpty,
+                                  child: prism.FilledButton.icon(
+                                    onPressed: _debugReady && _busy.isEmpty
+                                        ? _openUrl
+                                        : null,
+                                    icon: const PrismGlyph(
+                                      AntGlyphs.openInNew,
+                                      size: 15,
+                                    ),
+                                    label: const Text('打开'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            if (!_running)
+                              const PrismEmptyState(
+                                glyph: AntGlyphs.browser,
+                                title: '实例未启动',
+                                subtitle: '启动实例后可查看和管理当前标签页',
+                              )
+                            else if (!_debugReady)
+                              const PrismBanner(
+                                tone: PrismTone.warning,
+                                title: '等待调试端口就绪',
+                                message:
+                                    '实例进程已启动，正在等待 CDP 调试端口就绪，就绪后可加载标签页与打开网址。',
+                              )
+                            else if (_tabs.isEmpty)
+                              const PrismEmptyState(
+                                glyph: AntGlyphs.globe,
+                                title: '暂无可显示的标签页',
+                              )
+                            else
+                              for (final tab in _tabs)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: prism.Surface(
+                                    color: colors.surfaceContainerLow,
+                                    shape: prism.AppShape.lg,
+                                    child: PrismListTile(
+                                      leading: const PrismGlyph(
+                                        AntGlyphs.globe,
+                                        size: 17,
+                                      ),
+                                      title: Text(
+                                        (tab['title'] ?? '新标签页').toString(),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                       ),
-                                      trailing: Wrap(
-                                        spacing: 4,
-                                        crossAxisAlignment:
-                                            WrapCrossAlignment.center,
-                                        children: [
-                                          prism.IconButton(
-                                            tooltip: '恢复快照',
-                                            onPressed:
-                                                !_running && _busy.isEmpty
-                                                ? () =>
-                                                      _restoreSnapshot(snapshot)
-                                                : null,
-                                            icon: const PrismGlyph(
-                                              AntGlyphs.restore,
-                                              size: 17,
-                                            ),
-                                          ),
-                                          prism.IconButton(
-                                            tooltip: '删除快照',
-                                            onPressed: _busy.isEmpty
-                                                ? () =>
-                                                      _deleteSnapshot(snapshot)
-                                                : null,
-                                            icon: PrismGlyph(
-                                              AntGlyphs.delete,
-                                              size: 17,
-                                              color: colors.error,
-                                            ),
-                                          ),
-                                        ],
+                                      subtitle: Text(
+                                        (tab['url'] ?? '').toString(),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                   ),
-                              ],
-                            ),
-                    ),
-                  ],
-                ),
-                  _ => Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const SizedBox(height: 14),
-                    if (_running && !_debugReady) ...[
-                      const PrismBanner(
-                        tone: PrismTone.warning,
-                        title: '等待调试端口就绪',
-                        message:
-                            '实例已启动但调试端口尚未就绪，就绪后将自动支持 Cookie 读取与导入导出。',
-                      ),
-                      const SizedBox(height: 10),
-                    ],
-                    PrismSearchBar(
-                      controller: _cookieFilter,
-                      hintText: '按域名过滤 Cookie...',
-                      onChanged: (_) => setState(() {}),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12, bottom: 10),
-                      child: Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          prism.OutlinedButton.icon(
-                            onPressed: _debugReady && _busy.isEmpty
-                                ? _loadCookies
-                                : null,
-                            icon: const PrismGlyph(
-                              AntGlyphs.refresh,
-                              size: 15,
-                            ),
-                            label: const Text('读取'),
-                          ),
-                          prism.OutlinedButton.icon(
-                            onPressed: _debugReady && _busy.isEmpty
-                                ? _exportCookies
-                                : null,
-                            icon: const PrismGlyph(
-                              AntGlyphs.download,
-                              size: 15,
-                            ),
-                            label: const Text('导出 Netscape'),
-                          ),
-                          prism.OutlinedButton.icon(
-                            onPressed: _debugReady && _busy.isEmpty
-                                ? _importCookies
-                                : null,
-                            icon: const PrismGlyph(
-                              AntGlyphs.upload,
-                              size: 15,
-                            ),
-                            label: const Text('导入 JSON'),
-                          ),
-                          prism.TextButton.icon(
-                            onPressed: _debugReady && _busy.isEmpty
-                                ? _clearCookies
-                                : null,
-                            icon: PrismGlyph(
-                              AntGlyphs.delete,
-                              size: 15,
-                              color: _debugReady ? colors.error : null,
-                            ),
-                            label: const Text('清空'),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (_cookieExport.isNotEmpty) ...[
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              '导出的 Netscape Cookie',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: prism.AppTextStyle.footnote.of(
-                                context,
-                                emphasized: true,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          prism.OutlinedButton.icon(
-                            onPressed: _saveCookieExportToFile,
-                            icon: const PrismGlyph(AntGlyphs.save, size: 14),
-                            label: const Text('保存到文件'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      PrismCodeSurface(
-                        code: _cookieExport,
-                        language: 'netscape',
-                        maxHeight: 150,
-                        showCopy: true,
-                      ),
-                      const SizedBox(height: 10),
-                    ],
-                    Expanded(
-                      child: !_running
-                          ? const PrismEmptyState(
-                              glyph: AntGlyphs.shield,
-                              title: '实例未启动',
-                              subtitle: '启动实例且调试端口就绪后可管理 Cookie',
-                            )
-                          : !_debugReady
-                          ? const PrismEmptyState(
-                              glyph: AntGlyphs.pending,
-                              title: '等待调试端口就绪',
-                              subtitle: '就绪后将自动加载当前实例的 Cookie',
-                            )
-                          : _cookies.isEmpty
-                          ? PrismEmptyState(
-                              glyph: AntGlyphs.shield,
-                              title: '暂无 Cookie',
-                              subtitle: '点击“读取”刷新或“导入 JSON”写入 Cookie',
-                              action: prism.OutlinedButton.icon(
-                                onPressed: _busy.isEmpty ? _loadCookies : null,
-                                icon: const PrismGlyph(
-                                  AntGlyphs.refresh,
-                                  size: 15,
                                 ),
-                                label: const Text('重新读取'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  1 => Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 16, bottom: 10),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: PrismBanner(
+                                tone: _running
+                                    ? PrismTone.warning
+                                    : PrismTone.info,
+                                message: _running
+                                    ? '实例正在运行，请先关闭实例后再创建或恢复快照。'
+                                    : '快照用于备份或还原此实例的本地浏览器数据目录。',
                               ),
-                            )
-                          : Builder(
-                              builder: (context) {
-                                final query = _cookieFilter.text
-                                    .trim()
-                                    .toLowerCase();
-                                final cookies = _cookies.where((cookie) {
-                                  return query.isEmpty ||
-                                      (cookie['domain'] ?? '')
-                                          .toString()
-                                          .toLowerCase()
-                                          .contains(query);
-                                }).toList();
-                                if (cookies.isEmpty) {
-                                  return const PrismEmptyState(
-                                    glyph: AntGlyphs.search,
-                                    title: '没有匹配的 Cookie',
-                                    subtitle: '尝试修改域名过滤关键词',
-                                  );
-                                }
-                                // 列表外层单个 SelectionArea 覆盖全部条目，
-                                // Cookie value 改用普通 Text 避免手势区域碎片化。
-                                return RepaintBoundary(
-                                  child: prism.SelectionArea(
-                                    child: ListView(
-                                      padding: kPrismListPadding,
-                                      children: [
-                                        for (final cookie in cookies)
-                                          PrismCard(
-                                            margin: const EdgeInsets.only(
-                                              bottom: 8,
-                                            ),
-                                            child: Padding(
-                                              padding: const EdgeInsets.all(12),
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Row(
-                                                    children: [
-                                                      Expanded(
-                                                        child: Text(
-                                                          (cookie['name'] ?? '')
-                                                              .toString(),
-                                                          maxLines: 1,
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                          style: prism
-                                                              .AppTextStyle
-                                                              .subheadline
-                                                              .of(
-                                                                context,
-                                                                emphasized:
-                                                                    true,
-                                                              ),
-                                                        ),
-                                                      ),
-                                                      if (cookie['httpOnly'] ==
-                                                          true)
-                                                        const Padding(
-                                                          padding:
-                                                              EdgeInsets.only(
-                                                                left: 6,
-                                                              ),
-                                                          child: PrismBadge(
-                                                            label: 'HttpOnly',
-                                                            tone:
-                                                                PrismTone.info,
-                                                          ),
-                                                        ),
-                                                      if (cookie['secure'] ==
-                                                          true)
-                                                        const Padding(
-                                                          padding:
-                                                              EdgeInsets.only(
-                                                                left: 6,
-                                                              ),
-                                                          child: PrismBadge(
-                                                            label: 'Secure',
-                                                            tone: PrismTone
-                                                                .success,
-                                                          ),
-                                                        ),
-                                                    ],
-                                                  ),
-                                                  const SizedBox(height: 4),
-                                                  Text(
-                                                    '${cookie['domain'] ?? ''} · ${cookie['path'] ?? '/'} · ${_cookieExpiry(cookie['expires'])}',
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    style: prism
-                                                        .AppTextStyle
-                                                        .caption1
-                                                        .of(context)
-                                                        .copyWith(
-                                                          color: colors
-                                                              .onSurfaceVariant,
-                                                        ),
-                                                  ),
-                                                  const SizedBox(height: 6),
-                                                  Text(
-                                                    (cookie['value'] ?? '')
-                                                        .toString(),
-                                                    maxLines: 2,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    style: const TextStyle(
-                                                      fontFamily: prismMonoFontFamily,
-                                                      fontSize: 12,
-                                                    ),
-                                                  ),
-                                                ],
+                            ),
+                            const SizedBox(width: 12),
+                            PrismHoverMotion(
+                              enabled: !_running && _busy.isEmpty,
+                              child: prism.FilledButton.icon(
+                                onPressed: !_running && _busy.isEmpty
+                                    ? _createSnapshot
+                                    : null,
+                                icon: const PrismGlyph(AntGlyphs.add, size: 16),
+                                label: const Text('创建快照'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: _snapshots.isEmpty
+                            ? const PrismEmptyState(
+                                glyph: AntGlyphs.archive,
+                                title: '暂无数据快照',
+                                subtitle: '在实例停止状态下点击“创建快照”保存当前数据',
+                              )
+                            : ListView(
+                                padding: kPrismListPadding,
+                                children: [
+                                  for (final snapshot in _snapshots)
+                                    PrismCard(
+                                      margin: const EdgeInsets.only(bottom: 12),
+                                      child: PrismListTile(
+                                        leading: const PrismGlyph(
+                                          AntGlyphs.archive,
+                                          size: 18,
+                                        ),
+                                        title: Text(
+                                          (snapshot['name'] ?? '未命名快照')
+                                              .toString(),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: prism.AppTextStyle.subheadline
+                                              .of(context, emphasized: true),
+                                        ),
+                                        subtitle: Text(
+                                          '${_formatDateTime(snapshot['createdAt'])} · '
+                                          '${_formatSnapshotSize(snapshot['sizeMB'])}',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        trailing: Wrap(
+                                          spacing: 10,
+                                          crossAxisAlignment:
+                                              WrapCrossAlignment.center,
+                                          children: [
+                                            prism.IconButton(
+                                              tooltip: '恢复快照',
+                                              onPressed:
+                                                  !_running && _busy.isEmpty
+                                                  ? () => _restoreSnapshot(
+                                                      snapshot,
+                                                    )
+                                                  : null,
+                                              icon: const PrismGlyph(
+                                                AntGlyphs.restore,
+                                                size: 17,
                                               ),
                                             ),
-                                          ),
-                                      ],
+                                            prism.IconButton(
+                                              tooltip: '删除快照',
+                                              onPressed: _busy.isEmpty
+                                                  ? () => _deleteSnapshot(
+                                                      snapshot,
+                                                    )
+                                                  : null,
+                                              icon: PrismGlyph(
+                                                AntGlyphs.delete,
+                                                size: 17,
+                                                color: colors.error,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                );
-                              },
+                                ],
+                              ),
+                      ),
+                    ],
+                  ),
+                  _ => Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 14),
+                      if (_running && !_debugReady) ...[
+                        const PrismBanner(
+                          tone: PrismTone.warning,
+                          title: '等待调试端口就绪',
+                          message: '实例已启动但调试端口尚未就绪，就绪后将自动支持 Cookie 读取与导入导出。',
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                      PrismSearchBar(
+                        controller: _cookieFilter,
+                        hintText: '按域名过滤 Cookie...',
+                        onChanged: (_) => setState(() {}),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12, bottom: 10),
+                        child: Wrap(
+                          spacing: 12,
+                          runSpacing: 8,
+                          children: [
+                            prism.OutlinedButton.icon(
+                              onPressed: _debugReady && _busy.isEmpty
+                                  ? _loadCookies
+                                  : null,
+                              icon: const PrismGlyph(
+                                AntGlyphs.refresh,
+                                size: 15,
+                              ),
+                              label: const Text('读取'),
                             ),
-                    ),
-                  ],
-                ),
+                            prism.OutlinedButton.icon(
+                              onPressed: _debugReady && _busy.isEmpty
+                                  ? _exportCookies
+                                  : null,
+                              icon: const PrismGlyph(
+                                AntGlyphs.download,
+                                size: 15,
+                              ),
+                              label: const Text('导出 Netscape'),
+                            ),
+                            prism.OutlinedButton.icon(
+                              onPressed: _debugReady && _busy.isEmpty
+                                  ? _importCookies
+                                  : null,
+                              icon: const PrismGlyph(
+                                AntGlyphs.upload,
+                                size: 15,
+                              ),
+                              label: const Text('导入 JSON'),
+                            ),
+                            prism.TextButton.icon(
+                              onPressed: _debugReady && _busy.isEmpty
+                                  ? _clearCookies
+                                  : null,
+                              icon: PrismGlyph(
+                                AntGlyphs.delete,
+                                size: 15,
+                                color: _debugReady ? colors.error : null,
+                              ),
+                              label: const Text('清空'),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (_cookieExport.isNotEmpty) ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '导出的 Netscape Cookie',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: prism.AppTextStyle.footnote.of(
+                                  context,
+                                  emphasized: true,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            prism.OutlinedButton.icon(
+                              onPressed: _saveCookieExportToFile,
+                              icon: const PrismGlyph(AntGlyphs.save, size: 14),
+                              label: const Text('保存到文件'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        PrismCodeSurface(
+                          code: _cookieExport,
+                          language: 'netscape',
+                          maxHeight: 150,
+                          showCopy: true,
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                      Expanded(
+                        child: !_running
+                            ? const PrismEmptyState(
+                                glyph: AntGlyphs.shield,
+                                title: '实例未启动',
+                                subtitle: '启动实例且调试端口就绪后可管理 Cookie',
+                              )
+                            : !_debugReady
+                            ? const PrismEmptyState(
+                                glyph: AntGlyphs.pending,
+                                title: '等待调试端口就绪',
+                                subtitle: '就绪后将自动加载当前实例的 Cookie',
+                              )
+                            : _cookies.isEmpty
+                            ? PrismEmptyState(
+                                glyph: AntGlyphs.shield,
+                                title: '暂无 Cookie',
+                                subtitle: '点击“读取”刷新或“导入 JSON”写入 Cookie',
+                                action: prism.OutlinedButton.icon(
+                                  onPressed: _busy.isEmpty
+                                      ? _loadCookies
+                                      : null,
+                                  icon: const PrismGlyph(
+                                    AntGlyphs.refresh,
+                                    size: 15,
+                                  ),
+                                  label: const Text('重新读取'),
+                                ),
+                              )
+                            : Builder(
+                                builder: (context) {
+                                  final query = _cookieFilter.text
+                                      .trim()
+                                      .toLowerCase();
+                                  final cookies = _cookies.where((cookie) {
+                                    return query.isEmpty ||
+                                        (cookie['domain'] ?? '')
+                                            .toString()
+                                            .toLowerCase()
+                                            .contains(query);
+                                  }).toList();
+                                  if (cookies.isEmpty) {
+                                    return const PrismEmptyState(
+                                      glyph: AntGlyphs.search,
+                                      title: '没有匹配的 Cookie',
+                                      subtitle: '尝试修改域名过滤关键词',
+                                    );
+                                  }
+                                  // 列表外层单个 SelectionArea 覆盖全部条目，
+                                  // Cookie value 改用普通 Text 避免手势区域碎片化。
+                                  return RepaintBoundary(
+                                    child: prism.SelectionArea(
+                                      child: ListView(
+                                        padding: kPrismListPadding,
+                                        children: [
+                                          for (final cookie in cookies)
+                                            PrismCard(
+                                              margin: const EdgeInsets.only(
+                                                bottom: 12,
+                                              ),
+                                              child: Padding(
+                                                padding: const EdgeInsets.all(
+                                                  16,
+                                                ),
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Row(
+                                                      children: [
+                                                        Expanded(
+                                                          child: Text(
+                                                            (cookie['name'] ??
+                                                                    '')
+                                                                .toString(),
+                                                            maxLines: 1,
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis,
+                                                            style: prism
+                                                                .AppTextStyle
+                                                                .subheadline
+                                                                .of(
+                                                                  context,
+                                                                  emphasized:
+                                                                      true,
+                                                                ),
+                                                          ),
+                                                        ),
+                                                        if (cookie['httpOnly'] ==
+                                                            true)
+                                                          const Padding(
+                                                            padding:
+                                                                EdgeInsets.only(
+                                                                  left: 6,
+                                                                ),
+                                                            child: PrismBadge(
+                                                              label: 'HttpOnly',
+                                                              tone: PrismTone
+                                                                  .info,
+                                                            ),
+                                                          ),
+                                                        if (cookie['secure'] ==
+                                                            true)
+                                                          const Padding(
+                                                            padding:
+                                                                EdgeInsets.only(
+                                                                  left: 6,
+                                                                ),
+                                                            child: PrismBadge(
+                                                              label: 'Secure',
+                                                              tone: PrismTone
+                                                                  .success,
+                                                            ),
+                                                          ),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 4),
+                                                    Text(
+                                                      '${cookie['domain'] ?? ''} · ${cookie['path'] ?? '/'} · ${_cookieExpiry(cookie['expires'])}',
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: prism
+                                                          .AppTextStyle
+                                                          .caption1
+                                                          .of(context)
+                                                          .copyWith(
+                                                            color: colors
+                                                                .onSurfaceVariant,
+                                                          ),
+                                                    ),
+                                                    const SizedBox(height: 6),
+                                                    Text(
+                                                      (cookie['value'] ?? '')
+                                                          .toString(),
+                                                      maxLines: 2,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: const TextStyle(
+                                                        fontFamily:
+                                                            prismMonoFontFamily,
+                                                        fontSize: 12,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  ),
                 },
               ),
             ),

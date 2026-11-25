@@ -18,7 +18,8 @@ class _BookmarkEntry {
   bool openOnStart;
 
   bool get isProtected =>
-      urlController.text.trim().toLowerCase() == _BookmarksPageState._protectedUrl;
+      urlController.text.trim().toLowerCase() ==
+      _BookmarksPageState._protectedUrl;
 
   Map<String, dynamic> toJson() => {
     'name': nameController.text,
@@ -223,7 +224,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
     _BookmarkEntry entry, {
     required bool protected,
     int? dragIndex,
-    EdgeInsetsGeometry margin = const EdgeInsets.only(bottom: 8),
+    EdgeInsetsGeometry margin = const EdgeInsets.only(bottom: 12),
   }) {
     final colors = prism.Theme.of(context).colorScheme;
     return Padding(
@@ -233,7 +234,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
         color: colors.surfaceContainerLow,
         shape: prism.AppShape.lg,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -292,10 +293,8 @@ class _BookmarksPageState extends State<BookmarksPage> {
                     onChanged: (value) =>
                         setState(() => entry.openOnStart = value == true),
                   ),
-                  Text(
-                    '启动时打开',
-                    style: prism.AppTextStyle.caption1.of(context),
-                  ),
+                  const SizedBox(width: 12),
+                  Text('启动时打开', style: prism.AppTextStyle.caption1.of(context)),
                 ],
               ),
               if (!protected) ...[
@@ -455,7 +454,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
       staggerDelay: const Duration(milliseconds: 45),
       radius: prism.AppCorner.xl,
       lift: false,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= 760;
@@ -470,9 +469,9 @@ class _BookmarksPageState extends State<BookmarksPage> {
                     onChanged: (_) => setState(() {}),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 Wrap(
-                  spacing: 8,
+                  spacing: 10,
                   runSpacing: 6,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: actionWidgets,
@@ -489,9 +488,9 @@ class _BookmarksPageState extends State<BookmarksPage> {
                 height: 36,
                 onChanged: (_) => setState(() {}),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Wrap(
-                spacing: 8,
+                spacing: 10,
                 runSpacing: 6,
                 alignment: WrapAlignment.end,
                 crossAxisAlignment: WrapCrossAlignment.center,
@@ -579,8 +578,9 @@ class _BookmarksPageState extends State<BookmarksPage> {
                                       tone: PrismTone.warning,
                                     ),
                                     prism.TextButton(
-                                      onPressed: () =>
-                                          setState(() => _searchController.clear()),
+                                      onPressed: () => setState(
+                                        () => _searchController.clear(),
+                                      ),
                                       child: const Text('清空筛选'),
                                     ),
                                   ],
@@ -601,7 +601,8 @@ class _BookmarksPageState extends State<BookmarksPage> {
                               const prism.Divider(height: 1),
                               Expanded(
                                 child: prism.PageTransitionSwitcher(
-                                  duration: PrismMotionSpec.current.pageDuration,
+                                  duration:
+                                      PrismMotionSpec.current.pageDuration,
                                   transitionBuilder:
                                       PrismSlideThroughTransition.builder,
                                   child: KeyedSubtree(
@@ -613,16 +614,17 @@ class _BookmarksPageState extends State<BookmarksPage> {
                                               ? PrismEmptyState(
                                                   glyph: AntGlyphs.bookmark,
                                                   title: '暂无自定义书签',
-                                                  subtitle:
-                                                      '点击上方“添加书签”创建常用网址。',
+                                                  subtitle: '点击上方“添加书签”创建常用网址。',
                                                   action: PrismHoverMotion(
                                                     child:
-                                                        prism.OutlinedButton.icon(
+                                                        prism
+                                                            .OutlinedButton.icon(
                                                           onPressed: _add,
-                                                          icon: const PrismGlyph(
-                                                            AntGlyphs.add,
-                                                            size: 16,
-                                                          ),
+                                                          icon:
+                                                              const PrismGlyph(
+                                                                AntGlyphs.add,
+                                                                size: 16,
+                                                              ),
                                                           label: const Text(
                                                             '添加书签',
                                                           ),
@@ -632,8 +634,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
                                               : PrismEmptyState(
                                                   glyph: AntGlyphs.search,
                                                   title: '没有匹配的书签',
-                                                  subtitle:
-                                                      '尝试更换关键词，或清空搜索查看全部书签并启用拖拽排序。',
+                                                  subtitle: '尝试更换关键词，或清空搜索查看全部书签并启用拖拽排序。',
                                                   action: prism.OutlinedButton(
                                                     onPressed: () => setState(
                                                       () => _searchController
@@ -653,31 +654,34 @@ class _BookmarksPageState extends State<BookmarksPage> {
                                                     itemCount:
                                                         filteredRegular.length,
                                                     itemBuilder:
-                                                        (context, index) =>
-                                                            _buildBookmarkRow(
-                                                              filteredRegular[index],
-                                                              protected: false,
-                                                            ),
+                                                        (
+                                                          context,
+                                                          index,
+                                                        ) => _buildBookmarkRow(
+                                                          filteredRegular[index],
+                                                          protected: false,
+                                                        ),
                                                   )
                                                 : prism.PrismReorderableListView(
                                                     padding: kPrismListPadding,
-                                                    proxyDecorator:
-                                                        (
-                                                          child,
-                                                          index,
-                                                          animation,
-                                                        ) => child,
+                                                    proxyDecorator: (
+                                                      child,
+                                                      index,
+                                                      animation,
+                                                    ) => child,
                                                     itemCount:
                                                         regularEntries.length,
                                                     onReorderItem:
                                                         _reorderRegular,
                                                     itemBuilder:
-                                                        (context, index) =>
-                                                            _buildBookmarkRow(
-                                                              regularEntries[index],
-                                                              protected: false,
-                                                              dragIndex: index,
-                                                            ),
+                                                        (
+                                                          context,
+                                                          index,
+                                                        ) => _buildBookmarkRow(
+                                                          regularEntries[index],
+                                                          protected: false,
+                                                          dragIndex: index,
+                                                        ),
                                                   ),
                                           ),
                                   ),

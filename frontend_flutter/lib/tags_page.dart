@@ -443,7 +443,7 @@ class _TagsPageState extends State<TagsPage> {
                                   onSubmitted: _quickAddTag,
                                 ),
                               ),
-                              const SizedBox(width: 6),
+                              const SizedBox(width: 12),
                               prism.IconButton(
                                 tooltip: '添加',
                                 onPressed: () =>
@@ -496,7 +496,7 @@ class _TagsPageState extends State<TagsPage> {
                                                 ? PrismTone.primary
                                                 : PrismTone.neutral,
                                           ),
-                                          const SizedBox(width: 4),
+                                          const SizedBox(width: 10),
                                           prism.IconButton(
                                             tooltip: '重命名',
                                             style: const prism.ButtonStyle(
@@ -526,7 +526,9 @@ class _TagsPageState extends State<TagsPage> {
                                     '暂无标签，输入名称回车或点击 + 创建',
                                     style: prism.AppTextStyle.caption1
                                         .of(context)
-                                        .copyWith(color: colors.onSurfaceVariant),
+                                        .copyWith(
+                                          color: colors.onSurfaceVariant,
+                                        ),
                                   ),
                                 ),
                             ],
@@ -543,8 +545,8 @@ class _TagsPageState extends State<TagsPage> {
                     children: [
                       PrismHoverCard(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 10,
+                          horizontal: 16,
+                          vertical: 12,
                         ),
                         radius: prism.AppCorner.xl,
                         staggerIndex: 5,
@@ -556,8 +558,8 @@ class _TagsPageState extends State<TagsPage> {
                           children: [
                             Expanded(
                               child: Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
+                                spacing: 10,
+                                runSpacing: 10,
                                 crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   PrismBadge(
@@ -600,7 +602,8 @@ class _TagsPageState extends State<TagsPage> {
                                       ),
                                     ),
                                   PrismHoverMotion(
-                                    enabled: !_saving && activeRemoveTag != null,
+                                    enabled:
+                                        !_saving && activeRemoveTag != null,
                                     child: prism.OutlinedButton.icon(
                                       onPressed:
                                           _saving || activeRemoveTag == null
@@ -626,7 +629,7 @@ class _TagsPageState extends State<TagsPage> {
                                 ],
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 12),
                             prism.IconButton(
                               tooltip: '刷新',
                               onPressed: _saving ? null : _load,
@@ -683,8 +686,9 @@ class _TagsPageState extends State<TagsPage> {
                                         child: PrismProgressIndicator(),
                                       )
                                     : prism.PageTransitionSwitcher(
-                                        duration:
-                                            PrismMotionSpec.current.pageDuration,
+                                        duration: PrismMotionSpec
+                                            .current
+                                            .pageDuration,
                                         transitionBuilder:
                                             PrismSlideThroughTransition.builder,
                                         child: KeyedSubtree(
@@ -697,8 +701,7 @@ class _TagsPageState extends State<TagsPage> {
                                                   title: _selectedTag == null
                                                       ? '暂无实例'
                                                       : '标签“$_selectedTag”下暂无实例',
-                                                  subtitle:
-                                                      '在实例列表或批量操作中为实例添加标签后即可在此筛选。',
+                                                  subtitle: '在实例列表或批量操作中为实例添加标签后即可在此筛选。',
                                                 )
                                               : Column(
                                                   children: [
@@ -865,8 +868,7 @@ class _TagsPageState extends State<TagsPage> {
                                                                         maxLines:
                                                                             1,
                                                                         overflow:
-                                                                            TextOverflow
-                                                                                .ellipsis,
+                                                                            TextOverflow.ellipsis,
                                                                         style: prism
                                                                             .AppTextStyle
                                                                             .subheadline
@@ -886,26 +888,14 @@ class _TagsPageState extends State<TagsPage> {
                                                                         runSpacing:
                                                                             4,
                                                                         children:
-                                                                            profileTags
-                                                                                .isEmpty
+                                                                            profileTags.isEmpty
                                                                             ? [
                                                                                 Text(
                                                                                   '无标签',
-                                                                                  style: prism.AppTextStyle.caption1.of(context).copyWith(
-                                                                                    color: colors.onSurfaceVariant,
-                                                                                  ),
+                                                                                  style: prism.AppTextStyle.caption1.of(context).copyWith(color: colors.onSurfaceVariant),
                                                                                 ),
                                                                               ]
-                                                                            : profileTags
-                                                                                  .map(
-                                                                                    (
-                                                                                      tag,
-                                                                                    ) => PrismBadge(
-                                                                                      label: tag,
-                                                                                      tone: PrismTone.neutral,
-                                                                                    ),
-                                                                                  )
-                                                                                  .toList(),
+                                                                            : profileTags.map((tag) => PrismBadge(label: tag, tone: PrismTone.neutral)).toList(),
                                                                       ),
                                                                     ),
                                                                     const SizedBox(
@@ -915,13 +905,14 @@ class _TagsPageState extends State<TagsPage> {
                                                                       width: 96,
                                                                       child: Align(
                                                                         alignment:
-                                                                            Alignment
-                                                                                .centerLeft,
+                                                                            Alignment.centerLeft,
                                                                         child: PrismBadge(
-                                                                          label: running
+                                                                          label:
+                                                                              running
                                                                               ? '运行中'
                                                                               : '已停止',
-                                                                          tone: running
+                                                                          tone:
+                                                                              running
                                                                               ? PrismTone.success
                                                                               : PrismTone.neutral,
                                                                           dot:

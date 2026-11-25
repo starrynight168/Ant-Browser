@@ -313,7 +313,9 @@ class _LogsPageState extends State<LogsPage> {
             '[$level]',
             if (component.isNotEmpty) '[$component]',
           ].join(' ');
-          final fieldsText = fields.isEmpty ? '' : ' | ${_formatFields(fields)}';
+          final fieldsText = fields.isEmpty
+              ? ''
+              : ' | ${_formatFields(fields)}';
           return '$prefix $message$fieldsText'.trim();
         })
         .join('\n');
@@ -435,9 +437,8 @@ class _LogsPageState extends State<LogsPage> {
         subtitle: _level == 'ERROR' ? '已筛选 ERROR · 点击取消' : '点击筛选 ERROR',
         glyph: AntGlyphs.error,
         tone: errorCount > 0 ? PrismTone.danger : PrismTone.neutral,
-        onPressed: () => setState(
-          () => _level = _level == 'ERROR' ? 'ALL' : 'ERROR',
-        ),
+        onPressed: () =>
+            setState(() => _level = _level == 'ERROR' ? 'ALL' : 'ERROR'),
         staggerIndex: 1,
         staggerDelay: const Duration(milliseconds: 45),
       ),
@@ -447,9 +448,8 @@ class _LogsPageState extends State<LogsPage> {
         subtitle: _level == 'WARN' ? '已筛选 WARN · 点击取消' : '点击筛选 WARN',
         glyph: AntGlyphs.warning,
         tone: warnCount > 0 ? PrismTone.warning : PrismTone.neutral,
-        onPressed: () => setState(
-          () => _level = _level == 'WARN' ? 'ALL' : 'WARN',
-        ),
+        onPressed: () =>
+            setState(() => _level = _level == 'WARN' ? 'ALL' : 'WARN'),
         staggerIndex: 2,
         staggerDelay: const Duration(milliseconds: 45),
       ),
@@ -459,9 +459,8 @@ class _LogsPageState extends State<LogsPage> {
         subtitle: _level == 'INFO' ? '已筛选 INFO · 点击取消' : '点击筛选 INFO',
         glyph: AntGlyphs.info,
         tone: PrismTone.info,
-        onPressed: () => setState(
-          () => _level = _level == 'INFO' ? 'ALL' : 'INFO',
-        ),
+        onPressed: () =>
+            setState(() => _level = _level == 'INFO' ? 'ALL' : 'INFO'),
         staggerIndex: 3,
         staggerDelay: const Duration(milliseconds: 45),
       ),
@@ -527,7 +526,7 @@ class _LogsPageState extends State<LogsPage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           prism.Switch(value: _autoScroll, onChanged: _setAutoScroll),
-          const SizedBox(width: 6),
+          const SizedBox(width: 12),
           Text('自动滚动', style: prism.AppTextStyle.footnote.of(context)),
         ],
       ),
@@ -535,9 +534,7 @@ class _LogsPageState extends State<LogsPage> {
         onPressed: () =>
             setState(() => _showAdvancedFilters = !_showAdvancedFilters),
         icon: const PrismGlyph(AntGlyphs.tune, size: 15),
-        child: Text(
-          advancedCount > 0 ? '高级筛选 ($advancedCount)' : '高级筛选',
-        ),
+        child: Text(advancedCount > 0 ? '高级筛选 ($advancedCount)' : '高级筛选'),
       ),
       prism.TonalButtonGroup(
         size: prism.TonalButtonSize.section,
@@ -595,7 +592,7 @@ class _LogsPageState extends State<LogsPage> {
       staggerDelay: const Duration(milliseconds: 45),
       radius: prism.AppCorner.xl,
       lift: false,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -612,9 +609,9 @@ class _LogsPageState extends State<LogsPage> {
                         onChanged: (value) => setState(() => _keyword = value),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 12),
                     levelControl,
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 12),
                     Wrap(
                       spacing: 8,
                       runSpacing: 6,
@@ -716,9 +713,8 @@ class _LogsPageState extends State<LogsPage> {
                               ),
                             )
                             .toList(),
-                        onChanged: (value) => setState(
-                          () => _componentFilter = value ?? 'ALL',
-                        ),
+                        onChanged: (value) =>
+                            setState(() => _componentFilter = value ?? 'ALL'),
                       ),
                     ),
                     SizedBox(
@@ -737,18 +733,11 @@ class _LogsPageState extends State<LogsPage> {
                               ),
                             )
                             .toList(),
-                        onChanged: (value) => setState(
-                          () => _methodFilter = value ?? 'ALL',
-                        ),
+                        onChanged: (value) =>
+                            setState(() => _methodFilter = value ?? 'ALL'),
                       ),
                     ),
-                    for (final filter in const [
-                      '全部',
-                      '错误',
-                      '慢调用',
-                      '前端',
-                      '后端',
-                    ])
+                    for (final filter in const ['全部', '错误', '慢调用', '前端', '后端'])
                       PrismChip(
                         label: Text(filter),
                         selected: _quickFilter == filter,
@@ -835,13 +824,13 @@ class _LogsPageState extends State<LogsPage> {
       color: colors.surfaceContainerLow,
       shape: prism.AppShape.lg,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Wrap(
               spacing: 10,
-              runSpacing: 4,
+              runSpacing: 8,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 PrismBadge(label: level, tone: _levelTone(level)),
@@ -860,7 +849,7 @@ class _LogsPageState extends State<LogsPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 10),
             prism.SelectableText(
               '${entry['message'] ?? ''}',
               style: prism.AppTextStyle.subheadline
@@ -868,7 +857,7 @@ class _LogsPageState extends State<LogsPage> {
                   .copyWith(height: 1.45),
             ),
             if (fields.isNotEmpty) ...[
-              const SizedBox(height: 6),
+              const SizedBox(height: 10),
               prism.SelectableText(
                 _formatFields(fields),
                 style: prism.AppTextStyle.caption2
@@ -946,7 +935,7 @@ class _LogsPageState extends State<LogsPage> {
                       controller: _scrollController,
                       padding: kPrismListPadding,
                       itemCount: filtered.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 6),
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
                       itemBuilder: (context, index) =>
                           _buildLogRow(context, filtered[index], colors),
                     ),

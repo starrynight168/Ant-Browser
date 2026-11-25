@@ -11,13 +11,16 @@ import 'theme_state.dart';
 const String prismMonoFontFamily = 'Consolas';
 
 /// mono 文本基础样式（12.5/1.5 与 PrismCodeSurface 一致），颜色可选。
-TextStyle prismMonoTextStyle({double? fontSize, double? height, Color? color}) =>
-    TextStyle(
-      fontFamily: prismMonoFontFamily,
-      fontSize: fontSize ?? 12.5,
-      height: height ?? 1.5,
-      color: color,
-    );
+TextStyle prismMonoTextStyle({
+  double? fontSize,
+  double? height,
+  Color? color,
+}) => TextStyle(
+  fontFamily: prismMonoFontFamily,
+  fontSize: fontSize ?? 12.5,
+  height: height ?? 1.5,
+  color: color,
+);
 
 enum PrismTone { neutral, primary, success, warning, danger, info }
 
@@ -103,7 +106,7 @@ class PrismBadge extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         child: Row(
           mainAxisSize: MainAxisSize.min,
-          spacing: 5,
+          spacing: 8,
           children: [
             if (dot)
               SizedBox(
@@ -194,6 +197,8 @@ class PrismBanner extends StatelessWidget {
                           .of(context, emphasized: true)
                           .copyWith(color: palette.fg),
                     ),
+                  if (title != null && title!.isNotEmpty)
+                    const SizedBox(height: 4),
                   Text(
                     message,
                     style: prism.AppTextStyle.footnote
@@ -203,10 +208,7 @@ class PrismBanner extends StatelessWidget {
                 ],
               ),
             ),
-            if (trailing != null) ...[
-              const SizedBox(width: 12),
-              trailing!,
-            ],
+            if (trailing != null) ...[const SizedBox(width: 12), trailing!],
           ],
         ),
       ),
@@ -260,10 +262,7 @@ class PrismPageHeader extends StatelessWidget {
               ),
             ),
           ),
-          if (trailing != null) ...[
-            const SizedBox(width: 12),
-            trailing!,
-          ],
+          if (trailing != null) ...[const SizedBox(width: 12), trailing!],
         ],
       ),
     );
@@ -319,8 +318,12 @@ class PrismPageContextBar extends StatelessWidget {
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: prism.AppTextStyle.title3.of(context, emphasized: true),
+                    style: prism.AppTextStyle.title3.of(
+                      context,
+                      emphasized: true,
+                    ),
                   ),
+                  const SizedBox(height: 4),
                   Text(
                     subtitle,
                     maxLines: 2,
@@ -434,7 +437,9 @@ class _PrismStaggerInState extends State<PrismStaggerIn>
               (1 - lift) * spec.staggerOffsetY,
             ),
             child: Transform.scale(
-              scale: (1.0 - spec.staggerScaleDelta) + spec.staggerScaleDelta * lift,
+              scale:
+                  (1.0 - spec.staggerScaleDelta) +
+                  spec.staggerScaleDelta * lift,
               child: Transform.rotate(
                 angle: (1 - lift) * spec.staggerTilt,
                 child: child,
@@ -488,10 +493,7 @@ class _PrismHoverGlowState extends State<PrismHoverGlow> {
     );
     if (!widget.enabled) {
       return DecoratedBox(
-        decoration: ShapeDecoration(
-          shape: cardShape,
-          shadows: [restingShadow],
-        ),
+        decoration: ShapeDecoration(shape: cardShape, shadows: [restingShadow]),
         child: DecoratedBox(
           position: DecorationPosition.foreground,
           decoration: ShapeDecoration(
@@ -703,7 +705,9 @@ class PrismSlideThroughTransition extends StatelessWidget {
           child: Transform.rotate(
             angle: (1 - lift) * spec.pageEnterTilt,
             child: Transform.scale(
-              scale: (1.0 - spec.pageEnterScaleDelta) + spec.pageEnterScaleDelta * lift,
+              scale:
+                  (1.0 - spec.pageEnterScaleDelta) +
+                  spec.pageEnterScaleDelta * lift,
               child: Transform.translate(
                 offset: Offset(0, (1 - lift) * spec.pageEnterY),
                 child: child,
@@ -775,7 +779,9 @@ class PrismBarTransition extends StatelessWidget {
         return Opacity(
           opacity: fade,
           child: Transform.scale(
-            scale: (1.0 - spec.barEnterScaleDelta) + spec.barEnterScaleDelta * spring,
+            scale:
+                (1.0 - spec.barEnterScaleDelta) +
+                spec.barEnterScaleDelta * spring,
             child: Transform.translate(
               offset: Offset((1 - spring) * spec.barEnterX, 0),
               child: child,
@@ -1098,10 +1104,10 @@ class _PrismSlidingRailTileState<T> extends State<_PrismSlidingRailTile<T>> {
                   ),
                 ),
                 if (item.trailing != null) ...[
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 12),
                   item.trailing!,
                 ] else if (dotColor != null) ...[
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 10),
                   SizedBox(
                     width: 7,
                     height: 7,
@@ -1396,8 +1402,9 @@ class _PrismNavItemState extends State<PrismNavItem> {
             : prism.AppTextStyle.subheadline
                   .of(context)
                   .copyWith(color: colors.onSurface);
-        final nudge =
-            (_hovered || selected) ? 12.0 + spec.railNudgePx * 0.65 : 12.0;
+        final nudge = (_hovered || selected)
+            ? 12.0 + spec.railNudgePx * 0.65
+            : 12.0;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1457,10 +1464,10 @@ class _PrismNavItemState extends State<PrismNavItem> {
                                 ),
                               ),
                               if (widget.trailing != null) ...[
-                                const SizedBox(width: 8),
+                                const SizedBox(width: 12),
                                 widget.trailing!,
                               ] else if (widget.showSelectionBadge) ...[
-                                const SizedBox(width: 8),
+                                const SizedBox(width: 12),
                                 if (selected)
                                   const prism.SelectionBadge(
                                     size: 18,
@@ -1718,10 +1725,7 @@ class PrismEmptyState extends StatelessWidget {
                 ),
               ),
             ],
-            if (action != null) ...[
-              const SizedBox(height: 16),
-              action!,
-            ],
+            if (action != null) ...[const SizedBox(height: 16), action!],
           ],
         ),
       ),
@@ -1875,7 +1879,7 @@ class PrismProgressPanel extends StatelessWidget {
       child: prism.Card(
         radius: prism.AppCorner.lg,
         inert: true,
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
@@ -1898,10 +1902,7 @@ class PrismProgressPanel extends StatelessWidget {
                         .of(context, emphasized: true)
                         .copyWith(color: colors.primary),
                   ),
-                if (trailing != null) ...[
-                  const SizedBox(width: 8),
-                  trailing!,
-                ],
+                if (trailing != null) ...[const SizedBox(width: 8), trailing!],
               ],
             ),
             const SizedBox(height: 8),
@@ -2052,7 +2053,7 @@ class PrismTextField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 10, bottom: 5),
+          padding: const EdgeInsets.only(left: 10, bottom: 8),
           child: Text(
             label,
             style: prism.AppTextStyle.footnote
@@ -2140,7 +2141,7 @@ class PrismTextFormField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 10, bottom: 5),
+          padding: const EdgeInsets.only(left: 10, bottom: 8),
           child: Text(
             label,
             style: prism.AppTextStyle.footnote
@@ -2355,7 +2356,7 @@ class _PrismDropdownFieldState<T> extends State<PrismDropdownField<T>> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 10, bottom: 5),
+          padding: const EdgeInsets.only(left: 10, bottom: 8),
           child: Text(
             labelText,
             style: prism.AppTextStyle.footnote
@@ -2587,8 +2588,10 @@ class _PrismHoverMotionState extends State<PrismHoverMotion> {
             ? 1.0 + (widget.hoverScale - 1.0) * spec.hoverScaleFactor
             : widget.hoverScale;
         final effectivePress = widget.scaleByIntensity
-            ? (1.0 - (1.0 - widget.pressScale) * spec.pressScaleFactor)
-                  .clamp(0.75, 1.0)
+            ? (1.0 - (1.0 - widget.pressScale) * spec.pressScaleFactor).clamp(
+                0.75,
+                1.0,
+              )
             : widget.pressScale;
         final scale = !spec.enabled
             ? 1.0
@@ -2839,7 +2842,7 @@ class PrismListTile extends StatelessWidget {
       title: effectiveTitle,
       subtitle: subtitle,
       trailing: trailing,
-      padding: contentPadding ?? const EdgeInsets.symmetric(horizontal: 16),
+      padding: contentPadding ?? const EdgeInsets.symmetric(horizontal: 18),
       minHeight: isThreeLine
           ? 72
           : dense

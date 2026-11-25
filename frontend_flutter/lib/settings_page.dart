@@ -581,7 +581,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  spacing: 5,
+                  spacing: 10,
                   children: [
                     PrismGlyph(glyph, size: 14, color: fg),
                     Flexible(
@@ -634,7 +634,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         emphasized: true,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 6),
                     Text(
                       subtitle,
                       maxLines: 2,
@@ -649,7 +649,7 @@ class _SettingsPageState extends State<SettingsPage> {
               const SizedBox(width: 12),
               // 值变化时弹簧弹跳（对标 Web PoC 的 badge bump）
               PrismValueBadge(value: current, unit: unit),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               SizedBox(width: 96, child: _numberField(fieldKey)),
             ],
           ),
@@ -771,7 +771,8 @@ class _SettingsPageState extends State<SettingsPage> {
                                         alignment: Alignment.centerLeft,
                                         children: [
                                           ...previous,
-                                          if (currentChild != null) currentChild,
+                                          if (currentChild != null)
+                                            currentChild,
                                         ],
                                       ),
                                   child: Text(
@@ -890,6 +891,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                           emphasized: true,
                                         ),
                                       ),
+                                      const SizedBox(height: 4),
                                       Text(
                                         _activeSection.subtitle,
                                         maxLines: 1,
@@ -952,10 +954,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 Expanded(
                   child: prism.PageTransitionSwitcher(
                     duration: PrismMotionSpec.current.pageDuration,
-                    layoutBuilder: (entries) => Stack(
-                      alignment: Alignment.topLeft,
-                      children: entries,
-                    ),
+                    layoutBuilder: (entries) =>
+                        Stack(alignment: Alignment.topLeft, children: entries),
                     transitionBuilder: PrismSlideThroughTransition.builder,
                     child: SizedBox.expand(
                       key: ValueKey(_activeSection),
@@ -1014,7 +1014,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 inert: true,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 18,
-                  vertical: 14,
+                  vertical: 16,
                 ),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
@@ -1022,7 +1022,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Wrap(
-                          spacing: 8,
+                          spacing: 10,
                           runSpacing: 6,
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
@@ -1160,7 +1160,7 @@ class _SettingsPageState extends State<SettingsPage> {
         PrismSectionCard(
           title: '主题色板',
           glyph: AntGlyphs.tune,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           staggerIndex: _staggerSeq++,
           staggerDelay: const Duration(milliseconds: 55),
           child: Wrap(
@@ -1236,11 +1236,11 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 const SizedBox(width: 12),
                 PrismBadge(label: tierLabel, tone: tierTone),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 PrismValueBadge(value: currentMotion, unit: '%'),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             prism.Slider(
               value: currentMotion.toDouble(),
               min: kMinMotionIntensity.toDouble(),
@@ -1488,7 +1488,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 12),
                     prism.OutlinedButton.icon(
                       onPressed: _busy.isEmpty && !bundledOnly
                           ? _probeNode
@@ -1600,8 +1600,8 @@ class _SettingsPageState extends State<SettingsPage> {
                         child: prism.Divider(height: 1),
                       ),
                     prism.ListRow(
-                      minHeight: 44,
-                      minVerticalPadding: 6,
+                      minHeight: 52,
+                      minVerticalPadding: 10,
                       title: Text(
                         runtimeDetails[i].$1,
                         style: prism.AppTextStyle.footnote
@@ -1669,7 +1669,7 @@ class _SettingsPageState extends State<SettingsPage> {
             subtitle: const Text('供外部脚本、自动化与 OpenClaw 调用（1 – 65535，默认 19876）'),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
-              spacing: 10,
+              spacing: 12,
               children: [
                 SizedBox(
                   width: 130,
@@ -1770,7 +1770,9 @@ class _SettingsPageState extends State<SettingsPage> {
       'verify' || 'verifying' => '正在校验',
       _ => phase.isEmpty ? '运行时任务' : '阶段：$phase',
     };
-    final title = component.isNotEmpty ? '$phaseLabel · $component' : phaseLabel;
+    final title = component.isNotEmpty
+        ? '$phaseLabel · $component'
+        : phaseLabel;
     final tone = switch (phase.toLowerCase()) {
       'done' => PrismTone.success,
       'error' => PrismTone.danger,
@@ -1845,7 +1847,9 @@ class _ColorSwatchPill extends StatelessWidget {
         onTap: onTap,
         shape: prism.AppShape.full,
         child: AnimatedContainer(
-          duration: motionOn ? const Duration(milliseconds: 220) : Duration.zero,
+          duration: motionOn
+              ? const Duration(milliseconds: 220)
+              : Duration.zero,
           curve: motionOn ? spec.smoothCurve : Curves.linear,
           decoration: ShapeDecoration(
             color: palette.bg,

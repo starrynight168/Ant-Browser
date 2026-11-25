@@ -144,7 +144,8 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
   String get _selectedProxyLabel {
     if (!_useProxy) return '直连';
     final proxy = _proxies.where((item) => item['proxyId'] == _selectedProxyId);
-    if (proxy.isEmpty) return _selectedProxyId.isEmpty ? '直连' : _selectedProxyId;
+    if (proxy.isEmpty)
+      return _selectedProxyId.isEmpty ? '直连' : _selectedProxyId;
     final name = (proxy.first['proxyName'] ?? '').toString().trim();
     return name.isNotEmpty ? name : _selectedProxyId;
   }
@@ -394,8 +395,8 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                           success ? PrismTone.success : PrismTone.danger,
                         );
                         return PrismCard(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.all(12),
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(16),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -415,8 +416,8 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Wrap(
-                                      spacing: 6,
-                                      runSpacing: 4,
+                                      spacing: 10,
+                                      runSpacing: 6,
                                       crossAxisAlignment:
                                           WrapCrossAlignment.center,
                                       children: [
@@ -438,7 +439,9 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                             tone: PrismTone.neutral,
                                           ),
                                         Text(
-                                          (record['name'] ?? '').toString().isNotEmpty
+                                          (record['name'] ?? '')
+                                                  .toString()
+                                                  .isNotEmpty
                                               ? '${record['name']}'
                                               : (extId.isNotEmpty
                                                     ? extId
@@ -485,9 +488,9 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                   ],
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 12),
                               Wrap(
-                                spacing: 2,
+                                spacing: 12,
                                 crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   prism.TextButton(
@@ -621,16 +624,16 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                             padding: kPrismListPadding,
                             itemCount: files.length,
                             separatorBuilder: (_, __) =>
-                                const SizedBox(height: 6),
+                                const SizedBox(height: 12),
                             itemBuilder: (context, index) {
                               final file = files[index];
-                              final fileName =
-                                  (file['fileName'] ?? '').toString();
+                              final fileName = (file['fileName'] ?? '')
+                                  .toString();
                               final sizeText = _formatExtensionFileSize(
                                 file['sizeBytes'],
                               );
-                              final updatedAt =
-                                  (file['updatedAt'] ?? '').toString();
+                              final updatedAt = (file['updatedAt'] ?? '')
+                                  .toString();
                               final isImporting = importingFile == fileName;
                               return PrismCard(
                                 child: PrismListTile(
@@ -799,11 +802,13 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                     const SizedBox(height: 6),
                     Text(
                       '插件在实例启动时加载，修改配置后需要重启实例。',
-                      style: prism.AppTextStyle.caption1.of(context).copyWith(
-                        color: prism.Theme.of(context)
-                            .colorScheme
-                            .onSurfaceVariant,
-                      ),
+                      style: prism.AppTextStyle.caption1
+                          .of(context)
+                          .copyWith(
+                            color: prism.Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                          ),
                     ),
                     const SizedBox(height: 10),
                     Expanded(
@@ -819,8 +824,8 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                   const SizedBox(height: 6),
                               itemBuilder: (context, index) {
                                 final profile = usingProfiles[index];
-                                final id =
-                                    (profile['profileId'] ?? '').toString();
+                                final id = (profile['profileId'] ?? '')
+                                    .toString();
                                 final running = profile['running'] == true;
                                 final isBusy = busyProfileId == id;
                                 return PrismCard(
@@ -852,9 +857,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                     leading: PrismGlyph(
-                                      running
-                                          ? AntGlyphs.play
-                                          : AntGlyphs.stop,
+                                      running ? AntGlyphs.play : AntGlyphs.stop,
                                       size: 18,
                                       color: PrismToneColors.of(
                                         context,
@@ -945,7 +948,8 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
           .toList();
       final downloadDir = (guide['downloadDir'] ?? '').toString();
       final fileName = (guide['fileName'] ?? '').toString();
-      final recommendedSavePath = (downloadDir.isNotEmpty && fileName.isNotEmpty)
+      final recommendedSavePath =
+          (downloadDir.isNotEmpty && fileName.isNotEmpty)
           ? '$downloadDir${Platform.pathSeparator}$fileName'
           : downloadDir;
 
@@ -1082,8 +1086,8 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                   const SizedBox(height: 6),
                               itemBuilder: (context, index) {
                                 final file = files[index];
-                                final name =
-                                    (file['fileName'] ?? '').toString();
+                                final name = (file['fileName'] ?? '')
+                                    .toString();
                                 final sizeText = _formatExtensionFileSize(
                                   file['sizeBytes'],
                                 );
@@ -1355,10 +1359,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                           dot: true,
                         ),
                       if (configured)
-                        const PrismBadge(
-                          label: '手动设置',
-                          tone: PrismTone.info,
-                        ),
+                        const PrismBadge(label: '手动设置', tone: PrismTone.info),
                     ],
                   ),
                   subtitle: Text(
@@ -1448,9 +1449,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                   onPressed: () => setDialog(
                                     () => onlyInstalled = !onlyInstalled,
                                   ),
-                                  child: Text(
-                                    onlyInstalled ? '显示全部' : '只看已选',
-                                  ),
+                                  child: Text(onlyInstalled ? '显示全部' : '只看已选'),
                                 ),
                               ],
                             ),
@@ -1719,7 +1718,8 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
     final localCount = totalCount - storeCount;
     final mv3Count = _items
         .where(
-          (item) => _parseManifestJson(item['manifestJson']).manifestVersion == 3,
+          (item) =>
+              _parseManifestJson(item['manifestJson']).manifestVersion == 3,
         )
         .length;
 
@@ -1831,7 +1831,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                 ),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 12),
             PrismHoverMotion(
               enabled: _busy.isEmpty,
               child: prism.FilledButton(
@@ -1845,7 +1845,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
               icon: const PrismGlyph(AntGlyphs.openInNew, size: 15),
               label: const Text('网页查询'),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 12),
             prism.OutlinedButton.icon(
               onPressed: _busy.isEmpty ? _openManualInstall : null,
               icon: const PrismGlyph(AntGlyphs.download, size: 15),
@@ -1865,9 +1865,8 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
         ),
         if (_useProxy)
           PrismDropdownField<String>(
-            initialValue: _proxies.any(
-              (proxy) => proxy['proxyId'] == _selectedProxyId,
-            )
+            initialValue:
+                _proxies.any((proxy) => proxy['proxyId'] == _selectedProxyId)
                 ? _selectedProxyId
                 : null,
             decoration: const PrismInputDecoration(labelText: '下载代理'),
@@ -1892,7 +1891,8 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
             builder: (context) {
               final installable = result['installable'] == true;
               final extId = (result['extensionId'] ?? '').toString();
-              final alreadyInstalled = extId.isNotEmpty &&
+              final alreadyInstalled =
+                  extId.isNotEmpty &&
                   _items.any((item) => item['extensionId'] == extId);
               final desc = (result['description'] ?? '').toString().trim();
               final msg = (result['message'] ?? '').toString().trim();
@@ -1960,9 +1960,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                       if (msg.isNotEmpty) ...[
                         const SizedBox(height: 6),
                         PrismBanner(
-                          tone: installable
-                              ? PrismTone.info
-                              : PrismTone.danger,
+                          tone: installable ? PrismTone.info : PrismTone.danger,
                           message: msg,
                         ),
                       ],
@@ -1994,11 +1992,13 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                 label: const Text('打开商店页'),
                               ),
                             PrismHoverMotion(
-                              enabled: _busy.isEmpty &&
+                              enabled:
+                                  _busy.isEmpty &&
                                   installable &&
                                   !alreadyInstalled,
                               child: prism.FilledButton(
-                                onPressed: _busy.isEmpty &&
+                                onPressed:
+                                    _busy.isEmpty &&
                                         installable &&
                                         !alreadyInstalled
                                     ? _install
@@ -2087,7 +2087,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
       staggerDelay: const Duration(milliseconds: 45),
       radius: prism.AppCorner.xl,
       lift: false,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -2232,9 +2232,10 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                         ),
                                         prism.OutlinedButton.icon(
                                           onPressed: _busy.isEmpty
-                                              ? () => _handleImportMenuSelection(
-                                                  'file',
-                                                )
+                                              ? () =>
+                                                    _handleImportMenuSelection(
+                                                      'file',
+                                                    )
                                               : null,
                                           icon: const PrismGlyph(
                                             AntGlyphs.folder,
@@ -2334,10 +2335,8 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                       width: 40,
                       height: 40,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const PrismGlyph(
-                        AntGlyphs.extension,
-                        size: 20,
-                      ),
+                      errorBuilder: (_, __, ___) =>
+                          const PrismGlyph(AntGlyphs.extension, size: 20),
                     ),
                   ),
                 )
@@ -2359,8 +2358,8 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
+                      spacing: 10,
+                      runSpacing: 6,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
@@ -2417,8 +2416,8 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                         manifest.hostPermissionCount > 0) ...[
                       const SizedBox(height: 6),
                       Wrap(
-                        spacing: 5,
-                        runSpacing: 4,
+                        spacing: 10,
+                        runSpacing: 6,
                         children: [
                           if (manifest.hostPermissionCount > 0)
                             PrismBadge(
@@ -2452,10 +2451,10 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 14),
               Wrap(
-                spacing: 4,
-                runSpacing: 4,
+                spacing: 12,
+                runSpacing: 6,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   if (storeUrl.isNotEmpty)
@@ -2517,9 +2516,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                   ),
                   prism.IconButton(
                     tooltip: '查看使用此插件的实例',
-                    onPressed: busy
-                        ? null
-                        : () => _showInstalledProfiles(item),
+                    onPressed: busy ? null : () => _showInstalledProfiles(item),
                     icon: const PrismGlyph(AntGlyphs.browser, size: 18),
                   ),
                   prism.Switch(
@@ -2560,10 +2557,9 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                             );
                             if (confirm == true) {
                               _run(id, () async {
-                                await AppBridge.call(
-                                  'BrowserExtensionDelete',
-                                  [id],
-                                );
+                                await AppBridge.call('BrowserExtensionDelete', [
+                                  id,
+                                ]);
                               });
                             }
                           },

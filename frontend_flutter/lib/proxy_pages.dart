@@ -887,9 +887,8 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
         AppBridge.call('BrowserProxyList'),
         AppBridge.call('BrowserProxyVirtualGroupList'),
         AppBridge.call('BrowserProxyListGroups').catchError((_) => const []),
-        AppBridge.call(
-          'BrowserProxyVirtualGroupHealthList',
-        ).catchError((_) => const []),
+        AppBridge.call('BrowserProxyVirtualGroupHealthList')
+            .catchError((_) => const []),
       ]);
       final fetchedProxies = (values[0] as List? ?? [])
           .whereType<Map>()
@@ -994,7 +993,9 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
   List<Map<String, dynamic>> get _usableFetchProxies {
     final candidates = _proxies.where((proxy) {
       final id = (proxy['proxyId'] ?? '').toString().trim();
-      if (id.isEmpty || id == '__direct__' || proxy['proxyConfig'] == 'direct://') {
+      if (id.isEmpty ||
+          id == '__direct__' ||
+          proxy['proxyConfig'] == 'direct://') {
         return false;
       }
       return _speedResults[id]?['ok'] == true;
@@ -1114,9 +1115,9 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                             style: prism.AppTextStyle.footnote
                                 .of(context, emphasized: true)
                                 .copyWith(
-                                  color: prism.Theme.of(
-                                    context,
-                                  ).colorScheme.onSurfaceVariant,
+                                  color: prism.Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
                                 ),
                           ),
                         ),
@@ -1433,8 +1434,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                     maxLines: 6,
                     decoration: const PrismInputDecoration(
                       labelText: 'DNS 服务器（可选）',
-                      hintText:
-                          'dns:\n  enable: true\n  nameserver:\n    - 119.29.29.29',
+                      hintText: 'dns:\n  enable: true\n  nameserver:\n    - 119.29.29.29',
                     ),
                   ),
                 ],
@@ -1560,7 +1560,8 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
 
   static String _importTemplateForMode(String mode) {
     return switch (mode) {
-      'clash' => '''proxies:
+      'clash' =>
+        '''proxies:
   - name: hk-vless
     type: vless
     server: example.com
@@ -1569,9 +1570,11 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
     network: ws
     tls: true
     servername: example.com''',
-      'direct' => '''http://user:password@gateway.example.com:8080
+      'direct' =>
+        '''http://user:password@gateway.example.com:8080
 socks5://user:password@proxy.example.com:1080''',
-      'chain' => '''{
+      'chain' =>
+        '''{
   "name": "链式落地节点",
   "first": {
     "protocol": "socks5",
@@ -1753,9 +1756,7 @@ socks5://user:password@proxy.example.com:1080''',
                         prism.OutlinedButton.icon(
                           onPressed: () async {
                             await Clipboard.setData(
-                              ClipboardData(
-                                text: _importTemplateForMode(mode),
-                              ),
+                              ClipboardData(text: _importTemplateForMode(mode)),
                             );
                             if (context.mounted) {
                               showPrismNotice(context, '模板已复制到剪贴板');
@@ -2426,7 +2427,7 @@ socks5://user:password@proxy.example.com:1080''',
               : ListView.separated(
                   padding: kPrismListPadding,
                   itemCount: selected.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 6),
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
                   itemBuilder: (context, index) {
                     final proxyId = selected.elementAt(index);
                     final proxy = _proxies
@@ -2887,9 +2888,8 @@ socks5://user:password@proxy.example.com:1080''',
         text: '${settings['ipHealthTargetId'] ?? ''}',
       );
       final targets = TextEditingController(
-        text: const JsonEncoder.withIndent(
-          '  ',
-        ).convert(settings['targets'] ?? []),
+        text: const JsonEncoder.withIndent('  ')
+            .convert(settings['targets'] ?? []),
       );
       var filterAvailableOnly =
           settings['filterAvailableOnly'] == true || _availableOnly;
@@ -3084,8 +3084,7 @@ socks5://user:password@proxy.example.com:1080''',
                         maxLines: 5,
                         decoration: const PrismInputDecoration(
                           labelText: '批量 DNS 配置（可选）',
-                          hintText:
-                              'dns:\n  enable: true\n  nameserver:\n    - 119.29.29.29',
+                          hintText: 'dns:\n  enable: true\n  nameserver:\n    - 119.29.29.29',
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -3267,7 +3266,10 @@ socks5://user:password@proxy.example.com:1080''',
               'sourceMissingSince': '',
               'sourceLastRefreshError': '',
             };
-            _applyPreferredKernel(row, _normalizeKernel(old?['preferredKernel']));
+            _applyPreferredKernel(
+              row,
+              _normalizeKernel(old?['preferredKernel']),
+            );
             imported.add(row);
           }
           final missing = existingRows
@@ -3436,7 +3438,9 @@ socks5://user:password@proxy.example.com:1080''',
         .length;
     final availableCount = realProxies.where(_isAvailable).length;
     final testedCount = realProxies
-        .where((p) => _speedResults.containsKey((p['proxyId'] ?? '').toString()))
+        .where(
+          (p) => _speedResults.containsKey((p['proxyId'] ?? '').toString()),
+        )
         .length;
     final sourceCount = realProxies
         .map((p) => (p['sourceId'] ?? '').toString().trim())
@@ -3499,9 +3503,7 @@ socks5://user:password@proxy.example.com:1080''',
         value: _coreStatuses.isEmpty ? '检测中' : '$installedCores/$totalCores',
         subtitle: _coreStatuses.isEmpty
             ? '正在检查 Xray / Sing-box / Mihomo'
-            : (installedCores == totalCores
-                  ? '内核已就绪 · 点击管理'
-                  : '点击下载或管理代理内核'),
+            : (installedCores == totalCores ? '内核已就绪 · 点击管理' : '点击下载或管理代理内核'),
         glyph: AntGlyphs.cpu,
         tone: _coreStatuses.isEmpty
             ? PrismTone.neutral
@@ -3558,7 +3560,8 @@ socks5://user:password@proxy.example.com:1080''',
         (_filterProtocol != 'all' ? 1 : 0) +
         (_filterGroup != 'all' ? 1 : 0) +
         (_sortBy.isNotEmpty ? 1 : 0);
-    final hasAnyFilter = activeFilterCount > 0 || _query.isNotEmpty || _availableOnly;
+    final hasAnyFilter =
+        activeFilterCount > 0 || _query.isNotEmpty || _availableOnly;
 
     final availabilityFilter = SizedBox(
       width: 136,
@@ -3721,8 +3724,7 @@ socks5://user:password@proxy.example.com:1080''',
           const SizedBox(width: 6),
           prism.IconButton(
             tooltip: _sortDescending ? '降序' : '升序',
-            onPressed: () =>
-                setState(() => _sortDescending = !_sortDescending),
+            onPressed: () => setState(() => _sortDescending = !_sortDescending),
             icon: PrismGlyph(
               _sortDescending ? AntGlyphs.arrowDown : AntGlyphs.arrowUp,
               size: 18,
@@ -3737,7 +3739,7 @@ socks5://user:password@proxy.example.com:1080''',
       staggerDelay: const Duration(milliseconds: 45),
       radius: prism.AppCorner.xl,
       lift: false,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -3757,9 +3759,9 @@ socks5://user:password@proxy.example.com:1080''',
                     ),
                     const SizedBox(width: 10),
                     availabilityFilter,
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 12),
                     Wrap(
-                      spacing: 6,
+                      spacing: 10,
                       runSpacing: 6,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: actionWidgets,
@@ -3784,9 +3786,9 @@ socks5://user:password@proxy.example.com:1080''',
                       availabilityFilter,
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   Wrap(
-                    spacing: 6,
+                    spacing: 10,
                     runSpacing: 6,
                     alignment: WrapAlignment.end,
                     crossAxisAlignment: WrapCrossAlignment.center,
@@ -3827,9 +3829,9 @@ socks5://user:password@proxy.example.com:1080''',
                   },
                 ),
                 if (_virtualGroups.isNotEmpty || hasAnyFilter) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   Wrap(
-                    spacing: 6,
+                    spacing: 10,
                     runSpacing: 6,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
@@ -3839,9 +3841,9 @@ socks5://user:password@proxy.example.com:1080''',
                           style: prism.AppTextStyle.caption1
                               .of(context, emphasized: true)
                               .copyWith(
-                                color: prism.Theme.of(
-                                  context,
-                                ).colorScheme.onSurfaceVariant,
+                                color: prism.Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
                               ),
                         ),
                         for (final vg in _virtualGroups)
@@ -3940,18 +3942,18 @@ socks5://user:password@proxy.example.com:1080''',
               ),
             ),
             if (groupName.isNotEmpty) ...[
-              const SizedBox(width: 6),
+              const SizedBox(width: 12),
               PrismBadge(label: groupName, tone: PrismTone.neutral),
             ],
             if (kernelPref != 'auto') ...[
-              const SizedBox(width: 6),
+              const SizedBox(width: 12),
               PrismBadge(
                 label: _kernelLabels[kernelPref] ?? kernelPref,
                 tone: PrismTone.primary,
               ),
             ],
             if (item['sourceMissing'] == true) ...[
-              const SizedBox(width: 6),
+              const SizedBox(width: 12),
               const PrismBadge(label: '订阅异常', tone: PrismTone.danger),
             ],
           ],
@@ -3959,8 +3961,8 @@ socks5://user:password@proxy.example.com:1080''',
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
           child: Wrap(
-            spacing: 6,
-            runSpacing: 4,
+            spacing: 10,
+            runSpacing: 6,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               PrismBadge(
@@ -3974,13 +3976,15 @@ socks5://user:password@proxy.example.com:1080''',
                 style: prism.AppTextStyle.caption1
                     .of(context)
                     .copyWith(
-                      color: prism.Theme.of(
-                        context,
-                      ).colorScheme.onSurfaceVariant,
+                      color: prism.Theme.of(context)
+                          .colorScheme
+                          .onSurfaceVariant,
                     ),
               ),
               PrismBadge(
-                label: engine.isEmpty ? latencyLabel : '$latencyLabel · $engine',
+                label: engine.isEmpty
+                    ? latencyLabel
+                    : '$latencyLabel · $engine',
                 tone: latencyTone,
                 dot: true,
               ),
@@ -4014,7 +4018,7 @@ socks5://user:password@proxy.example.com:1080''',
               onPressed: _busy.isEmpty ? () => _testIpHealth(item) : null,
               icon: const PrismGlyph(AntGlyphs.globe, size: 18),
             ),
-            const SizedBox(width: 2),
+            const SizedBox(width: 8),
             prism.IconButton(
               tooltip: '测试连接',
               onPressed: _busy.isEmpty && !isDirect ? () => _test(item) : null,
@@ -4026,7 +4030,7 @@ socks5://user:password@proxy.example.com:1080''',
                     )
                   : const PrismGlyph(AntGlyphs.speed, size: 18),
             ),
-            const SizedBox(width: 2),
+            const SizedBox(width: 8),
             prism.IconButton(
               tooltip: '桥接预热',
               onPressed: _busy.isEmpty && !isDirect
@@ -4040,7 +4044,7 @@ socks5://user:password@proxy.example.com:1080''',
                     )
                   : const PrismGlyph(AntGlyphs.fire, size: 18),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 12),
             PrismPopupMenuButton<String>(
               tooltip: '更多操作',
               enabled: _busy.isEmpty,
@@ -4573,7 +4577,7 @@ class _ProxySourceRefreshModalState extends State<_ProxySourceRefreshModal> {
             : ListView.separated(
                 padding: kPrismListPadding,
                 itemCount: sources.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final source = sources[index];
                   final sourceId = source['sourceId'].toString();
@@ -4648,7 +4652,7 @@ class _ProxySourceRefreshModalState extends State<_ProxySourceRefreshModal> {
                                 size: 16,
                               ),
                             ),
-                            const SizedBox(width: 4),
+                            const SizedBox(width: 8),
                             prism.OutlinedButton.icon(
                               onPressed: _busy.isEmpty
                                   ? () => _refreshOne(source)
@@ -4751,9 +4755,8 @@ class _ProxySourceRefreshModalState extends State<_ProxySourceRefreshModal> {
                                   ),
                                 ),
                             ],
-                            onChanged: (value) => setState(
-                              () => _editFetchProxyId = value ?? '',
-                            ),
+                            onChanged: (value) =>
+                                setState(() => _editFetchProxyId = value ?? ''),
                           ),
                           const SizedBox(height: 8),
                           Row(
@@ -4830,10 +4833,9 @@ class _ProxySourceAbnormalModalState extends State<_ProxySourceAbnormalModal> {
     try {
       final result = Map<String, dynamic>.from(
         await AppBridge.call('BrowserProxyCleanupMissing', [
-              widget.sourceId,
-              false,
-            ])
-            as Map,
+          widget.sourceId,
+          false,
+        ]) as Map,
       );
       await widget.onCleaned();
       final deleted = int.tryParse('${result['deleted'] ?? 0}') ?? 0;
@@ -4869,7 +4871,7 @@ class _ProxySourceAbnormalModalState extends State<_ProxySourceAbnormalModal> {
             : ListView.separated(
                 padding: kPrismListPadding,
                 itemCount: widget.abnormalNodes.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 6),
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final node = widget.abnormalNodes[index];
                   final missingSince = _formatShortTime(
@@ -4998,10 +5000,7 @@ socks5://user:password@proxy.example.com:6616''';
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const PrismCodeSurface(
-                    language: 'yaml',
-                    code: _clashExample,
-                  ),
+                  const PrismCodeSurface(language: 'yaml', code: _clashExample),
                 ],
                 if (_tab == 'direct') ...[
                   const PrismCard(
@@ -5021,10 +5020,7 @@ socks5://user:password@proxy.example.com:6616''';
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const PrismCodeSurface(
-                    language: 'text',
-                    code: _proxyExample,
-                  ),
+                  const PrismCodeSurface(language: 'text', code: _proxyExample),
                 ],
                 if (_tab == 'ipfly') ...[
                   const PrismCard(
@@ -5036,10 +5032,7 @@ socks5://user:password@proxy.example.com:6616''';
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const PrismCodeSurface(
-                    language: 'json',
-                    code: _chainExample,
-                  ),
+                  const PrismCodeSurface(language: 'json', code: _chainExample),
                 ],
               ],
             ),
@@ -5221,8 +5214,10 @@ class _ProxyCoreDownloadDialogState extends State<_ProxyCoreDownloadDialog> {
     final installed = _status?['installed'] == true;
     final progressValue = _progress == null
         ? null
-        : ((num.tryParse('${_progress!['progress'] ?? 0}') ?? 0) / 100.0)
-              .clamp(0.0, 1.0);
+        : ((num.tryParse('${_progress!['progress'] ?? 0}') ?? 0) / 100.0).clamp(
+            0.0,
+            1.0,
+          );
     return PrismDialog(
       title: const Text('代理内核下载与管理'),
       content: SizedBox(
@@ -5309,7 +5304,10 @@ class _ProxyCoreDownloadDialogState extends State<_ProxyCoreDownloadDialog> {
                     labelText: '快速选择可用代理（测速通过）',
                   ),
                   items: [
-                    const PrismDropdownItem(value: '', child: Text('直连 / 手动填写')),
+                    const PrismDropdownItem(
+                      value: '',
+                      child: Text('直连 / 手动填写'),
+                    ),
                     for (final proxy in widget.usableProxies)
                       PrismDropdownItem(
                         value: (proxy['proxyId'] ?? '').toString(),
@@ -5386,7 +5384,9 @@ class _ProxyCoreDownloadDialogState extends State<_ProxyCoreDownloadDialog> {
                         ),
                       ],
                     ),
-                    if ((_status?['binaryPath'] ?? '').toString().isNotEmpty) ...[
+                    if ((_status?['binaryPath'] ?? '')
+                        .toString()
+                        .isNotEmpty) ...[
                       const SizedBox(height: 6),
                       Text(
                         _status!['binaryPath'].toString(),
@@ -5395,9 +5395,9 @@ class _ProxyCoreDownloadDialogState extends State<_ProxyCoreDownloadDialog> {
                         style: prism.AppTextStyle.caption1
                             .of(context)
                             .copyWith(
-                              color: prism.Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
+                              color: prism.Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
                             ),
                       ),
                     ],
@@ -5449,9 +5449,9 @@ class _ProxyCoreDownloadDialogState extends State<_ProxyCoreDownloadDialog> {
                           style: prism.AppTextStyle.caption1
                               .of(context)
                               .copyWith(
-                                color: prism.Theme.of(
-                                  context,
-                                ).colorScheme.onSurfaceVariant,
+                                color: prism.Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
                               ),
                         ),
                       ],
@@ -5549,7 +5549,8 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
   Future<void> _editSourceSettings(Map<String, dynamic> source) async {
     final sourceId = (source['sourceId'] ?? '').toString();
     final interval = TextEditingController(
-      text: '${int.tryParse('${source['sourceRefreshIntervalM'] ?? 0}') ?? 1440}',
+      text:
+          '${int.tryParse('${source['sourceRefreshIntervalM'] ?? 0}') ?? 1440}',
     );
     var autoRefresh = source['sourceAutoRefresh'] == true;
     var fetchProxyId = (source['sourceFetchProxyId'] ?? '').toString();
@@ -5963,7 +5964,7 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
                 : ListView.separated(
                     padding: kPrismListPadding,
                     itemCount: _records.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final record = _records[index];
                       final isAuto = record['mode'] == 'auto';
@@ -6074,7 +6075,7 @@ class _ProxyManualAlignmentDialogState
               child: ListView.separated(
                 padding: kPrismListPadding,
                 itemCount: widget.oldProxies.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final proxy = widget.oldProxies[index];
                   final proxyId = (proxy['proxyId'] ?? '').toString();
@@ -6297,9 +6298,9 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
     final validCandidateIds = candidates
         .map((p) => (p['proxyId'] ?? '').toString())
         .toSet();
-    final selected = _resolveMemberProxyIds(
-      group ?? const <String, dynamic>{},
-    ).where(validCandidateIds.contains).toSet();
+    final selected = _resolveMemberProxyIds(group ?? const <String, dynamic>{})
+        .where(validCandidateIds.contains)
+        .toSet();
 
     var entityGroupFilter = 'all';
     var onlySelected = false;
@@ -6509,10 +6510,11 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
                                                 () => testingProxyId = id,
                                               );
                                               try {
-                                                final res = await AppBridge.call(
-                                                  'BrowserProxyTestSpeed',
-                                                  [id],
-                                                );
+                                                final res =
+                                                    await AppBridge.call(
+                                                      'BrowserProxyTestSpeed',
+                                                      [id],
+                                                    );
                                                 if (res is Map) {
                                                   _speedCache[id] =
                                                       Map<String, dynamic>.from(
@@ -6587,9 +6589,7 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
         },
       ),
     );
-    if (result == true &&
-        name.text.trim().isNotEmpty &&
-        selected.isNotEmpty) {
+    if (result == true && name.text.trim().isNotEmpty && selected.isNotEmpty) {
       final id =
           (group?['groupId'] ??
                   'group-${DateTime.now().millisecondsSinceEpoch}')
@@ -6718,7 +6718,7 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
               : ListView.separated(
                   padding: kPrismListPadding,
                   itemCount: memberIds.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 6),
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
                   itemBuilder: (context, index) {
                     final proxyId = memberIds.elementAt(index);
                     final proxy = _proxies
@@ -6857,10 +6857,11 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
       final memberNames = _resolveMemberProxyIds(group)
           .map(
             (id) =>
-                (_proxies.where((p) => p['proxyId'] == id).firstOrNull?[
-                        'proxyName'] ??
-                    id)
-                .toString(),
+                (_proxies
+                            .where((p) => p['proxyId'] == id)
+                            .firstOrNull?['proxyName'] ??
+                        id)
+                    .toString(),
           )
           .join(' ');
       final haystack = [
@@ -6875,9 +6876,7 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
 
   Widget _buildOverviewStrip(BuildContext context) {
     final totalGroups = _groups.length;
-    final stickyCount = _groups
-        .where((g) => g['strategy'] == 'sticky')
-        .length;
+    final stickyCount = _groups.where((g) => g['strategy'] == 'sticky').length;
     final roundRobinCount = totalGroups - stickyCount;
     final uniqueMemberIds = <String>{};
     var healthyGroups = 0;
@@ -6937,7 +6936,9 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
       ),
       PrismMetricTile(
         label: '调度策略',
-        value: stickyCount > 0 ? '$roundRobinCount / $stickyCount' : '轮询 $roundRobinCount',
+        value: stickyCount > 0
+            ? '$roundRobinCount / $stickyCount'
+            : '轮询 $roundRobinCount',
         subtitle: _filter == 'sticky' ? '正在筛选固定节点组' : '点击筛选固定节点组',
         glyph: AntGlyphs.tune,
         tone: _filter == 'sticky' ? PrismTone.primary : PrismTone.neutral,
@@ -7020,7 +7021,7 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
       staggerIndex: 4,
       staggerDelay: const Duration(milliseconds: 45),
       radius: prism.AppCorner.xl,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= 820;
@@ -7126,17 +7127,13 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
                 ),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 12),
             PrismBadge(
               label: group['strategy'] == 'sticky' ? '固定节点' : '轮询',
               tone: PrismTone.primary,
             ),
-            const SizedBox(width: 6),
-            PrismBadge(
-              label: healthLabel,
-              tone: healthTone,
-              dot: true,
-            ),
+            const SizedBox(width: 10),
+            PrismBadge(label: healthLabel, tone: healthTone, dot: true),
           ],
         ),
         subtitle: Text('$members 个成员'),
@@ -7155,19 +7152,19 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
                     )
                   : const PrismGlyph(AntGlyphs.health, size: 18),
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: 8),
             prism.IconButton(
               tooltip: '重置健康',
               onPressed: _busy.isEmpty ? () => _resetHealth(group) : null,
               icon: const PrismGlyph(AntGlyphs.restart, size: 18),
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: 8),
             prism.IconButton(
               tooltip: '编辑',
               onPressed: () => _edit(group),
               icon: const PrismGlyph(AntGlyphs.edit, size: 18),
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: 8),
             prism.IconButton(
               tooltip: '删除',
               onPressed: () => _delete(group),
@@ -7273,7 +7270,8 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
   Widget build(BuildContext context) {
     final canPop = Navigator.of(context).canPop();
     final backAction =
-        widget.onBack ?? (canPop ? () => Navigator.of(context).maybePop() : null);
+        widget.onBack ??
+        (canPop ? () => Navigator.of(context).maybePop() : null);
     final filteredGroups = _filteredGroups();
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 4, 24, 16),

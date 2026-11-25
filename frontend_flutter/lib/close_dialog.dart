@@ -57,7 +57,7 @@ class CloseDialog extends StatelessWidget {
                     label: const Text('最小化到托盘'),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
               ],
               PrismHoverMotion(
                 hoverScale: 1.025,
@@ -73,7 +73,7 @@ class CloseDialog extends StatelessWidget {
                   child: const Text('仅退出应用'),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               PrismHoverMotion(
                 hoverScale: 1.025,
                 pressScale: 0.975,
@@ -88,7 +88,7 @@ class CloseDialog extends StatelessWidget {
                   child: const Text('退出应用与浏览器'),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               PrismHoverMotion(
                 hoverScale: 1.025,
                 pressScale: 0.975,

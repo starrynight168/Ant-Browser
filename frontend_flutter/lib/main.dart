@@ -84,7 +84,11 @@ class AntBrowserApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([appThemeMode, appThemeColor, appThemeStyle]),
+      listenable: Listenable.merge([
+        appThemeMode,
+        appThemeColor,
+        appThemeStyle,
+      ]),
       builder: (context, _) {
         final themeMode = appThemeMode.value;
         final seedColor = appThemeColor.value;
@@ -121,102 +125,117 @@ class AntBrowserApp extends StatelessWidget {
             return ValueListenableBuilder<bool>(
               valueListenable: appMotionEnabled,
               builder: (context, motionEnabled, inner) => MediaQuery(
-                data: MediaQuery.of(
-                  context,
-                ).copyWith(disableAnimations: !motionEnabled),
+                data: MediaQuery.of(context)
+                    .copyWith(disableAnimations: !motionEnabled),
                 child: inner!,
               ),
               child: prism.ViewScope(
                 size: size,
                 isMobile: size.width < 600,
                 child: prism.ButtonTheme.merge(
-                data: prism.ButtonThemeData(
-                  outlined: prism.ButtonStyle(
-                    backgroundColor: WidgetStateProperty.fromMap({
-                      WidgetState.disabled: neutralFill.withValues(alpha: 0.45),
-                      WidgetState.hovered: neutralHover,
-                      WidgetState.any: neutralFill,
-                    }),
-                    foregroundColor: WidgetStateProperty.fromMap({
-                      WidgetState.disabled: cs.onSurface.withValues(
-                        alpha: 0.36,
+                  data: prism.ButtonThemeData(
+                    outlined: prism.ButtonStyle(
+                      backgroundColor: WidgetStateProperty.fromMap({
+                        WidgetState.disabled: neutralFill.withValues(
+                          alpha: 0.45,
+                        ),
+                        WidgetState.hovered: neutralHover,
+                        WidgetState.any: neutralFill,
+                      }),
+                      foregroundColor: WidgetStateProperty.fromMap({
+                        WidgetState.disabled: cs.onSurface.withValues(
+                          alpha: 0.36,
+                        ),
+                        WidgetState.any: cs.onSurface,
+                      }),
+                      overlayColor: WidgetStateProperty.fromMap({
+                        WidgetState.hovered: cs.onSurface.withValues(
+                          alpha: 0.05,
+                        ),
+                        WidgetState.pressed: cs.onSurface.withValues(
+                          alpha: 0.10,
+                        ),
+                        WidgetState.any: const Color(0x00000000),
+                      }),
+                      side: const WidgetStatePropertyAll(BorderSide.none),
+                      shape: prism.AppShape.full,
+                      minimumSize: const Size(0, 40),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 0,
                       ),
-                      WidgetState.any: cs.onSurface,
-                    }),
-                    overlayColor: WidgetStateProperty.fromMap({
-                      WidgetState.hovered: cs.onSurface.withValues(alpha: 0.05),
-                      WidgetState.pressed: cs.onSurface.withValues(alpha: 0.10),
-                      WidgetState.any: const Color(0x00000000),
-                    }),
-                    side: const WidgetStatePropertyAll(BorderSide.none),
-                    shape: prism.AppShape.full,
-                    minimumSize: const Size(0, 40),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 18,
-                      vertical: 0,
+                    ),
+                    filled: prism.ButtonStyle(
+                      backgroundColor: WidgetStateProperty.fromMap({
+                        WidgetState.disabled: neutralFill.withValues(
+                          alpha: 0.45,
+                        ),
+                        WidgetState.hovered: primaryTintHover,
+                        WidgetState.any: primaryTint,
+                      }),
+                      foregroundColor: WidgetStateProperty.fromMap({
+                        WidgetState.disabled: cs.onSurface.withValues(
+                          alpha: 0.36,
+                        ),
+                        WidgetState.any: cs.primary,
+                      }),
+                      overlayColor: WidgetStateProperty.fromMap({
+                        WidgetState.hovered: cs.primary.withValues(alpha: 0.08),
+                        WidgetState.pressed: cs.primary.withValues(alpha: 0.14),
+                        WidgetState.any: const Color(0x00000000),
+                      }),
+                      side: const WidgetStatePropertyAll(BorderSide.none),
+                      shape: prism.AppShape.full,
+                      minimumSize: const Size(0, 40),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 0,
+                      ),
+                    ),
+                    text: prism.ButtonStyle(
+                      backgroundColor: WidgetStateProperty.fromMap({
+                        WidgetState.disabled: const Color(0x00000000),
+                        WidgetState.hovered: neutralHover,
+                        WidgetState.any: textSoftFill,
+                      }),
+                      foregroundColor: WidgetStateProperty.fromMap({
+                        WidgetState.disabled: cs.onSurface.withValues(
+                          alpha: 0.36,
+                        ),
+                        WidgetState.any: cs.onSurface,
+                      }),
+                      overlayColor: WidgetStateProperty.fromMap({
+                        WidgetState.hovered: cs.onSurface.withValues(
+                          alpha: 0.05,
+                        ),
+                        WidgetState.pressed: cs.onSurface.withValues(
+                          alpha: 0.10,
+                        ),
+                        WidgetState.any: const Color(0x00000000),
+                      }),
+                      side: const WidgetStatePropertyAll(BorderSide.none),
+                      shape: prism.AppShape.full,
+                      minimumSize: const Size(0, 40),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 0,
+                      ),
+                    ),
+                    icon: prism.ButtonStyle(
+                      overlayColor: WidgetStateProperty.fromMap({
+                        WidgetState.hovered: cs.onSurface.withValues(
+                          alpha: 0.09,
+                        ),
+                        WidgetState.pressed: cs.onSurface.withValues(
+                          alpha: 0.15,
+                        ),
+                        WidgetState.any: const Color(0x00000000),
+                      }),
                     ),
                   ),
-                  filled: prism.ButtonStyle(
-                    backgroundColor: WidgetStateProperty.fromMap({
-                      WidgetState.disabled: neutralFill.withValues(alpha: 0.45),
-                      WidgetState.hovered: primaryTintHover,
-                      WidgetState.any: primaryTint,
-                    }),
-                    foregroundColor: WidgetStateProperty.fromMap({
-                      WidgetState.disabled: cs.onSurface.withValues(
-                        alpha: 0.36,
-                      ),
-                      WidgetState.any: cs.primary,
-                    }),
-                    overlayColor: WidgetStateProperty.fromMap({
-                      WidgetState.hovered: cs.primary.withValues(alpha: 0.08),
-                      WidgetState.pressed: cs.primary.withValues(alpha: 0.14),
-                      WidgetState.any: const Color(0x00000000),
-                    }),
-                    side: const WidgetStatePropertyAll(BorderSide.none),
-                    shape: prism.AppShape.full,
-                    minimumSize: const Size(0, 40),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 18,
-                      vertical: 0,
-                    ),
-                  ),
-                  text: prism.ButtonStyle(
-                    backgroundColor: WidgetStateProperty.fromMap({
-                      WidgetState.disabled: const Color(0x00000000),
-                      WidgetState.hovered: neutralHover,
-                      WidgetState.any: textSoftFill,
-                    }),
-                    foregroundColor: WidgetStateProperty.fromMap({
-                      WidgetState.disabled: cs.onSurface.withValues(
-                        alpha: 0.36,
-                      ),
-                      WidgetState.any: cs.onSurface,
-                    }),
-                    overlayColor: WidgetStateProperty.fromMap({
-                      WidgetState.hovered: cs.onSurface.withValues(alpha: 0.05),
-                      WidgetState.pressed: cs.onSurface.withValues(alpha: 0.10),
-                      WidgetState.any: const Color(0x00000000),
-                    }),
-                    side: const WidgetStatePropertyAll(BorderSide.none),
-                    shape: prism.AppShape.full,
-                    minimumSize: const Size(0, 40),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 0,
-                    ),
-                  ),
-                  icon: prism.ButtonStyle(
-                    overlayColor: WidgetStateProperty.fromMap({
-                      WidgetState.hovered: cs.onSurface.withValues(alpha: 0.09),
-                      WidgetState.pressed: cs.onSurface.withValues(alpha: 0.15),
-                      WidgetState.any: const Color(0x00000000),
-                    }),
-                  ),
+                  child: child!,
                 ),
-                child: child!,
               ),
-            ),
             );
           },
           home: const AntBrowserShell(),
@@ -477,159 +496,149 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
                                     _activePath == '/browser/monitor'
                                 ? BrowserListPage(
                                     onOpenDetails: (id) => setState(
-                                      () =>
-                                          _activePath = '/browser/detail/$id',
+                                      () => _activePath = '/browser/detail/$id',
                                     ),
                                     onOpenExtensionManagement: () => setState(
-                                      () =>
-                                          _activePath = '/browser/extensions',
+                                      () => _activePath = '/browser/extensions',
                                     ),
                                     onOpenBackup: () => setState(
                                       () => _activePath = '/system/backup',
                                     ),
                                   )
-                                  : _activePath.startsWith('/browser/detail/')
-                                  ? BrowserProfileToolsPage(
-                                      profileId: _activePath.split('/').last,
-                                      onBack: () => setState(
-                                        () => _activePath = '/browser/list',
-                                      ),
-                                    )
-                                  : _activePath.startsWith('/browser/edit/') ||
-                                        _activePath.startsWith('/browser/copy/')
-                                  ? BrowserListPage(
-                                      onOpenDetails: (id) => setState(
-                                        () =>
-                                            _activePath = '/browser/detail/$id',
-                                      ),
-                                      onOpenExtensionManagement: () => setState(
-                                        () =>
-                                            _activePath = '/browser/extensions',
-                                      ),
-                                      initialQuery:
-                                          _activePath.split('/').last == 'new'
-                                          ? ''
-                                          : _activePath.split('/').last,
-                                    )
-                                  : _activePath == '/profile'
-                                  ? const AboutPage()
-                                  : _activePath == '/browser/logs'
-                                  ? const LogsPage()
-                                  : _activePath == '/browser/bookmarks'
-                                  ? const BookmarksPage()
-                                  : _activePath == '/notifications'
-                                  ? NotificationsPage(
-                                      store: _notificationStore,
-                                      onNavigate: (path) =>
-                                          setState(() => _activePath = path),
-                                    )
-                                  : _activePath == '/browser/tags'
-                                  ? const TagsPage()
-                                  : _activePath == '/settings'
-                                  ? const SettingsPage()
-                                  : _activePath == '/browser/cores'
-                                  ? const CoresPage()
-                                  : _activePath == '/browser/extensions'
-                                  ? const ExtensionsPage()
-                                  : _activePath == '/browser/proxy-pool'
-                                  ? ProxyPoolPage(
-                                      onOpenGroups: () => setState(
-                                        () => _activePath =
-                                            '/browser/proxy-virtual-groups',
-                                      ),
-                                      onOpenAlign: () => setState(
-                                        () => _activePath =
-                                            '/browser/proxy-align',
-                                      ),
-                                    )
-                                  : _activePath ==
-                                        '/browser/proxy-virtual-groups'
-                                  ? const ProxyGroupsPage()
-                                  : _activePath == '/browser/proxy-align'
-                                  ? ProxyAlignPage(
-                                      onBack: () => setState(
-                                        () =>
-                                            _activePath = '/browser/proxy-pool',
-                                      ),
-                                    )
-                                  : _activePath == '/browser/automation'
-                                  ? AutomationPage(
-                                      onOpen: (id) => setState(
-                                        () => _activePath =
-                                            '/browser/automation/$id',
-                                      ),
-                                      onRun: (id) => setState(
-                                        () => _activePath =
-                                            '/browser/automation/run/$id',
-                                      ),
-                                      onCreate: () => setState(
-                                        () => _activePath =
-                                            '/browser/automation/new',
-                                      ),
-                                    )
-                                  : _activePath.startsWith(
-                                      '/browser/automation/run/',
-                                    )
-                                  ? AutomationScriptDetailPage(
-                                      scriptId: _activePath.split('/').last,
-                                      autoRun: true,
-                                      onBack: () => setState(
-                                        () =>
-                                            _activePath = '/browser/automation',
-                                      ),
-                                      onCreated: (id) => setState(
-                                        () => _activePath =
-                                            '/browser/automation/$id',
-                                      ),
-                                    )
-                                  : _activePath.startsWith(
-                                      '/browser/automation/',
-                                    )
-                                  ? AutomationScriptDetailPage(
-                                      scriptId: _activePath.split('/').last,
-                                      onBack: () => setState(
-                                        () =>
-                                            _activePath = '/browser/automation',
-                                      ),
-                                      onCreated: (id) => setState(
-                                        () => _activePath =
-                                            '/browser/automation/$id',
-                                      ),
-                                    )
-                                  : _activePath == '/system/backup'
-                                  ? BackupPage(
-                                      onOpenS3: () => setState(
-                                        () => _activePath = '/system/backup/s3',
-                                      ),
-                                      onOpenOpenList: () => setState(
-                                        () => _activePath =
-                                            '/system/backup/openlist',
-                                      ),
-                                    )
-                                  : _activePath == '/system/backup/s3'
-                                  ? S3ConfigPage(
-                                      onBack: () => setState(
-                                        () => _activePath = '/system/backup',
-                                      ),
-                                    )
-                                  : _activePath == '/system/backup/openlist'
-                                  ? OpenListConfigPage(
-                                      onBack: () => setState(
-                                        () => _activePath = '/system/backup',
-                                      ),
-                                    )
-                                  : _activePath == '/system/docs' ||
-                                        _activePath == '/browser/launch-api' ||
-                                        _activePath == '/system/tutorial'
-                                  ? const DocsPage()
-                                  : _activePath == '/charts'
-                                  ? const ChartsPage()
-                                  : const BrowserListPage(),
-                            ),
+                                : _activePath.startsWith('/browser/detail/')
+                                ? BrowserProfileToolsPage(
+                                    profileId: _activePath.split('/').last,
+                                    onBack: () => setState(
+                                      () => _activePath = '/browser/list',
+                                    ),
+                                  )
+                                : _activePath.startsWith('/browser/edit/') ||
+                                      _activePath.startsWith('/browser/copy/')
+                                ? BrowserListPage(
+                                    onOpenDetails: (id) => setState(
+                                      () => _activePath = '/browser/detail/$id',
+                                    ),
+                                    onOpenExtensionManagement: () => setState(
+                                      () => _activePath = '/browser/extensions',
+                                    ),
+                                    initialQuery:
+                                        _activePath.split('/').last == 'new'
+                                        ? ''
+                                        : _activePath.split('/').last,
+                                  )
+                                : _activePath == '/profile'
+                                ? const AboutPage()
+                                : _activePath == '/browser/logs'
+                                ? const LogsPage()
+                                : _activePath == '/browser/bookmarks'
+                                ? const BookmarksPage()
+                                : _activePath == '/notifications'
+                                ? NotificationsPage(
+                                    store: _notificationStore,
+                                    onNavigate: (path) =>
+                                        setState(() => _activePath = path),
+                                  )
+                                : _activePath == '/browser/tags'
+                                ? const TagsPage()
+                                : _activePath == '/settings'
+                                ? const SettingsPage()
+                                : _activePath == '/browser/cores'
+                                ? const CoresPage()
+                                : _activePath == '/browser/extensions'
+                                ? const ExtensionsPage()
+                                : _activePath == '/browser/proxy-pool'
+                                ? ProxyPoolPage(
+                                    onOpenGroups: () => setState(
+                                      () => _activePath =
+                                          '/browser/proxy-virtual-groups',
+                                    ),
+                                    onOpenAlign: () => setState(
+                                      () =>
+                                          _activePath = '/browser/proxy-align',
+                                    ),
+                                  )
+                                : _activePath == '/browser/proxy-virtual-groups'
+                                ? const ProxyGroupsPage()
+                                : _activePath == '/browser/proxy-align'
+                                ? ProxyAlignPage(
+                                    onBack: () => setState(
+                                      () => _activePath = '/browser/proxy-pool',
+                                    ),
+                                  )
+                                : _activePath == '/browser/automation'
+                                ? AutomationPage(
+                                    onOpen: (id) => setState(
+                                      () => _activePath =
+                                          '/browser/automation/$id',
+                                    ),
+                                    onRun: (id) => setState(
+                                      () => _activePath =
+                                          '/browser/automation/run/$id',
+                                    ),
+                                    onCreate: () => setState(
+                                      () => _activePath =
+                                          '/browser/automation/new',
+                                    ),
+                                  )
+                                : _activePath.startsWith(
+                                    '/browser/automation/run/',
+                                  )
+                                ? AutomationScriptDetailPage(
+                                    scriptId: _activePath.split('/').last,
+                                    autoRun: true,
+                                    onBack: () => setState(
+                                      () => _activePath = '/browser/automation',
+                                    ),
+                                    onCreated: (id) => setState(
+                                      () => _activePath =
+                                          '/browser/automation/$id',
+                                    ),
+                                  )
+                                : _activePath.startsWith('/browser/automation/')
+                                ? AutomationScriptDetailPage(
+                                    scriptId: _activePath.split('/').last,
+                                    onBack: () => setState(
+                                      () => _activePath = '/browser/automation',
+                                    ),
+                                    onCreated: (id) => setState(
+                                      () => _activePath =
+                                          '/browser/automation/$id',
+                                    ),
+                                  )
+                                : _activePath == '/system/backup'
+                                ? BackupPage(
+                                    onOpenS3: () => setState(
+                                      () => _activePath = '/system/backup/s3',
+                                    ),
+                                    onOpenOpenList: () => setState(
+                                      () => _activePath =
+                                          '/system/backup/openlist',
+                                    ),
+                                  )
+                                : _activePath == '/system/backup/s3'
+                                ? S3ConfigPage(
+                                    onBack: () => setState(
+                                      () => _activePath = '/system/backup',
+                                    ),
+                                  )
+                                : _activePath == '/system/backup/openlist'
+                                ? OpenListConfigPage(
+                                    onBack: () => setState(
+                                      () => _activePath = '/system/backup',
+                                    ),
+                                  )
+                                : _activePath == '/system/docs' ||
+                                      _activePath == '/browser/launch-api' ||
+                                      _activePath == '/system/tutorial'
+                                ? const DocsPage()
+                                : _activePath == '/charts'
+                                ? const ChartsPage()
+                                : const BrowserListPage(),
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -730,7 +739,7 @@ class _QuickLaunchTrigger extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             PrismGlyph(AntGlyphs.bolt, size: 15, color: colors.primary),
-            const SizedBox(width: 7),
+            const SizedBox(width: 10),
             Text(
               '快捷启动',
               style: prism.AppTextStyle.footnote
@@ -1119,12 +1128,13 @@ class _BrowserListPageState extends State<BrowserListPage> {
           .whereType<Map>()
           .map((group) => Map<String, dynamic>.from(group))
           .toList();
-      final entityGroups = proxies
-          .map((p) => (p['groupName'] ?? '').toString().trim())
-          .where((g) => g.isNotEmpty)
-          .toSet()
-          .toList()
-        ..sort();
+      final entityGroups =
+          proxies
+              .map((p) => (p['groupName'] ?? '').toString().trim())
+              .where((g) => g.isNotEmpty)
+              .toSet()
+              .toList()
+            ..sort();
       final search = TextEditingController();
       var selectedGroup = '__all__';
       var testingAll = false;
@@ -1166,7 +1176,9 @@ class _BrowserListPageState extends State<BrowserListPage> {
               if (pid.isEmpty || testingIds.contains(pid)) return;
               setDialog(() => testingIds.add(pid));
               try {
-                final res = await AppBridge.call('BrowserProxyTestSpeed', [pid]);
+                final res = await AppBridge.call('BrowserProxyTestSpeed', [
+                  pid,
+                ]);
                 final ok = res is Map && res['ok'] == true;
                 final lat = res is Map ? res['latencyMs'] : null;
                 if (ok && lat is num) {
@@ -1174,8 +1186,9 @@ class _BrowserListPageState extends State<BrowserListPage> {
                   _proxyLatencyError.remove(pid);
                 } else {
                   _proxyLatencyMs.remove(pid);
-                  _proxyLatencyError[pid] =
-                      res is Map ? (res['error'] ?? '失败').toString() : '失败';
+                  _proxyLatencyError[pid] = res is Map
+                      ? (res['error'] ?? '失败').toString()
+                      : '失败';
                 }
               } catch (e) {
                 _proxyLatencyError[pid] = e.toString();
@@ -1207,8 +1220,8 @@ class _BrowserListPageState extends State<BrowserListPage> {
                       _proxyLatencyError.remove(pid);
                     } else {
                       _proxyLatencyMs.remove(pid);
-                      _proxyLatencyError[pid] =
-                          (row['error'] ?? '失败').toString();
+                      _proxyLatencyError[pid] = (row['error'] ?? '失败')
+                          .toString();
                     }
                   }
                 }
@@ -1521,14 +1534,16 @@ class _BrowserListPageState extends State<BrowserListPage> {
             '代理：$label',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: prism.AppTextStyle.caption1.of(context).copyWith(
-              color: bindErr.isNotEmpty
-                  ? PrismToneColors.of(context, PrismTone.danger).fg
-                  : prism.Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+            style: prism.AppTextStyle.caption1
+                .of(context)
+                .copyWith(
+                  color: bindErr.isNotEmpty
+                      ? PrismToneColors.of(context, PrismTone.danger).fg
+                      : prism.Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
           ),
         ),
-        if (badge != null) ...[const SizedBox(width: 6), badge],
+        if (badge != null) ...[const SizedBox(width: 10), badge],
       ],
     );
   }
@@ -1733,6 +1748,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
                   }
                 }),
               ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1743,15 +1759,18 @@ class _BrowserListPageState extends State<BrowserListPage> {
                       overflow: TextOverflow.ellipsis,
                       style: prism.AppTextStyle.headline.of(context),
                     ),
+                    const SizedBox(height: 4),
                     Text(
                       id,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: prism.AppTextStyle.caption1.of(context).copyWith(
-                        color: prism.Theme.of(
-                          context,
-                        ).colorScheme.onSurfaceVariant,
-                      ),
+                      style: prism.AppTextStyle.caption1
+                          .of(context)
+                          .copyWith(
+                            color: prism.Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                          ),
                     ),
                   ],
                 ),
@@ -1792,10 +1811,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
                   const PrismMenuItem(value: 'edit', child: Text('编辑实例')),
                   const PrismMenuItem(value: 'copy', child: Text('复制配置')),
                   const PrismMenuItem(value: 'code', child: Text('管理启动码')),
-                  const PrismMenuItem(
-                    value: 'copy-code',
-                    child: Text('复制启动码'),
-                  ),
+                  const PrismMenuItem(value: 'copy-code', child: Text('复制启动码')),
                   const PrismMenuItem(value: 'keywords', child: Text('管理关键字')),
                   const PrismMenuItem(
                     value: 'extensions',
@@ -1812,7 +1828,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Expanded(
             child: SingleChildScrollView(
               child: Column(
@@ -1821,23 +1837,23 @@ class _BrowserListPageState extends State<BrowserListPage> {
                 children: [
                   _profileProxyBadgeRow(profile),
                   if (tags.isNotEmpty) ...[
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                     Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
+                      spacing: 10,
+                      runSpacing: 6,
                       children: [
                         for (final tag in tags.take(4))
                           PrismBadge(label: tag, tone: PrismTone.info),
                       ],
                     ),
                   ],
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 10),
                   _profileMetadata(profile),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
@@ -1961,7 +1977,10 @@ class _BrowserListPageState extends State<BrowserListPage> {
                           labelText: '上级分组',
                         ),
                         items: [
-                          const PrismDropdownItem(value: '', child: Text('顶层分组')),
+                          const PrismDropdownItem(
+                            value: '',
+                            child: Text('顶层分组'),
+                          ),
                           for (final g in _groups)
                             PrismDropdownItem(
                               value: (g['groupId'] ?? '').toString(),
@@ -2027,30 +2046,32 @@ class _BrowserListPageState extends State<BrowserListPage> {
                                     if (action == 'rename') {
                                       name.text = (group['groupName'] ?? '')
                                           .toString();
-                                      final next = await showPrismDialog<String>(
-                                        context: context,
-                                        useRootNavigator: false,
-                                        builder: (context) => PrismDialog(
-                                          title: const Text('重命名分组'),
-                                          content: PrismTextField(
-                                            controller: name,
-                                          ),
-                                          actions: [
-                                            prism.TextButton(
-                                              onPressed: () =>
-                                                  Navigator.pop(context),
-                                              child: const Text('取消'),
-                                            ),
-                                            prism.FilledButton(
-                                              onPressed: () => Navigator.pop(
-                                                context,
-                                                name.text.trim(),
+                                      final next =
+                                          await showPrismDialog<String>(
+                                            context: context,
+                                            useRootNavigator: false,
+                                            builder: (context) => PrismDialog(
+                                              title: const Text('重命名分组'),
+                                              content: PrismTextField(
+                                                controller: name,
                                               ),
-                                              child: const Text('保存'),
+                                              actions: [
+                                                prism.TextButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(context),
+                                                  child: const Text('取消'),
+                                                ),
+                                                prism.FilledButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(
+                                                        context,
+                                                        name.text.trim(),
+                                                      ),
+                                                  child: const Text('保存'),
+                                                ),
+                                              ],
                                             ),
-                                          ],
-                                        ),
-                                      );
+                                          );
                                       if (next != null && next.isNotEmpty) {
                                         await AppBridge.call('UpdateGroup', [
                                           groupId,
@@ -2541,11 +2562,18 @@ class _BrowserListPageState extends State<BrowserListPage> {
                                       (value['lang'] ?? '').toString(),
                                       (value['timezone'] ?? '').toString(),
                                     ).join('\n');
-                                final loc = [
-                                  value['country'],
-                                  value['region'],
-                                  value['city'],
-                                ].where((i) => i != null && i.toString().isNotEmpty).join(' / ');
+                                final loc =
+                                    [
+                                          value['country'],
+                                          value['region'],
+                                          value['city'],
+                                        ]
+                                        .where(
+                                          (i) =>
+                                              i != null &&
+                                              i.toString().isNotEmpty,
+                                        )
+                                        .join(' / ');
                                 final ip = (value['ip'] ?? '').toString();
                                 setDialog(() {
                                   resolvedLocationSummary =
@@ -3255,8 +3283,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
             child: items.isNotEmpty
                 ? ListView.separated(
                     itemCount: items.length,
-                    separatorBuilder: (_, __) =>
-                        const prism.Divider(height: 1),
+                    separatorBuilder: (_, __) => const prism.Divider(height: 1),
                     itemBuilder: (context, index) {
                       final row = items[index] is Map
                           ? Map<String, dynamic>.from(items[index] as Map)
@@ -3501,10 +3528,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
                     trimmed.length < 4 ||
                     trimmed.length > 32 ||
                     !RegExp(r'^[A-Za-z0-9_-]+$').hasMatch(trimmed)) {
-                  showPrismNotice(
-                    context,
-                    '启动码需为 4–32 位字母、数字、下划线或短横线',
-                  );
+                  showPrismNotice(context, '启动码需为 4–32 位字母、数字、下划线或短横线');
                   return;
                 }
                 Navigator.pop(context, trimmed);
@@ -4510,8 +4534,8 @@ class _BrowserListPageState extends State<BrowserListPage> {
         tone: PrismTone.success,
         onPressed: () {
           setState(
-            () => _statusFilter =
-                _statusFilter == 'running' ? 'all' : 'running',
+            () =>
+                _statusFilter = _statusFilter == 'running' ? 'all' : 'running',
           );
           _persistFilters();
         },
@@ -4526,8 +4550,8 @@ class _BrowserListPageState extends State<BrowserListPage> {
         tone: PrismTone.neutral,
         onPressed: () {
           setState(
-            () => _statusFilter =
-                _statusFilter == 'stopped' ? 'all' : 'stopped',
+            () =>
+                _statusFilter = _statusFilter == 'stopped' ? 'all' : 'stopped',
           );
           _persistFilters();
         },
@@ -4748,7 +4772,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
             staggerDelay: const Duration(milliseconds: 45),
             radius: prism.AppCorner.xl,
             lift: false,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -4769,9 +4793,9 @@ class _BrowserListPageState extends State<BrowserListPage> {
                               },
                             ),
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 12),
                           Wrap(
-                            spacing: 6,
+                            spacing: 10,
                             runSpacing: 6,
                             crossAxisAlignment: WrapCrossAlignment.center,
                             children: toolbarActions,
@@ -4791,9 +4815,9 @@ class _BrowserListPageState extends State<BrowserListPage> {
                             _persistFilters();
                           },
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 10),
                         Wrap(
-                          spacing: 6,
+                          spacing: 10,
                           runSpacing: 6,
                           alignment: WrapAlignment.end,
                           crossAxisAlignment: WrapCrossAlignment.center,
@@ -4854,9 +4878,9 @@ class _BrowserListPageState extends State<BrowserListPage> {
                                       style: prism.AppTextStyle.footnote
                                           .of(context)
                                           .copyWith(
-                                            color: prism.Theme.of(
-                                              context,
-                                            ).colorScheme.onSurfaceVariant,
+                                            color: prism.Theme.of(context)
+                                                .colorScheme
+                                                .onSurfaceVariant,
                                           ),
                                     ),
                                     PrismChip(
@@ -4904,7 +4928,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
               ],
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Row(
             children: [
               prism.TextButton.icon(
@@ -4926,27 +4950,31 @@ class _BrowserListPageState extends State<BrowserListPage> {
               const Spacer(),
               Text(
                 '共 ${visible.length} 个实例',
-                style: prism.AppTextStyle.footnote.of(context).copyWith(
-                  color: prism.Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+                style: prism.AppTextStyle.footnote
+                    .of(context)
+                    .copyWith(
+                      color: prism.Theme.of(context)
+                          .colorScheme
+                          .onSurfaceVariant,
+                    ),
               ),
             ],
           ),
           PrismCollapsible(
             expanded: _selectedProfileIds.isNotEmpty,
             child: Padding(
-              padding: const EdgeInsets.only(top: 6, bottom: 6),
+              padding: const EdgeInsets.only(top: 10, bottom: 10),
               child: prism.Surface(
                 color: prism.Theme.of(context).colorScheme.surfaceContainerLow,
                 shape: prism.AppShape.lg,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
+                    horizontal: 16,
+                    vertical: 12,
                   ),
                   child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
+                    spacing: 10,
+                    runSpacing: 10,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       PrismBadge(
@@ -4969,9 +4997,8 @@ class _BrowserListPageState extends State<BrowserListPage> {
                       ),
                       prism.OutlinedButton.icon(
                         onPressed: _busyProfile == null
-                            ? () => _exportProfiles(
-                                _selectedProfileIds.toList(),
-                              )
+                            ? () =>
+                                  _exportProfiles(_selectedProfileIds.toList())
                             : null,
                         icon: const PrismGlyph(AntGlyphs.download, size: 16),
                         label: const Text('导出'),
@@ -5059,15 +5086,16 @@ class _BrowserListPageState extends State<BrowserListPage> {
                                           }
                                         }),
                                       ),
+                                      const SizedBox(width: 12),
                                       prism.Surface(
                                         color: running
                                             ? PrismToneColors.of(
                                                 context,
                                                 PrismTone.success,
                                               ).bg
-                                            : prism.Theme.of(
-                                                context,
-                                              ).colorScheme.secondaryContainer,
+                                            : prism.Theme.of(context)
+                                                  .colorScheme
+                                                  .secondaryContainer,
                                         shape: prism.AppShape.md,
                                         child: SizedBox(
                                           width: 42,
@@ -5103,7 +5131,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
                                               style: prism.AppTextStyle.headline
                                                   .of(context),
                                             ),
-                                            const SizedBox(height: 3),
+                                            const SizedBox(height: 6),
                                             Text(
                                               id,
                                               maxLines: 1,
@@ -5111,9 +5139,10 @@ class _BrowserListPageState extends State<BrowserListPage> {
                                               style: prism.AppTextStyle.caption1
                                                   .of(context)
                                                   .copyWith(
-                                                    color: prism.Theme.of(context)
-                                                        .colorScheme
-                                                        .onSurfaceVariant,
+                                                    color:
+                                                        prism.Theme.of(context)
+                                                            .colorScheme
+                                                            .onSurfaceVariant,
                                                   ),
                                             ),
                                             const SizedBox(height: 4),
@@ -5177,7 +5206,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
                                               ),
                                         child: Text(running ? '关闭' : '启动'),
                                       ),
-                                      const SizedBox(width: 6),
+                                      const SizedBox(width: 12),
                                       PrismPopupMenuButton<String>(
                                         tooltip: '更多操作',
                                         onSelected: (action) {
@@ -5286,10 +5315,10 @@ class _BrowserListPageState extends State<BrowserListPage> {
                                     ],
                                   ),
                                 );
-                    },
+                              },
+                            ),
+                    ),
                   ),
-                ),
-              ),
           ),
         ],
       ),
@@ -5324,8 +5353,8 @@ class _RunningStatus extends StatelessWidget {
         ? ('异常', PrismTone.danger)
         : ('已停止', PrismTone.neutral);
     return Wrap(
-      spacing: 6,
-      runSpacing: 4,
+      spacing: 10,
+      runSpacing: 6,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         PrismBadge(label: label, tone: tone, dot: true),

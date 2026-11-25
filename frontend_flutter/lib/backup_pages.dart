@@ -17,7 +17,9 @@ String _formatFileSize(dynamic rawBytes) {
     value /= 1024;
     unitIndex++;
   }
-  final digits = unitIndex == 0 ? 0 : (value >= 100 ? 0 : (value >= 10 ? 1 : 2));
+  final digits = unitIndex == 0
+      ? 0
+      : (value >= 100 ? 0 : (value >= 10 ? 1 : 2));
   return '${value.toStringAsFixed(digits)} ${units[unitIndex]}';
 }
 
@@ -59,12 +61,15 @@ String _formatBackupResultSummary(Map<String, dynamic> result) {
       .map((row) => Map<String, dynamic>.from(row))
       .toList();
   if (failedComponents.isNotEmpty) {
-    final items = failedComponents.take(3).map((item) {
-      final name = (item['componentName'] ?? item['componentId'] ?? '未知组件')
-          .toString();
-      final err = (item['error'] ?? '').toString();
-      return err.isEmpty ? name : '$name（$err）';
-    }).join('；');
+    final items = failedComponents
+        .take(3)
+        .map((item) {
+          final name = (item['componentName'] ?? item['componentId'] ?? '未知组件')
+              .toString();
+          final err = (item['error'] ?? '').toString();
+          return err.isEmpty ? name : '$name（$err）';
+        })
+        .join('；');
     final suffix = failedComponents.length > 3
         ? ' 等 ${failedComponents.length} 项'
         : '';
@@ -99,7 +104,8 @@ String _formatBackupResultSummary(Map<String, dynamic> result) {
   if (backup['metadataOrphan'] == true) {
     return ('备份文件缺失', PrismTone.danger);
   }
-  if (isLocal && backup.containsKey('metadataAvailable') &&
+  if (isLocal &&
+      backup.containsKey('metadataAvailable') &&
       backup['metadataAvailable'] == false) {
     return ('信息不可用', PrismTone.warning);
   }
@@ -174,7 +180,8 @@ mixin _BackupProfileImportFlow<T extends StatefulWidget> on State<T> {
                     runSpacing: 6,
                     children: [
                       PrismBadge(
-                        label: '共 ${preview['profileCount'] ?? profiles.length} 个实例',
+                        label:
+                            '共 ${preview['profileCount'] ?? profiles.length} 个实例',
                         tone: PrismTone.info,
                         glyph: AntGlyphs.browser,
                       ),
@@ -218,8 +225,8 @@ mixin _BackupProfileImportFlow<T extends StatefulWidget> on State<T> {
                             profile['sourceTargetCollision'] == true;
                         final ambiguous = profile['ambiguous'] == true;
                         final targetRunning = profile['targetRunning'] == true;
-                        final targetName =
-                            (profile['targetProfileName'] ?? '').toString();
+                        final targetName = (profile['targetProfileName'] ?? '')
+                            .toString();
                         final sourceName =
                             (profile['sourceProfileName'] ?? '未命名实例')
                                 .toString();
@@ -293,7 +300,9 @@ mixin _BackupProfileImportFlow<T extends StatefulWidget> on State<T> {
                                     overflow: TextOverflow.ellipsis,
                                     style: prism.AppTextStyle.caption1
                                         .of(context)
-                                        .copyWith(color: colors.onSurfaceVariant),
+                                        .copyWith(
+                                          color: colors.onSurfaceVariant,
+                                        ),
                                   ),
                                 ],
                                 if (conflictReasons.isNotEmpty) ...[
@@ -496,10 +505,7 @@ mixin _BackupProfileImportFlow<T extends StatefulWidget> on State<T> {
                   ),
                   if (error.isNotEmpty) ...[
                     const SizedBox(height: 10),
-                    PrismBanner(
-                      tone: PrismTone.danger,
-                      message: error,
-                    ),
+                    PrismBanner(tone: PrismTone.danger, message: error),
                   ],
                 ],
               ),
@@ -512,9 +518,7 @@ mixin _BackupProfileImportFlow<T extends StatefulWidget> on State<T> {
                 child: const Text('取消'),
               ),
               prism.OutlinedButton(
-                onPressed: submitting
-                    ? null
-                    : () => submit(skipPassword: true),
+                onPressed: submitting ? null : () => submit(skipPassword: true),
                 child: const Text('跳过登录态'),
               ),
               prism.FilledButton(
@@ -829,7 +833,9 @@ class _BackupPageState extends State<BackupPage>
       if (raw is Map) {
         schedule = Map<String, dynamic>.from(raw);
         if (mounted) {
-          setState(() => _scheduleSettings = Map<String, dynamic>.from(schedule));
+          setState(
+            () => _scheduleSettings = Map<String, dynamic>.from(schedule),
+          );
         }
       }
     } catch (error) {
@@ -854,8 +860,9 @@ class _BackupPageState extends State<BackupPage>
           final (statusLabel, statusTone) = _scheduleStatusInfo(status);
           final lastSuccessAt = _formatTimestamp(schedule['lastSuccessAt']);
           final lastError = (schedule['lastError'] ?? '').toString().trim();
-          final lastRemoteName =
-              (schedule['lastRemoteName'] ?? '').toString().trim();
+          final lastRemoteName = (schedule['lastRemoteName'] ?? '')
+              .toString()
+              .trim();
           final recentTimes = (schedule['recentBackupTimes'] as List? ?? [])
               .map(_formatTimestamp)
               .where((item) => item.isNotEmpty)
@@ -1004,16 +1011,14 @@ class _BackupPageState extends State<BackupPage>
                     ? null
                     : () async {
                         final trimmed = timeController.text.trim();
-                        if (!RegExp(
-                          r'^([01]?\d|2[0-3]):[0-5]\d$',
-                        ).hasMatch(trimmed)) {
+                        if (!RegExp(r'^([01]?\d|2[0-3]):[0-5]\d$')
+                            .hasMatch(trimmed)) {
                           setDialog(
                             () => timeError = '请输入有效的 24 小时时间，例如 03:00',
                           );
                           return;
                         }
-                        dailyTime =
-                            trimmed.length == 4 ? '0$trimmed' : trimmed;
+                        dailyTime = trimmed.length == 4 ? '0$trimmed' : trimmed;
                         setDialog(() => saving = true);
                         try {
                           final updated = await AppBridge.call(
@@ -1361,7 +1366,7 @@ class _BackupPageState extends State<BackupPage>
                         ),
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 12),
                     prism.IconButton(
                       tooltip: obscure ? '显示密码' : '隐藏密码',
                       onPressed: () => setDialog(() => obscure = !obscure),
@@ -1574,8 +1579,9 @@ class _BackupPageState extends State<BackupPage>
     final event = _activeProgress!;
     final colors = prism.Theme.of(context).colorScheme;
     final progressNum = (event['progress'] as num?)?.toDouble();
-    final progressValue =
-        progressNum == null ? null : (progressNum / 100).clamp(0.0, 1.0);
+    final progressValue = progressNum == null
+        ? null
+        : (progressNum / 100).clamp(0.0, 1.0);
     final componentName = (event['componentName'] ?? '').toString().trim();
     final message = (event['message'] ?? '').toString().trim();
     final entryIndex = (event['entryIndex'] as num?)?.toInt() ?? 0;
@@ -1674,7 +1680,7 @@ class _BackupPageState extends State<BackupPage>
     final restoreBlocked = metadataOrphan || metadataUnavailable;
 
     return PrismCard(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1742,7 +1748,7 @@ class _BackupPageState extends State<BackupPage>
                                 size: 13,
                                 color: colors.primary,
                               ),
-                              const SizedBox(width: 4),
+                              const SizedBox(width: 8),
                               Flexible(
                                 child: Text(
                                   path,
@@ -1830,11 +1836,9 @@ class _BackupPageState extends State<BackupPage>
       return ListView.separated(
         padding: kPrismListPadding,
         itemCount: _localBackups.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
-        itemBuilder: (context, index) => _buildBackupHistoryItem(
-          _localBackups[index],
-          channel: 'local',
-        ),
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (context, index) =>
+            _buildBackupHistoryItem(_localBackups[index], channel: 'local'),
       );
     }
     if (_historyTab == 1) {
@@ -1861,7 +1865,7 @@ class _BackupPageState extends State<BackupPage>
       return ListView.separated(
         padding: kPrismListPadding,
         itemCount: _openListBackups.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
         itemBuilder: (context, index) => _buildBackupHistoryItem(
           _openListBackups[index],
           channel: 'openlist',
@@ -1891,11 +1895,9 @@ class _BackupPageState extends State<BackupPage>
     return ListView.separated(
       padding: kPrismListPadding,
       itemCount: _s3Backups.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (context, index) => _buildBackupHistoryItem(
-        _s3Backups[index],
-        channel: 's3',
-      ),
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) =>
+          _buildBackupHistoryItem(_s3Backups[index], channel: 's3'),
     );
   }
 
@@ -2038,7 +2040,7 @@ class _BackupPageState extends State<BackupPage>
                   emphasized: true,
                 ),
               ),
-              const SizedBox(height: 1),
+              const SizedBox(height: 6),
               prism.SelectableText(
                 _directory.isEmpty ? '尚未选择目录' : _directory,
                 maxLines: 1,
@@ -2160,9 +2162,7 @@ class _BackupPageState extends State<BackupPage>
             actions: [
               PrismBadge(
                 label: '$currentCount 个',
-                tone: currentCount == 0
-                    ? PrismTone.neutral
-                    : PrismTone.primary,
+                tone: currentCount == 0 ? PrismTone.neutral : PrismTone.primary,
               ),
               SizedBox(
                 width: 280,
@@ -2500,7 +2500,7 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
                 icon: const PrismGlyph(AntGlyphs.arrowBack, size: 18),
               ),
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: 12),
             Expanded(
               child: PrismPageContextBar(
                 glyph: AntGlyphs.cloud,
@@ -2581,7 +2581,7 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
                         ),
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 12),
                     prism.IconButton(
                       tooltip: _passwordVisible ? '隐藏密码' : '显示密码',
                       onPressed: () =>
@@ -2607,7 +2607,7 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
                         ),
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 12),
                     prism.IconButton(
                       tooltip: _tokenVisible ? '隐藏 Token' : '显示 Token',
                       onPressed: _busy.isEmpty && !_revealingToken
@@ -2651,7 +2651,7 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
               onPressed: _busy.isEmpty ? () => _action('list') : null,
               icon: const PrismGlyph(AntGlyphs.refresh, size: 18),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 12),
             PrismHoverMotion(
               enabled: _busy.isEmpty,
               child: prism.FilledButton.icon(
@@ -2664,13 +2664,10 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
         ),
         const SizedBox(height: 10),
         if (_files.isEmpty)
-          const PrismEmptyState(
-            title: '没有找到远程备份',
-            glyph: AntGlyphs.cloud,
-          ),
+          const PrismEmptyState(title: '没有找到远程备份', glyph: AntGlyphs.cloud),
         for (final file in _files)
           PrismCard(
-            margin: const EdgeInsets.only(bottom: 8),
+            margin: const EdgeInsets.only(bottom: 12),
             child: PrismListTile(
               title: Text(
                 (file['name'] ?? '').toString(),
@@ -2683,7 +2680,7 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
                 overflow: TextOverflow.ellipsis,
               ),
               trailing: Wrap(
-                spacing: 4,
+                spacing: 12,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   prism.IconButton(
@@ -2847,10 +2844,8 @@ class _S3ConfigPageState extends State<S3ConfigPage>
     final validationError = _validateForm();
     if (validationError != null) {
       setState(
-        () => _testResult = _TestResultState(
-          ok: false,
-          message: validationError,
-        ),
+        () =>
+            _testResult = _TestResultState(ok: false, message: validationError),
       );
       showPrismNotice(context, validationError);
       return;
@@ -2927,10 +2922,8 @@ class _S3ConfigPageState extends State<S3ConfigPage>
     final validationError = _validateForm();
     if (validationError != null) {
       setState(
-        () => _testResult = _TestResultState(
-          ok: false,
-          message: validationError,
-        ),
+        () =>
+            _testResult = _TestResultState(ok: false, message: validationError),
       );
       showPrismNotice(context, validationError);
       return;
@@ -3021,7 +3014,7 @@ class _S3ConfigPageState extends State<S3ConfigPage>
                 icon: const PrismGlyph(AntGlyphs.arrowBack, size: 18),
               ),
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: 12),
             Expanded(
               child: PrismPageContextBar(
                 glyph: AntGlyphs.cloudUpload,
@@ -3170,7 +3163,7 @@ class _S3ConfigPageState extends State<S3ConfigPage>
               onPressed: _busy.isEmpty ? _refreshS3 : null,
               icon: const PrismGlyph(AntGlyphs.refresh, size: 18),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 12),
             PrismHoverMotion(
               enabled: _busy.isEmpty,
               child: prism.FilledButton.icon(
@@ -3183,13 +3176,10 @@ class _S3ConfigPageState extends State<S3ConfigPage>
         ),
         const SizedBox(height: 10),
         if (_files.isEmpty)
-          const PrismEmptyState(
-            title: '没有找到 S3 备份文件',
-            glyph: AntGlyphs.cloud,
-          ),
+          const PrismEmptyState(title: '没有找到 S3 备份文件', glyph: AntGlyphs.cloud),
         for (final file in _files)
           PrismCard(
-            margin: const EdgeInsets.only(bottom: 8),
+            margin: const EdgeInsets.only(bottom: 12),
             child: PrismListTile(
               title: Text(
                 (file['name'] ?? '').toString(),
@@ -3202,7 +3192,7 @@ class _S3ConfigPageState extends State<S3ConfigPage>
                 overflow: TextOverflow.ellipsis,
               ),
               trailing: Wrap(
-                spacing: 4,
+                spacing: 12,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   prism.IconButton(
