@@ -18,6 +18,9 @@ class _CoresPageState extends State<CoresPage> {
   List<Map<String, dynamic>> _cores = [];
   List<Map<String, dynamic>> _proxies = [];
   Map<String, dynamic> _settings = {};
+  final _searchController = TextEditingController();
+  String _statusFilter = 'all';
+  bool _settingsExpanded = false;
   bool _loading = true;
   bool _busy = false;
   Map<String, dynamic>? _downloadProgress;
@@ -58,6 +61,7 @@ class _CoresPageState extends State<CoresPage> {
 
   @override
   void dispose() {
+    _searchController.dispose();
     _removeDownloadListener();
     _removeImportListener();
     super.dispose();
@@ -1068,6 +1072,295 @@ class _CoresPageState extends State<CoresPage> {
     if (mounted) showPrismNotice(context, value);
   }
 
+  bool _matchesCoreFilter(Map<String, dynamic> core) {
+    final validation = core['validation'] is Map
+        ? core['validation'] as Map
+        : const <String, dynamic>{};
+    final valid = validation['valid'] == true;
+    if (_statusFilter == 'valid' && !valid) return false;
+    if (_statusFilter == 'invalid' && valid) return false;
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isEmpty) return true;
+    final name = '${core['coreName'] ?? ''}'.toLowerCase();
+    final path = '${core['corePath'] ?? ''}'.toLowerCase();
+    final version = '${core['chromeVersion'] ?? ''}'.toLowerCase();
+    return name.contains(query) ||
+        path.contains(query) ||
+        version.contains(query);
+  }
+
+  Widget _buildOverviewStrip(BuildContext context) {
+    final totalCores = _cores.length;
+    final validCores = _cores
+        .where(
+          (core) =>
+              core['validation'] is Map &&
+              (core['validation'] as Map)['valid'] == true,
+        )
+        .length;
+    final invalidCores = totalCores - validCores;
+    final defaultCore = _cores.cast<Map<String, dynamic>?>().firstWhere(
+      (core) => core?['isDefault'] == true,
+      orElse: () => null,
+    );
+    final totalInstances = _cores.fold<int>(
+      0,
+      (sum, core) => sum + ((core['instanceCount'] as num?)?.toInt() ?? 0),
+    );
+    final lightStartEnabled = _settings['lightStartEnabled'] != false;
+
+    final tiles = [
+      PrismMetricTile(
+        label: '内核总数',
+        value: '$totalCores',
+        subtitle: totalInstances > 0
+            ? '关联实例 $totalInstances 个'
+            : (_statusFilter != 'all' ? '点击显示全部内核' : '下载、导入或本地扫描'),
+        glyph: AntGlyphs.cpu,
+        tone: PrismTone.primary,
+        onPressed: () => setState(() => _statusFilter = 'all'),
+        staggerIndex: 0,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+      PrismMetricTile(
+        label: '默认内核',
+        value: defaultCore == null
+            ? '未设置'
+            : '${defaultCore['chromeVersion'] ?? '已配置'}',
+        subtitle: defaultCore == null
+            ? '请在下方列表设为默认'
+            : '${defaultCore['coreName'] ?? '未命名内核'}',
+        glyph: AntGlyphs.checkCircle,
+        tone: defaultCore != null ? PrismTone.info : PrismTone.warning,
+        onPressed: defaultCore == null
+            ? null
+            : () {
+                final name = '${defaultCore['coreName'] ?? ''}'.trim();
+                setState(() {
+                  if (_searchController.text.trim() == name &&
+                      name.isNotEmpty) {
+                    _searchController.clear();
+                  } else {
+                    _searchController.text = name;
+                  }
+                  _statusFilter = 'all';
+                });
+              },
+        staggerIndex: 1,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+      PrismMetricTile(
+        label: '可用内核',
+        value: '$validCores',
+        subtitle: invalidCores > 0
+            ? (_statusFilter == 'invalid'
+                  ? '已筛选路径无效 · 点击恢复'
+                  : '异常 $invalidCores 个 · 点击筛选')
+            : (_statusFilter == 'valid' ? '已筛选可用 · 点击恢复' : '全部路径校验通过'),
+        glyph: invalidCores > 0 ? AntGlyphs.warning : AntGlyphs.shield,
+        tone: invalidCores > 0 ? PrismTone.warning : PrismTone.success,
+        onPressed: () => setState(() {
+          if (invalidCores > 0) {
+            _statusFilter = _statusFilter == 'invalid' ? 'all' : 'invalid';
+          } else {
+            _statusFilter = _statusFilter == 'valid' ? 'all' : 'valid';
+          }
+        }),
+        staggerIndex: 2,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+      PrismMetricTile(
+        label: '轻启动状态',
+        value: lightStartEnabled ? '已开启' : '已关闭',
+        subtitle: _settingsExpanded ? '点击收起全局设置' : '点击展开全局设置',
+        glyph: AntGlyphs.bolt,
+        tone: lightStartEnabled ? PrismTone.info : PrismTone.neutral,
+        onPressed: () =>
+            setState(() => _settingsExpanded = !_settingsExpanded),
+        staggerIndex: 3,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= 760) {
+          return Row(
+            children: [
+              for (var i = 0; i < tiles.length; i++) ...[
+                if (i > 0) const SizedBox(width: 12),
+                Expanded(child: tiles[i]),
+              ],
+            ],
+          );
+        }
+        return Column(
+          children: [
+            Row(
+              children: [
+                Expanded(child: tiles[0]),
+                const SizedBox(width: 10),
+                Expanded(child: tiles[1]),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(child: tiles[2]),
+                const SizedBox(width: 10),
+                Expanded(child: tiles[3]),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildToolbar(BuildContext context) {
+    final filterControl = SizedBox(
+      width: 210,
+      child: prism.SegmentedControl<String>(
+        value: _statusFilter,
+        onChanged: (value) => setState(() => _statusFilter = value),
+        segments: const [
+          ('all', '全部'),
+          ('valid', '可用'),
+          ('invalid', '无效'),
+        ],
+      ),
+    );
+    final actionWidgets = <Widget>[
+      prism.IconButton(
+        tooltip: '扫描本地内核',
+        onPressed: _busy ? null : _scan,
+        icon: const PrismGlyph(AntGlyphs.locationSearch, size: 17),
+      ),
+      prism.IconButton(
+        tooltip: '导入本地内核',
+        onPressed: _busy ? null : _import,
+        icon: const PrismGlyph(AntGlyphs.folder, size: 17),
+      ),
+      prism.IconButton(
+        tooltip: '添加内核路径',
+        onPressed: _busy ? null : () => _edit(),
+        icon: const PrismGlyph(AntGlyphs.add, size: 17),
+      ),
+      PrismTonalButton.icon(
+        onPressed: _busy ? null : _editSettings,
+        icon: const PrismGlyph(AntGlyphs.tune, size: 15),
+        child: const Text('全局设置'),
+      ),
+      PrismHoverMotion(
+        enabled: !_busy,
+        child: prism.FilledButton.icon(
+          onPressed: _busy ? null : () => _openDownloadModal(),
+          icon: const PrismGlyph(AntGlyphs.download, size: 15),
+          label: const Text('下载内核'),
+        ),
+      ),
+      PrismPopupMenuButton<String>(
+        tooltip: '更多内核操作',
+        enabled: !_busy,
+        onSelected: (value) {
+          switch (value) {
+            case 'scan':
+              _scan();
+              break;
+            case 'import':
+              _import();
+              break;
+            case 'add':
+              _edit();
+              break;
+            case 'settings-toggle':
+              setState(() => _settingsExpanded = !_settingsExpanded);
+              break;
+            case 'settings-edit':
+              _editSettings();
+              break;
+            case 'refresh':
+              _load();
+              break;
+          }
+        },
+        itemBuilder: (_) => [
+          const PrismMenuItem(value: 'scan', child: Text('扫描本地内核')),
+          const PrismMenuItem(value: 'import', child: Text('导入本地内核')),
+          const PrismMenuItem(value: 'add', child: Text('添加内核路径')),
+          PrismMenuItem(
+            value: 'settings-toggle',
+            child: Text(_settingsExpanded ? '收起全局设置详情' : '展开全局设置详情'),
+          ),
+          const PrismMenuItem(value: 'settings-edit', child: Text('编辑全局浏览器设置')),
+          const PrismMenuItem(value: 'refresh', child: Text('刷新内核列表')),
+        ],
+      ),
+    ];
+
+    return PrismHoverCard(
+      staggerIndex: 4,
+      staggerDelay: const Duration(milliseconds: 45),
+      radius: prism.AppCorner.xl,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= 880;
+          if (wide) {
+            return Row(
+              children: [
+                Expanded(
+                  child: PrismSearchBar(
+                    controller: _searchController,
+                    hintText: '搜索内核名称、路径或 Chrome 版本…',
+                    height: 36,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                filterControl,
+                const SizedBox(width: 10),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: actionWidgets,
+                ),
+              ],
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: PrismSearchBar(
+                      controller: _searchController,
+                      hintText: '搜索内核名称、路径或 Chrome 版本…',
+                      height: 36,
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  filterControl,
+                ],
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: actionWidgets,
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   Widget _buildCoreSettingsCard(BuildContext context) {
     final colors = prism.Theme.of(context).colorScheme;
     final userDataRoot = (_settings['userDataRoot'] ?? '').toString().trim();
@@ -1119,9 +1412,19 @@ class _CoresPageState extends State<CoresPage> {
     return PrismSectionCard(
       title: '全局浏览器设置',
       glyph: AntGlyphs.tune,
-      staggerIndex: 0,
-      staggerDelay: const Duration(milliseconds: 55),
+      staggerIndex: 5,
+      staggerDelay: const Duration(milliseconds: 45),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       actions: [
+        prism.TextButton.icon(
+          onPressed: () =>
+              setState(() => _settingsExpanded = !_settingsExpanded),
+          icon: PrismGlyph(
+            _settingsExpanded ? AntGlyphs.chevronUp : AntGlyphs.chevronDown,
+            size: 14,
+          ),
+          label: Text(_settingsExpanded ? '收起详情' : '展开详情'),
+        ),
         prism.OutlinedButton.icon(
           onPressed: _busy ? null : _editSettings,
           icon: const PrismGlyph(AntGlyphs.edit, size: 14),
@@ -1153,23 +1456,308 @@ class _CoresPageState extends State<CoresPage> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          kvRow('用户数据目录', userDataRoot.isEmpty ? '默认目录' : userDataRoot),
-          kvRow(
-            '默认启动页',
-            startUrls.isEmpty ? '未配置' : startUrls.join(' · '),
+          PrismCollapsible(
+            expanded: _settingsExpanded,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  kvRow('用户数据目录', userDataRoot.isEmpty ? '默认目录' : userDataRoot),
+                  kvRow(
+                    '默认启动页',
+                    startUrls.isEmpty ? '未配置' : startUrls.join(' · '),
+                  ),
+                  kvRow(
+                    '默认指纹参数',
+                    fingerprintArgs.isEmpty
+                        ? '未配置'
+                        : '${fingerprintArgs.length} 项（${fingerprintArgs.take(2).join(', ')}${fingerprintArgs.length > 2 ? '…' : ''}）',
+                  ),
+                  kvRow(
+                    '默认启动参数',
+                    launchArgs.isEmpty
+                        ? '未配置'
+                        : '${launchArgs.length} 项（${launchArgs.take(2).join(', ')}${launchArgs.length > 2 ? '…' : ''}）',
+                  ),
+                ],
+              ),
+            ),
           ),
-          kvRow(
-            '默认指纹参数',
-            fingerprintArgs.isEmpty
-                ? '未配置'
-                : '${fingerprintArgs.length} 项（${fingerprintArgs.take(2).join(', ')}${fingerprintArgs.length > 2 ? '…' : ''}）',
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCoreItem(BuildContext context, Map<String, dynamic> core) {
+    final colors = prism.Theme.of(context).colorScheme;
+    final validation = core['validation'] is Map
+        ? Map<String, dynamic>.from(core['validation'] as Map)
+        : const <String, dynamic>{};
+    final valid = validation['valid'] == true;
+    final isDefault = core['isDefault'] == true;
+    final iconTone = PrismToneColors.of(
+      context,
+      isDefault ? PrismTone.primary : PrismTone.info,
+    );
+    final statusTone = PrismToneColors.of(
+      context,
+      valid ? PrismTone.success : PrismTone.danger,
+    );
+
+    // 右键/长按弹出 iOS 风格上下文菜单（对标 Web PoC）。
+    return prism.ContextMenuRegion(
+      menuItems: [
+        prism.PopupMenuItem(
+          label: '设为默认内核',
+          glyph: AntGlyphs.check,
+          onPressed: isDefault || _busy
+              ? null
+              : () => _setDefault('${core['coreId'] ?? ''}'),
+        ),
+        prism.PopupMenuItem(
+          label: '编辑',
+          glyph: AntGlyphs.edit,
+          onPressed: _busy ? null : () => _edit(core),
+        ),
+        prism.PopupMenuItem(
+          label: '重新下载',
+          glyph: AntGlyphs.download,
+          onPressed: _busy
+              ? null
+              : () => _openDownloadModal(redownloadCore: core),
+        ),
+        prism.PopupMenuItem(
+          label: '打开所在位置',
+          glyph: AntGlyphs.folder,
+          onPressed: () async {
+            try {
+              await AppBridge.call('OpenCorePath', ['${core['corePath'] ?? ''}']);
+            } catch (error) {
+              _message('$error');
+            }
+          },
+        ),
+        if (_coreDeleteReason(core) == null)
+          prism.PopupMenuItem(
+            label: '删除',
+            glyph: AntGlyphs.delete,
+            danger: true,
+            onPressed: _busy ? null : () => _delete(core),
           ),
-          kvRow(
-            '默认启动参数',
-            launchArgs.isEmpty
-                ? '未配置'
-                : '${launchArgs.length} 项（${launchArgs.take(2).join(', ')}${launchArgs.length > 2 ? '…' : ''}）',
+      ],
+      child: PrismCard(
+        padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 14),
+        child: Row(
+          children: [
+            prism.Surface(
+              color: iconTone.bg,
+              shape: prism.AppShape.md,
+              child: SizedBox(
+                width: 42,
+                height: 42,
+                child: Center(
+                  child: PrismGlyph(
+                    AntGlyphs.cpu,
+                    size: 20,
+                    color: iconTone.fg,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        '${core['coreName'] ?? '未命名内核'}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: prism.AppTextStyle.subheadline.of(
+                          context,
+                          emphasized: true,
+                        ),
+                      ),
+                      if (isDefault)
+                        const PrismBadge(
+                          label: '默认',
+                          tone: PrismTone.primary,
+                        ),
+                      PrismBadge(
+                        label: valid ? '可用' : '路径无效',
+                        tone: valid ? PrismTone.success : PrismTone.danger,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${core['corePath'] ?? ''}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: prism.AppTextStyle.caption1
+                        .of(context)
+                        .copyWith(color: colors.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '使用实例 ${((core['instanceCount'] as num?) ?? 0).toInt()} 个'
+                    ' · Chrome ${core['chromeVersion'] ?? '版本未知'}',
+                    style: prism.AppTextStyle.caption2
+                        .of(context)
+                        .copyWith(color: colors.onSurfaceVariant),
+                  ),
+                  if (!valid) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      '${validation['message'] ?? '路径无效'}',
+                      style: prism.AppTextStyle.caption2
+                          .of(context)
+                          .copyWith(color: statusTone.fg),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            if (!isDefault)
+              prism.TextButton(
+                onPressed: _busy
+                    ? null
+                    : () => _setDefault('${core['coreId'] ?? ''}'),
+                child: const Text('设为默认'),
+              ),
+            prism.IconButton(
+              tooltip: '打开所在位置',
+              onPressed: () async {
+                try {
+                  await AppBridge.call('OpenCorePath', [
+                    '${core['corePath'] ?? ''}',
+                  ]);
+                } catch (error) {
+                  _message('$error');
+                }
+              },
+              icon: const PrismGlyph(AntGlyphs.folder, size: 18),
+            ),
+            prism.IconButton(
+              tooltip: '重新下载',
+              onPressed: _busy
+                  ? null
+                  : () => _openDownloadModal(redownloadCore: core),
+              icon: const PrismGlyph(AntGlyphs.download, size: 18),
+            ),
+            prism.IconButton(
+              tooltip: '编辑',
+              onPressed: _busy ? null : () => _edit(core),
+              icon: const PrismGlyph(AntGlyphs.edit, size: 18),
+            ),
+            prism.IconButton(
+              tooltip: _coreDeleteReason(core) ?? '删除',
+              onPressed: _busy || _coreDeleteReason(core) != null
+                  ? null
+                  : () => _delete(core),
+              icon: const PrismGlyph(AntGlyphs.delete, size: 18),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCoresListCard(
+    BuildContext context,
+    List<Map<String, dynamic>> filteredCores,
+  ) {
+    final queryText = _searchController.text.trim();
+    final hasFilters = _statusFilter != 'all' || queryText.isNotEmpty;
+    return PrismHoverCard(
+      staggerIndex: 6,
+      staggerDelay: const Duration(milliseconds: 45),
+      radius: prism.AppCorner.xl,
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          prism.InfoHeader(
+            info: const prism.Info(label: '内核列表', glyph: AntGlyphs.cpu),
+            actions: [
+              if (hasFilters)
+                prism.TextButton(
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() => _statusFilter = 'all');
+                  },
+                  child: const Text('重置筛选'),
+                ),
+              PrismBadge(
+                label: '${filteredCores.length} 个',
+                tone: filteredCores.isEmpty
+                    ? PrismTone.neutral
+                    : PrismTone.primary,
+              ),
+            ],
+            padding: const EdgeInsets.fromLTRB(16, 12, 14, 10),
+          ),
+          const prism.Divider(height: 1),
+          Expanded(
+            child: _loading
+                ? const Center(child: PrismProgressIndicator())
+                : prism.PageTransitionSwitcher(
+                    duration: PrismMotionSpec.current.pageDuration,
+                    transitionBuilder: PrismSlideThroughTransition.builder,
+                    child: KeyedSubtree(
+                      key: ValueKey(
+                        '$_statusFilter-$queryText-${filteredCores.isEmpty}',
+                      ),
+                      child: filteredCores.isEmpty
+                          ? (_cores.isEmpty
+                                ? PrismEmptyState(
+                                    title: '暂未配置浏览器内核',
+                                    subtitle:
+                                        '可以自动扫描本机内核、手动添加路径或直接下载最新指纹浏览器内核。',
+                                    glyph: AntGlyphs.cpu,
+                                    action: PrismHoverMotion(
+                                      enabled: !_busy,
+                                      child: prism.FilledButton.icon(
+                                        onPressed: _busy
+                                            ? null
+                                            : () => _openDownloadModal(),
+                                        icon: const PrismGlyph(
+                                          AntGlyphs.download,
+                                          size: 16,
+                                        ),
+                                        label: const Text('下载内核'),
+                                      ),
+                                    ),
+                                  )
+                                : PrismEmptyState(
+                                    title: '没有匹配的内核',
+                                    subtitle: '尝试调整搜索关键词或切换筛选状态。',
+                                    glyph: AntGlyphs.search,
+                                    action: prism.OutlinedButton(
+                                      onPressed: () {
+                                        _searchController.clear();
+                                        setState(() => _statusFilter = 'all');
+                                      },
+                                      child: const Text('重置筛选'),
+                                    ),
+                                  ))
+                          : ListView.separated(
+                              padding: kPrismListPadding,
+                              itemCount: filteredCores.length,
+                              separatorBuilder: (context, index) =>
+                                  const SizedBox(height: 9),
+                              itemBuilder: (context, index) =>
+                                  _buildCoreItem(context, filteredCores[index]),
+                            ),
+                    ),
+                  ),
           ),
         ],
       ),
@@ -1178,44 +1766,13 @@ class _CoresPageState extends State<CoresPage> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = prism.Theme.of(context).colorScheme;
+    final filteredCores = _cores.where(_matchesCoreFilter).toList();
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 6, 24, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          PrismPageContextBar(
-            glyph: AntGlyphs.cpu,
-            title: '浏览器内核管理',
-            subtitle: '共 ${_cores.length} 个内核 · 下载、导入与默认内核设置。',
-            actions: [
-              prism.TonalButtonGroup(
-                size: prism.TonalButtonSize.section,
-                children: [
-                  prism.IconButton(
-                    tooltip: '扫描本地内核',
-                    onPressed: _busy ? null : _scan,
-                    icon: const PrismGlyph(AntGlyphs.search, size: 18),
-                  ),
-                  prism.IconButton(
-                    tooltip: '导入本地内核',
-                    onPressed: _busy ? null : _import,
-                    icon: const PrismGlyph(AntGlyphs.folder, size: 18),
-                  ),
-                  prism.IconButton(
-                    tooltip: '添加内核路径',
-                    onPressed: _busy ? null : () => _edit(),
-                    icon: const PrismGlyph(AntGlyphs.add, size: 18),
-                  ),
-                ],
-              ),
-              prism.FilledButton.icon(
-                onPressed: _busy ? null : () => _openDownloadModal(),
-                icon: const PrismGlyph(AntGlyphs.download, size: 16),
-                label: const Text('下载内核'),
-              ),
-            ],
-          ),
+          _buildOverviewStrip(context),
           if (_downloadProgress != null) ...[
             const SizedBox(height: 12),
             PrismProgressPanel(
@@ -1224,235 +1781,12 @@ class _CoresPageState extends State<CoresPage> {
               progress: _progressValue(_downloadProgress!['progress']),
             ),
           ],
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
+          _buildToolbar(context),
+          const SizedBox(height: 12),
           _buildCoreSettingsCard(context),
-          const SizedBox(height: 14),
-          Expanded(
-            child: _loading
-                ? const Center(child: PrismProgressIndicator())
-                : _cores.isEmpty
-                ? PrismEmptyState(
-                    title: '暂未配置浏览器内核',
-                    subtitle: '可以自动扫描本机内核、手动添加路径或直接下载最新指纹浏览器内核。',
-                    glyph: AntGlyphs.cpu,
-                    action: prism.FilledButton.icon(
-                      onPressed: _busy ? null : () => _openDownloadModal(),
-                      icon: const PrismGlyph(AntGlyphs.download, size: 16),
-                      label: const Text('下载内核'),
-                    ),
-                  )
-                : ListView.separated(
-                    padding: kPrismListPadding,
-                    itemCount: _cores.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: 9),
-                    itemBuilder: (context, index) {
-                      final core = _cores[index];
-                      final validation = core['validation'] is Map
-                          ? Map<String, dynamic>.from(core['validation'] as Map)
-                          : const <String, dynamic>{};
-                      final valid = validation['valid'] == true;
-                      final isDefault = core['isDefault'] == true;
-                      final iconTone = PrismToneColors.of(
-                        context,
-                        isDefault ? PrismTone.primary : PrismTone.info,
-                      );
-                      final statusTone = PrismToneColors.of(
-                        context,
-                        valid ? PrismTone.success : PrismTone.danger,
-                      );
-                      // 右键/长按弹出 iOS 风格上下文菜单（对标 Web PoC）。
-                      return prism.ContextMenuRegion(
-                        menuItems: [
-                          prism.PopupMenuItem(
-                            label: '设为默认内核',
-                            glyph: AntGlyphs.check,
-                            onPressed: isDefault || _busy
-                                ? null
-                                : () => _setDefault('${core['coreId'] ?? ''}'),
-                          ),
-                          prism.PopupMenuItem(
-                            label: '编辑',
-                            glyph: AntGlyphs.edit,
-                            onPressed: _busy ? null : () => _edit(core),
-                          ),
-                          prism.PopupMenuItem(
-                            label: '重新下载',
-                            glyph: AntGlyphs.download,
-                            onPressed: _busy
-                                ? null
-                                : () => _openDownloadModal(
-                                    redownloadCore: core,
-                                  ),
-                          ),
-                          prism.PopupMenuItem(
-                            label: '打开所在位置',
-                            glyph: AntGlyphs.folder,
-                            onPressed: () async {
-                              try {
-                                await AppBridge.call('OpenCorePath', [
-                                  '${core['corePath'] ?? ''}',
-                                ]);
-                              } catch (error) {
-                                _message('$error');
-                              }
-                            },
-                          ),
-                          if (_coreDeleteReason(core) == null)
-                            prism.PopupMenuItem(
-                              label: '删除',
-                              glyph: AntGlyphs.delete,
-                              danger: true,
-                              onPressed: _busy ? null : () => _delete(core),
-                            ),
-                        ],
-                        child: PrismCard(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 17,
-                            vertical: 14,
-                          ),
-                        child: Row(
-                          children: [
-                            prism.Surface(
-                              color: iconTone.bg,
-                              shape: prism.AppShape.md,
-                              child: SizedBox(
-                                width: 42,
-                                height: 42,
-                                child: Center(
-                                  child: PrismGlyph(
-                                    AntGlyphs.cpu,
-                                    size: 20,
-                                    color: iconTone.fg,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 13),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Wrap(
-                                    spacing: 8,
-                                    runSpacing: 4,
-                                    crossAxisAlignment:
-                                        WrapCrossAlignment.center,
-                                    children: [
-                                      Text(
-                                        '${core['coreName'] ?? '未命名内核'}',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: prism.AppTextStyle.subheadline
-                                            .of(context, emphasized: true),
-                                      ),
-                                      if (isDefault)
-                                        const PrismBadge(
-                                          label: '默认',
-                                          tone: PrismTone.primary,
-                                        ),
-                                      PrismBadge(
-                                        label: valid ? '可用' : '路径无效',
-                                        tone: valid
-                                            ? PrismTone.success
-                                            : PrismTone.danger,
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '${core['corePath'] ?? ''}',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: prism.AppTextStyle.caption1
-                                        .of(context)
-                                        .copyWith(
-                                          color: colors.onSurfaceVariant,
-                                        ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '使用实例 ${((core['instanceCount'] as num?) ?? 0).toInt()} 个'
-                                    ' · Chrome ${core['chromeVersion'] ?? '版本未知'}',
-                                    style: prism.AppTextStyle.caption2
-                                        .of(context)
-                                        .copyWith(
-                                          color: colors.onSurfaceVariant,
-                                        ),
-                                  ),
-                                  if (!valid) ...[
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      '${validation['message'] ?? '路径无效'}',
-                                      style: prism.AppTextStyle.caption2
-                                          .of(context)
-                                          .copyWith(color: statusTone.fg),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            if (!isDefault)
-                              prism.TextButton(
-                                onPressed: _busy
-                                    ? null
-                                    : () => _setDefault(
-                                        '${core['coreId'] ?? ''}',
-                                      ),
-                                child: const Text('设为默认'),
-                              ),
-                            prism.IconButton(
-                              tooltip: '打开所在位置',
-                              onPressed: () async {
-                                try {
-                                  await AppBridge.call('OpenCorePath', [
-                                    '${core['corePath'] ?? ''}',
-                                  ]);
-                                } catch (error) {
-                                  _message('$error');
-                                }
-                              },
-                              icon: const PrismGlyph(
-                                AntGlyphs.folder,
-                                size: 18,
-                              ),
-                            ),
-                            prism.IconButton(
-                              tooltip: '重新下载',
-                              onPressed: _busy
-                                  ? null
-                                  : () => _openDownloadModal(
-                                      redownloadCore: core,
-                                    ),
-                              icon: const PrismGlyph(
-                                AntGlyphs.download,
-                                size: 18,
-                              ),
-                            ),
-                            prism.IconButton(
-                              tooltip: '编辑',
-                              onPressed: _busy ? null : () => _edit(core),
-                              icon: const PrismGlyph(AntGlyphs.edit, size: 18),
-                            ),
-                            prism.IconButton(
-                              tooltip: _coreDeleteReason(core) ?? '删除',
-                              onPressed:
-                                  _busy || _coreDeleteReason(core) != null
-                                  ? null
-                                  : () => _delete(core),
-                              icon: const PrismGlyph(
-                                AntGlyphs.delete,
-                                size: 18,
-                              ),
-                            ),
-                          ],
-                        ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
+          const SizedBox(height: 12),
+          Expanded(child: _buildCoresListCard(context, filteredCores)),
         ],
       ),
     );

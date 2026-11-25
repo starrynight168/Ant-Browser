@@ -742,6 +742,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
   String _sortBy = '';
   bool _sortDescending = false;
   bool _availableOnly = false;
+  bool _filtersCollapsed = true;
   final Set<String> _selectedIds = {};
   final Set<String> _testingIds = {};
   final Map<String, Map<String, dynamic>> _speedResults = {};
@@ -3416,26 +3417,783 @@ socks5://user:password@proxy.example.com:1080''',
     return ('失败', PrismTone.danger);
   }
 
-  Widget _buildCoreStatusBadge() {
-    if (_coreStatuses.isEmpty) {
-      return PrismBadge(
-        label: '内核状态',
-        glyph: AntGlyphs.cpu,
-        tone: PrismTone.neutral,
-        onPressed: () => _openProxyCoreDownload(),
-      );
-    }
-    final installed = _coreStatuses.entries
-        .where((e) => e.value['installed'] == true)
-        .map((e) => e.key)
+  Widget _buildOverviewStrip(BuildContext context, {required bool hasSources}) {
+    final realProxies = _proxies
+        .where(
+          (item) =>
+              (item['proxyId'] ?? '').toString() != '__direct__' &&
+              item['proxyConfig'] != 'direct://',
+        )
         .toList();
-    final hasAny = installed.isNotEmpty;
-    return PrismBadge(
-      label: hasAny ? '内核状态 · ${installed.length}/${_coreStatuses.length}' : '内核未安装',
-      glyph: AntGlyphs.cpu,
-      dot: true,
-      tone: hasAny ? PrismTone.success : PrismTone.warning,
-      onPressed: () => _openProxyCoreDownload(),
+    final protocolCount = realProxies
+        .map(_proxyProtocol)
+        .where((p) => p != '-')
+        .toSet()
+        .length;
+    final availableCount = realProxies.where(_isAvailable).length;
+    final testedCount = realProxies
+        .where((p) => _speedResults.containsKey((p['proxyId'] ?? '').toString()))
+        .length;
+    final sourceCount = realProxies
+        .map((p) => (p['sourceId'] ?? '').toString().trim())
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .length;
+    final missingCount = _missingCount;
+    final installedCores = _coreStatuses.entries
+        .where((e) => e.value['installed'] == true)
+        .length;
+    final totalCores = _coreStatuses.length;
+    final hasActiveFilters =
+        _query.isNotEmpty ||
+        _filterProtocol != 'all' ||
+        _filterGroup != 'all' ||
+        _sortBy.isNotEmpty ||
+        _availableOnly;
+
+    final tiles = [
+      PrismMetricTile(
+        label: '节点总数',
+        value: '${realProxies.length}',
+        subtitle: realProxies.isEmpty
+            ? '点击添加代理或导入订阅'
+            : '$protocolCount 种协议 · ${_virtualGroups.length} 虚拟组',
+        glyph: AntGlyphs.globe,
+        tone: PrismTone.primary,
+        onPressed: hasActiveFilters ? _clearFilters : null,
+        staggerIndex: 0,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+      PrismMetricTile(
+        label: '可用节点',
+        value: '$availableCount',
+        subtitle: testedCount > 0
+            ? '已测速 $testedCount 个 · ${_availableOnly ? '仅看可用中' : '点击筛选可用'}'
+            : '尚未完成批量测速',
+        glyph: AntGlyphs.checkCircle,
+        tone: _availableOnly
+            ? PrismTone.primary
+            : (availableCount > 0 ? PrismTone.success : PrismTone.neutral),
+        onPressed: () => setState(() => _availableOnly = !_availableOnly),
+        staggerIndex: 1,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+      PrismMetricTile(
+        label: '订阅来源',
+        value: '$sourceCount',
+        subtitle: missingCount > 0
+            ? '异常节点 $missingCount 个 · 点击管理'
+            : (hasSources ? '点击管理订阅自动更新' : '暂无远程订阅源'),
+        glyph: AntGlyphs.sync,
+        tone: missingCount > 0 ? PrismTone.warning : PrismTone.info,
+        onPressed: _busy.isEmpty ? _openSourceRefreshModal : null,
+        staggerIndex: 2,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+      PrismMetricTile(
+        label: '代理内核',
+        value: _coreStatuses.isEmpty ? '检测中' : '$installedCores/$totalCores',
+        subtitle: _coreStatuses.isEmpty
+            ? '正在检查 Xray / Sing-box / Mihomo'
+            : (installedCores == totalCores
+                  ? '内核已就绪 · 点击管理'
+                  : '点击下载或管理代理内核'),
+        glyph: AntGlyphs.cpu,
+        tone: _coreStatuses.isEmpty
+            ? PrismTone.neutral
+            : (installedCores > 0 ? PrismTone.primary : PrismTone.warning),
+        onPressed: () => _openProxyCoreDownload(),
+        staggerIndex: 3,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= 760) {
+          return Row(
+            children: [
+              for (var i = 0; i < tiles.length; i++) ...[
+                if (i > 0) const SizedBox(width: 12),
+                Expanded(child: tiles[i]),
+              ],
+            ],
+          );
+        }
+        return Column(
+          children: [
+            Row(
+              children: [
+                Expanded(child: tiles[0]),
+                const SizedBox(width: 10),
+                Expanded(child: tiles[1]),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(child: tiles[2]),
+                const SizedBox(width: 10),
+                Expanded(child: tiles[3]),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildToolbar(
+    BuildContext context, {
+    required List<String> protocols,
+    required List<String> groups,
+    required List<Map<String, dynamic>> visible,
+    required bool hasSources,
+  }) {
+    final activeFilterCount =
+        (_filterProtocol != 'all' ? 1 : 0) +
+        (_filterGroup != 'all' ? 1 : 0) +
+        (_sortBy.isNotEmpty ? 1 : 0);
+    final hasAnyFilter = activeFilterCount > 0 || _query.isNotEmpty || _availableOnly;
+
+    final availabilityFilter = SizedBox(
+      width: 136,
+      child: prism.SegmentedControl<String>(
+        value: _availableOnly ? 'available' : 'all',
+        onChanged: (value) =>
+            setState(() => _availableOnly = value == 'available'),
+        segments: const [('all', '全部'), ('available', '可用')],
+      ),
+    );
+
+    final actionWidgets = <Widget>[
+      PrismTonalButton.icon(
+        onPressed: () => setState(() => _filtersCollapsed = !_filtersCollapsed),
+        icon: PrismGlyph(
+          _filtersCollapsed ? AntGlyphs.chevronDown : AntGlyphs.chevronUp,
+          size: 15,
+        ),
+        child: Text(activeFilterCount > 0 ? '筛选 ($activeFilterCount)' : '筛选'),
+      ),
+      PrismHoverMotion(
+        child: prism.FilledButton.icon(
+          onPressed: () => _edit(),
+          icon: const PrismGlyph(AntGlyphs.add, size: 15),
+          label: const Text('添加代理'),
+        ),
+      ),
+      prism.IconButton(
+        tooltip: '导入订阅',
+        onPressed: _busy.isEmpty ? _importSubscription : null,
+        icon: const PrismGlyph(AntGlyphs.upload, size: 17),
+      ),
+      prism.IconButton(
+        tooltip: _busy == 'batch-speed' ? '测速中…' : '批量测速',
+        onPressed: _busy.isEmpty ? () => _testAll(visible) : null,
+        icon: _busy == 'batch-speed'
+            ? const SizedBox(
+                width: 17,
+                height: 17,
+                child: PrismProgressIndicator(size: 17),
+              )
+            : const PrismGlyph(AntGlyphs.speed, size: 17),
+      ),
+      prism.IconButton(
+        tooltip: _refreshing ? '刷新中…' : '刷新列表',
+        onPressed: _refreshing ? null : _refresh,
+        icon: _refreshing
+            ? const SizedBox(
+                width: 17,
+                height: 17,
+                child: PrismProgressIndicator(size: 17),
+              )
+            : const PrismGlyph(AntGlyphs.refresh, size: 17),
+      ),
+      PrismPopupMenuButton<String>(
+        tooltip: '更多操作',
+        enabled: _busy.isEmpty,
+        icon: const PrismGlyph(AntGlyphs.more, size: 17),
+        itemBuilder: (_) => [
+          const PrismMenuItem(value: 'import-sub', child: Text('导入订阅')),
+          const PrismMenuItem(value: 'import-proxies', child: Text('导入代理')),
+          const PrismMenuItem(value: 'check-ip', child: Text('检测 IP 健康')),
+          const PrismMenuItem(value: 'warmup', child: Text('桥接预热全部')),
+          PrismMenuItem(
+            value: 'refresh-sources',
+            enabled: hasSources,
+            child: const Text('刷新全部订阅'),
+          ),
+          const PrismMenuItem(value: 'source-modal', child: Text('更新管理')),
+          const PrismMenuItem(value: 'groups', child: Text('虚拟分组')),
+          const PrismMenuItem(value: 'align', child: Text('订阅管理')),
+          const PrismMenuItem(value: 'check-settings', child: Text('代理检测设置')),
+          PrismMenuItem(
+            value: 'cleanup-missing',
+            enabled: _missingCount > 0,
+            child: Text('清理异常订阅节点（$_missingCount）'),
+          ),
+          const PrismMenuItem(value: 'core-download', child: Text('下载代理内核')),
+          const PrismMenuItem(value: 'guide', child: Text('使用说明')),
+        ],
+        onSelected: (action) {
+          switch (action) {
+            case 'import-sub':
+              _importSubscription();
+            case 'import-proxies':
+              _importProxies();
+            case 'check-ip':
+              _checkAllIPHealth(visible);
+            case 'warmup':
+              _warmupAll(visible);
+            case 'refresh-sources':
+              _refreshAllSources();
+            case 'source-modal':
+              _openSourceRefreshModal();
+            case 'groups':
+              widget.onOpenGroups();
+            case 'align':
+              widget.onOpenAlign();
+            case 'check-settings':
+              _editCheckSettings();
+            case 'cleanup-missing':
+              _cleanupMissing();
+            case 'core-download':
+              _openProxyCoreDownload();
+            case 'guide':
+              _showUsageGuide();
+          }
+        },
+      ),
+    ];
+
+    final filterFields = <Widget>[
+      PrismDropdownField<String>(
+        value: _filterProtocol,
+        decoration: const PrismInputDecoration(labelText: '代理协议'),
+        items: [
+          const PrismDropdownItem(value: 'all', child: Text('全部协议')),
+          for (final protocol in protocols)
+            PrismDropdownItem(
+              value: protocol,
+              child: Text(protocol.toUpperCase()),
+            ),
+        ],
+        onChanged: (value) => setState(() => _filterProtocol = value ?? 'all'),
+      ),
+      PrismDropdownField<String>(
+        value: _filterGroup,
+        decoration: const PrismInputDecoration(labelText: '代理分组'),
+        items: [
+          const PrismDropdownItem(value: 'all', child: Text('全部分组')),
+          for (final group in groups)
+            PrismDropdownItem(value: group, child: Text(group)),
+          for (final group in _virtualGroups)
+            PrismDropdownItem(
+              value: _virtualGroupFilterKey(group),
+              child: Text('虚拟：${group['groupName']}'),
+            ),
+        ],
+        onChanged: (value) => setState(() => _filterGroup = value ?? 'all'),
+      ),
+      Row(
+        children: [
+          Expanded(
+            child: PrismDropdownField<String>(
+              value: _sortBy,
+              decoration: const PrismInputDecoration(labelText: '排序'),
+              items: const [
+                PrismDropdownItem(value: '', child: Text('默认顺序')),
+                PrismDropdownItem(value: 'name', child: Text('代理名称')),
+                PrismDropdownItem(value: 'group', child: Text('分组')),
+                PrismDropdownItem(value: 'protocol', child: Text('协议')),
+                PrismDropdownItem(value: 'server', child: Text('服务器')),
+                PrismDropdownItem(value: 'port', child: Text('端口')),
+                PrismDropdownItem(value: 'latency', child: Text('延迟')),
+              ],
+              onChanged: (value) => setState(() => _sortBy = value ?? ''),
+            ),
+          ),
+          const SizedBox(width: 6),
+          prism.IconButton(
+            tooltip: _sortDescending ? '降序' : '升序',
+            onPressed: () =>
+                setState(() => _sortDescending = !_sortDescending),
+            icon: PrismGlyph(
+              _sortDescending ? AntGlyphs.arrowDown : AntGlyphs.arrowUp,
+              size: 18,
+            ),
+          ),
+        ],
+      ),
+    ];
+
+    return PrismHoverCard(
+      staggerIndex: 4,
+      staggerDelay: const Duration(milliseconds: 45),
+      radius: prism.AppCorner.xl,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth >= 900;
+              if (wide) {
+                return Row(
+                  children: [
+                    Expanded(
+                      child: PrismSearchBar(
+                        controller: _searchController,
+                        onChanged: (value) => setState(() => _query = value),
+                        hintText: '搜索代理名称、地址或分组…',
+                        height: 36,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    availabilityFilter,
+                    const SizedBox(width: 10),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: actionWidgets,
+                    ),
+                  ],
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: PrismSearchBar(
+                          controller: _searchController,
+                          onChanged: (value) => setState(() => _query = value),
+                          hintText: '搜索代理名称、地址或分组…',
+                          height: 36,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      availabilityFilter,
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    alignment: WrapAlignment.end,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: actionWidgets,
+                  ),
+                ],
+              );
+            },
+          ),
+          PrismCollapsible(
+            expanded: !_filtersCollapsed,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 10),
+                const prism.Divider(height: 1),
+                const SizedBox(height: 10),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    if (constraints.maxWidth >= 760) {
+                      return Row(
+                        children: [
+                          for (var i = 0; i < filterFields.length; i++) ...[
+                            if (i > 0) const SizedBox(width: 10),
+                            Expanded(child: filterFields[i]),
+                          ],
+                        ],
+                      );
+                    }
+                    return Wrap(
+                      spacing: 10,
+                      runSpacing: 8,
+                      children: [
+                        for (final field in filterFields)
+                          SizedBox(width: 210, child: field),
+                      ],
+                    );
+                  },
+                ),
+                if (_virtualGroups.isNotEmpty || hasAnyFilter) ...[
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      if (_virtualGroups.isNotEmpty) ...[
+                        Text(
+                          '虚拟分组：',
+                          style: prism.AppTextStyle.caption1
+                              .of(context, emphasized: true)
+                              .copyWith(
+                                color: prism.Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                        ),
+                        for (final vg in _virtualGroups)
+                          Builder(
+                            builder: (context) {
+                              final vgId = (vg['groupId'] ?? '').toString();
+                              final vgName = (vg['groupName'] ?? vgId)
+                                  .toString();
+                              final h = _virtualGroupHealth
+                                  .where((r) => r['groupId'] == vgId)
+                                  .firstOrNull;
+                              final count =
+                                  (vg['memberProxyIds'] as List? ?? []).length;
+                              final tone = h == null
+                                  ? PrismTone.primary
+                                  : h['allDegraded'] == true
+                                  ? PrismTone.danger
+                                  : PrismTone.success;
+                              final suffix = h == null
+                                  ? ' ($count)'
+                                  : ' (${h['healthy'] ?? 0}/${h['total'] ?? count})';
+                              return PrismBadge(
+                                label: '$vgName$suffix',
+                                glyph: AntGlyphs.hub,
+                                tone: tone,
+                                onPressed: () =>
+                                    _inspectVirtualGroupMembers(vg),
+                              );
+                            },
+                          ),
+                      ],
+                      if (hasAnyFilter)
+                        prism.TextButton(
+                          onPressed: _clearFilters,
+                          child: const Text('清除筛选'),
+                        ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProxyRow(BuildContext context, Map<String, dynamic> item) {
+    final id = (item['proxyId'] ?? '').toString();
+    final isSelectable = id.isNotEmpty && id != '__direct__';
+    final isDirect = item['proxyConfig'] == 'direct://';
+    final speed = _speedResults[id];
+    final health = _ipHealthResults[id];
+    final sourceId = (item['sourceId'] ?? '').toString();
+    final sourceHost = _subscriptionHost((item['sourceUrl'] ?? '').toString());
+    final (latencyLabel, latencyTone) = _latencyBadgeInfo(item);
+    final engine = (speed?['engine'] ?? item['lastTestEngine'] ?? '')
+        .toString()
+        .trim();
+    final ipSummary = _formatIpHealthSummary(health);
+    final ipAddr = health != null && health['ok'] == true
+        ? (health['ip'] ?? '').toString().trim()
+        : '';
+    final kernelPref = _normalizeKernel(item['preferredKernel']);
+    final endpoint = _proxyEndpointSummary(item);
+    final groupName = (item['groupName'] ?? '').toString().trim();
+
+    return PrismCard(
+      margin: EdgeInsets.zero,
+      child: PrismListTile(
+        leading: isSelectable
+            ? prism.Checkbox(
+                value: _selectedIds.contains(id),
+                onChanged: _busy.isEmpty
+                    ? (value) => setState(() {
+                        if (value == true) {
+                          _selectedIds.add(id);
+                        } else {
+                          _selectedIds.remove(id);
+                        }
+                      })
+                    : null,
+              )
+            : const PrismGlyph(AntGlyphs.shield, size: 18),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                (item['proxyName'] ?? id).toString(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: prism.AppTextStyle.subheadline.of(
+                  context,
+                  emphasized: true,
+                ),
+              ),
+            ),
+            if (groupName.isNotEmpty) ...[
+              const SizedBox(width: 6),
+              PrismBadge(label: groupName, tone: PrismTone.neutral),
+            ],
+            if (kernelPref != 'auto') ...[
+              const SizedBox(width: 6),
+              PrismBadge(
+                label: _kernelLabels[kernelPref] ?? kernelPref,
+                tone: PrismTone.primary,
+              ),
+            ],
+            if (item['sourceMissing'] == true) ...[
+              const SizedBox(width: 6),
+              const PrismBadge(label: '订阅异常', tone: PrismTone.danger),
+            ],
+          ],
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              PrismBadge(
+                label: _proxyProtocol(item).toUpperCase(),
+                tone: PrismTone.neutral,
+              ),
+              Text(
+                endpoint,
+                style: prism.AppTextStyle.caption1
+                    .of(context)
+                    .copyWith(
+                      color: prism.Theme.of(
+                        context,
+                      ).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+              PrismBadge(
+                label: engine.isEmpty ? latencyLabel : '$latencyLabel · $engine',
+                tone: latencyTone,
+                dot: true,
+              ),
+              if (ipAddr.isNotEmpty || ipSummary.isNotEmpty)
+                PrismBadge(
+                  label: [
+                    if (ipAddr.isNotEmpty) ipAddr,
+                    if (ipSummary.isNotEmpty) ipSummary,
+                  ].join(' · '),
+                  tone: health?['ok'] == true
+                      ? PrismTone.info
+                      : PrismTone.danger,
+                  onPressed: () => _showIPHealthDetail(item),
+                ),
+              if (sourceHost.isNotEmpty)
+                PrismBadge(
+                  label:
+                      '$sourceHost · ${item['sourceAutoRefresh'] == true ? '自动' : '手动'}',
+                  glyph: AntGlyphs.link,
+                  tone: PrismTone.neutral,
+                ),
+            ],
+          ),
+        ),
+        trailing: Wrap(
+          children: [
+            prism.IconButton(
+              tooltip: '检查代理 IP',
+              onPressed: _busy.isEmpty ? () => _testIpHealth(item) : null,
+              icon: const PrismGlyph(AntGlyphs.globe, size: 18),
+            ),
+            prism.IconButton(
+              tooltip: '测试连接',
+              onPressed: _busy.isEmpty && !isDirect ? () => _test(item) : null,
+              icon: _busy == id || _testingIds.contains(id)
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: PrismProgressIndicator(size: 18),
+                    )
+                  : const PrismGlyph(AntGlyphs.speed, size: 18),
+            ),
+            prism.IconButton(
+              tooltip: '桥接预热',
+              onPressed: _busy.isEmpty && !isDirect
+                  ? () => _warmupBridge(item)
+                  : null,
+              icon: _busy == 'batch-warmup'
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: PrismProgressIndicator(size: 18),
+                    )
+                  : const PrismGlyph(AntGlyphs.fire, size: 18),
+            ),
+            PrismPopupMenuButton<String>(
+              tooltip: '更多操作',
+              enabled: _busy.isEmpty,
+              icon: const PrismGlyph(AntGlyphs.more, size: 18),
+              itemBuilder: (_) => [
+                if (sourceId.isNotEmpty)
+                  const PrismMenuItem(value: 'refresh', child: Text('刷新订阅')),
+                if (health != null)
+                  const PrismMenuItem(
+                    value: 'ip-detail',
+                    child: Text('查看 IP 检测详情'),
+                  ),
+                PrismMenuItem(
+                  value: 'edit',
+                  child: const Text('编辑'),
+                  enabled: isSelectable,
+                ),
+                const PrismMenuItem(value: 'ip-health', child: Text('IP 健康')),
+                PrismMenuItem(
+                  value: 'delete',
+                  child: const Text('删除'),
+                  danger: true,
+                  enabled: isSelectable,
+                ),
+              ],
+              onSelected: (action) {
+                if (action == 'refresh') {
+                  _refreshSource(item);
+                } else if (action == 'ip-detail') {
+                  _showIPHealthDetail(item);
+                } else if (action == 'ip-health') {
+                  _testIpHealth(item);
+                } else if (action == 'edit') {
+                  _edit(item);
+                } else if (action == 'delete') {
+                  _delete(item);
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProxyListSection(
+    BuildContext context, {
+    required List<Map<String, dynamic>> visible,
+    required List<Map<String, dynamic>> selectable,
+    required bool allFilteredSelected,
+  }) {
+    final busyLabel = switch (_busy) {
+      'batch-speed' => '批量测速中…',
+      'batch-ip' => 'IP 健康检测中…',
+      'batch-warmup' => '桥接预热中…',
+      'refresh-all' => '刷新订阅中…',
+      _ => '',
+    };
+
+    return PrismHoverCard(
+      staggerIndex: 5,
+      staggerDelay: const Duration(milliseconds: 45),
+      radius: prism.AppCorner.xl,
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          prism.InfoHeader(
+            info: const prism.Info(label: '代理节点', glyph: AntGlyphs.globe),
+            actions: [
+              if (busyLabel.isNotEmpty)
+                PrismBadge(label: busyLabel, tone: PrismTone.info, dot: true),
+              if (selectable.isNotEmpty)
+                prism.TextButton(
+                  onPressed: () => setState(() {
+                    if (allFilteredSelected) {
+                      _selectedIds.removeAll(
+                        selectable.map((item) => item['proxyId'].toString()),
+                      );
+                    } else {
+                      _selectedIds.addAll(
+                        selectable.map((item) => item['proxyId'].toString()),
+                      );
+                    }
+                  }),
+                  child: Text(
+                    allFilteredSelected
+                        ? '取消全选'
+                        : '全选当前 (${selectable.length})',
+                  ),
+                ),
+              if (_selectedIds.isNotEmpty)
+                PrismTonalButton.icon(
+                  onPressed: _busy.isEmpty ? _deleteSelected : null,
+                  icon: const PrismGlyph(AntGlyphs.delete, size: 15),
+                  child: Text('删除所选 (${_selectedIds.length})'),
+                ),
+              PrismBadge(
+                label: '${visible.length} 个',
+                tone: visible.isEmpty ? PrismTone.neutral : PrismTone.primary,
+              ),
+            ],
+            padding: const EdgeInsets.fromLTRB(16, 12, 14, 10),
+          ),
+          const prism.Divider(height: 1),
+          Expanded(
+            child: prism.PageTransitionSwitcher(
+              duration: PrismMotionSpec.current.pageDuration,
+              transitionBuilder: PrismSlideThroughTransition.builder,
+              child: KeyedSubtree(
+                key: ValueKey(
+                  '$_filterProtocol-$_filterGroup-$_availableOnly-$_sortBy-$_sortDescending-$_query-$_loading-${_error != null}-${visible.isEmpty}',
+                ),
+                child: _loading
+                    ? const Center(child: PrismProgressIndicator())
+                    : _error != null
+                    ? PrismEmptyState(
+                        title: '加载代理池失败',
+                        subtitle: _error!,
+                        glyph: AntGlyphs.error,
+                        action: prism.FilledButton(
+                          onPressed: _refresh,
+                          child: const Text('重试'),
+                        ),
+                      )
+                    : visible.isEmpty
+                    ? PrismEmptyState(
+                        title: '没有匹配的代理',
+                        subtitle: _proxies.length <= 1
+                            ? '点击右上角“添加代理”或“导入订阅”开始构建代理池。'
+                            : '当前筛选条件下没有结果，尝试清除筛选条件。',
+                        glyph: AntGlyphs.globe,
+                        action:
+                            _query.isNotEmpty ||
+                                _filterProtocol != 'all' ||
+                                _filterGroup != 'all' ||
+                                _availableOnly
+                            ? prism.OutlinedButton(
+                                onPressed: _clearFilters,
+                                child: const Text('清除筛选'),
+                              )
+                            : prism.FilledButton.icon(
+                                onPressed: () => _edit(),
+                                icon: const PrismGlyph(AntGlyphs.add, size: 16),
+                                label: const Text('添加代理'),
+                              ),
+                      )
+                    : Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 6,
+                        ),
+                        child: ListView.separated(
+                          padding: kPrismListPadding,
+                          itemCount: visible.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 8),
+                          itemBuilder: (context, index) =>
+                              _buildProxyRow(context, visible[index]),
+                        ),
+                      ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -3541,70 +4299,18 @@ socks5://user:password@proxy.example.com:1080''',
         !_dismissedMieruBanner;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 6, 24, 24),
+      padding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          PrismPageContextBar(
-            glyph: AntGlyphs.globe,
-            title: '代理池配置',
-            subtitle: '管理代理节点、订阅来源与连通性检测。',
-            actions: [
-              SizedBox(
-                width: 300,
-                child: PrismSearchBar(
-                  controller: _searchController,
-                  onChanged: (value) => setState(() => _query = value),
-                  hintText: '搜索代理名称、地址或分组',
-                ),
-              ),
-              prism.FilledButton.icon(
-                onPressed: () => _edit(),
-                icon: const PrismGlyph(AntGlyphs.add, size: 16),
-                label: const Text('添加代理'),
-              ),
-            ],
-          ),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              _buildCoreStatusBadge(),
-              prism.TonalButtonGroup(
-                size: prism.TonalButtonSize.section,
-                children: [
-                  prism.IconButton(
-                    tooltip: _refreshing ? '刷新中…' : '刷新列表',
-                    onPressed: _refreshing ? null : _refresh,
-                    icon: _refreshing
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: PrismProgressIndicator(size: 18),
-                          )
-                        : const PrismGlyph(AntGlyphs.refresh, size: 18),
-                  ),
-                  prism.IconButton(
-                    tooltip: '代理检测设置',
-                    onPressed: _editCheckSettings,
-                    icon: const PrismGlyph(AntGlyphs.tune, size: 18),
-                  ),
-                  prism.IconButton(
-                    tooltip: '清理异常订阅节点（$_missingCount）',
-                    onPressed: _busy.isEmpty && _missingCount > 0
-                        ? _cleanupMissing
-                        : null,
-                    icon: const PrismGlyph(AntGlyphs.deleteSweep, size: 18),
-                  ),
-                  prism.IconButton(
-                    tooltip: '下载代理内核',
-                    onPressed: () => _openProxyCoreDownload(),
-                    icon: const PrismGlyph(AntGlyphs.download, size: 18),
-                  ),
-                ],
-              ),
-            ],
+          _buildOverviewStrip(context, hasSources: hasSources),
+          const SizedBox(height: 12),
+          _buildToolbar(
+            context,
+            protocols: protocols,
+            groups: groups,
+            visible: visible,
+            hasSources: hasSources,
           ),
           if (showMieruBanner) ...[
             const SizedBox(height: 10),
@@ -3631,542 +4337,14 @@ socks5://user:password@proxy.example.com:1080''',
               ),
             ),
           ],
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              // 批量检测操作收拢为图标组，悬停 tooltip 显示动态状态。
-              prism.TonalButtonGroup(
-                size: prism.TonalButtonSize.section,
-                children: [
-                  prism.IconButton(
-                    tooltip: _busy == 'batch-speed' ? '测速中…' : '测试全部',
-                    onPressed: _busy.isEmpty ? () => _testAll(visible) : null,
-                    icon: _busy == 'batch-speed'
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: PrismProgressIndicator(size: 18),
-                          )
-                        : const PrismGlyph(AntGlyphs.speed, size: 18),
-                  ),
-                  prism.IconButton(
-                    tooltip: _busy == 'batch-ip' ? '检测中…' : '检测 IP 健康',
-                    onPressed: _busy.isEmpty
-                        ? () => _checkAllIPHealth(visible)
-                        : null,
-                    icon: _busy == 'batch-ip'
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: PrismProgressIndicator(size: 18),
-                          )
-                        : const PrismGlyph(AntGlyphs.globe, size: 18),
-                  ),
-                  prism.IconButton(
-                    tooltip: _busy == 'batch-warmup' ? '预热中…' : '桥接预热全部',
-                    onPressed: _busy.isEmpty ? () => _warmupAll(visible) : null,
-                    icon: _busy == 'batch-warmup'
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: PrismProgressIndicator(size: 18),
-                          )
-                        : const PrismGlyph(AntGlyphs.fire, size: 18),
-                  ),
-                  prism.IconButton(
-                    tooltip: _busy == 'refresh-all' ? '刷新中…' : '刷新全部订阅',
-                    onPressed: _busy.isEmpty && hasSources
-                        ? _refreshAllSources
-                        : null,
-                    icon: _busy == 'refresh-all'
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: PrismProgressIndicator(size: 18),
-                          )
-                        : const PrismGlyph(AntGlyphs.sync, size: 18),
-                  ),
-                ],
-              ),
-              // 页面入口收拢为图标组。
-              prism.TonalButtonGroup(
-                size: prism.TonalButtonSize.section,
-                children: [
-                  prism.IconButton(
-                    tooltip: '更新管理',
-                    onPressed: _busy.isEmpty ? _openSourceRefreshModal : null,
-                    icon: const PrismGlyph(AntGlyphs.schedule, size: 18),
-                  ),
-                  prism.IconButton(
-                    tooltip: '虚拟分组',
-                    onPressed: widget.onOpenGroups,
-                    icon: const PrismGlyph(AntGlyphs.hub, size: 18),
-                  ),
-                  prism.IconButton(
-                    tooltip: '订阅管理',
-                    onPressed: widget.onOpenAlign,
-                    icon: const PrismGlyph(AntGlyphs.compare, size: 18),
-                  ),
-                ],
-              ),
-              // 低频导入操作收进菜单。
-              PrismPopupMenuButton<String>(
-                tooltip: '导入与帮助',
-                enabled: _busy.isEmpty,
-                icon: const PrismGlyph(AntGlyphs.paste, size: 18),
-                itemBuilder: (_) => const [
-                  PrismMenuItem(
-                    value: 'subscription',
-                    child: Text('导入订阅'),
-                  ),
-                  PrismMenuItem(value: 'proxies', child: Text('导入代理')),
-                  PrismMenuItem(value: 'guide', child: Text('使用说明')),
-                ],
-                onSelected: (action) {
-                  if (action == 'subscription') {
-                    _importSubscription();
-                  } else if (action == 'proxies') {
-                    _importProxies();
-                  } else if (action == 'guide') {
-                    _showUsageGuide();
-                  }
-                },
-              ),
-            ],
-          ),
-          if (_virtualGroups.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Text(
-                  '虚拟分组：',
-                  style: prism.AppTextStyle.caption1
-                      .of(context, emphasized: true)
-                      .copyWith(
-                        color: prism.Theme.of(
-                          context,
-                        ).colorScheme.onSurfaceVariant,
-                      ),
-                ),
-                for (final vg in _virtualGroups)
-                  Builder(
-                    builder: (context) {
-                      final vgId = (vg['groupId'] ?? '').toString();
-                      final vgName = (vg['groupName'] ?? vgId).toString();
-                      final h = _virtualGroupHealth
-                          .where((r) => r['groupId'] == vgId)
-                          .firstOrNull;
-                      final count =
-                          (vg['memberProxyIds'] as List? ?? []).length;
-                      final tone = h == null
-                          ? PrismTone.primary
-                          : h['allDegraded'] == true
-                          ? PrismTone.danger
-                          : PrismTone.success;
-                      final suffix = h == null
-                          ? ' ($count)'
-                          : ' (${h['healthy'] ?? 0}/${h['total'] ?? count})';
-                      return PrismBadge(
-                        label: '$vgName$suffix',
-                        glyph: AntGlyphs.hub,
-                        tone: tone,
-                        onPressed: () => _inspectVirtualGroupMembers(vg),
-                      );
-                    },
-                  ),
-              ],
-            ),
-          ],
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              SizedBox(
-                width: 170,
-                child: PrismDropdownField<String>(
-                  value: _filterProtocol,
-                  decoration: const PrismInputDecoration(labelText: '代理协议'),
-                  items: [
-                    const PrismDropdownItem(value: 'all', child: Text('全部协议')),
-                    for (final protocol in protocols)
-                      PrismDropdownItem(
-                        value: protocol,
-                        child: Text(protocol.toUpperCase()),
-                      ),
-                  ],
-                  onChanged: (value) =>
-                      setState(() => _filterProtocol = value ?? 'all'),
-                ),
-              ),
-              SizedBox(
-                width: 190,
-                child: PrismDropdownField<String>(
-                  value: _filterGroup,
-                  decoration: const PrismInputDecoration(labelText: '代理分组'),
-                  items: [
-                    const PrismDropdownItem(value: 'all', child: Text('全部分组')),
-                    for (final group in groups)
-                      PrismDropdownItem(value: group, child: Text(group)),
-                    for (final group in _virtualGroups)
-                      PrismDropdownItem(
-                        value: _virtualGroupFilterKey(group),
-                        child: Text('虚拟：${group['groupName']}'),
-                      ),
-                  ],
-                  onChanged: (value) =>
-                      setState(() => _filterGroup = value ?? 'all'),
-                ),
-              ),
-              SizedBox(
-                width: 160,
-                child: PrismDropdownField<String>(
-                  value: _sortBy,
-                  decoration: const PrismInputDecoration(labelText: '排序'),
-                  items: const [
-                    PrismDropdownItem(value: '', child: Text('默认顺序')),
-                    PrismDropdownItem(value: 'name', child: Text('代理名称')),
-                    PrismDropdownItem(value: 'group', child: Text('分组')),
-                    PrismDropdownItem(value: 'protocol', child: Text('协议')),
-                    PrismDropdownItem(value: 'server', child: Text('服务器')),
-                    PrismDropdownItem(value: 'port', child: Text('端口')),
-                    PrismDropdownItem(value: 'latency', child: Text('延迟')),
-                  ],
-                  onChanged: (value) => setState(() => _sortBy = value ?? ''),
-                ),
-              ),
-              prism.IconButton(
-                tooltip: _sortDescending ? '降序' : '升序',
-                onPressed: () =>
-                    setState(() => _sortDescending = !_sortDescending),
-                icon: PrismGlyph(
-                  _sortDescending ? AntGlyphs.arrowDown : AntGlyphs.arrowUp,
-                  size: 18,
-                ),
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  prism.Checkbox(
-                    value: _availableOnly,
-                    onChanged: (value) =>
-                        setState(() => _availableOnly = value == true),
-                  ),
-                  const Text('只看可用'),
-                ],
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  prism.Checkbox(
-                    value: allFilteredSelected,
-                    onChanged: (value) => setState(() {
-                      if (value == true) {
-                        _selectedIds.addAll(
-                          selectable.map((item) => item['proxyId'].toString()),
-                        );
-                      } else {
-                        _selectedIds.removeAll(
-                          selectable.map((item) => item['proxyId'].toString()),
-                        );
-                      }
-                    }),
-                  ),
-                  Text('全选当前结果（${visible.length}）'),
-                ],
-              ),
-              if (_query.isNotEmpty ||
-                  _filterProtocol != 'all' ||
-                  _filterGroup != 'all' ||
-                  _sortBy.isNotEmpty ||
-                  _availableOnly)
-                prism.TextButton(
-                  onPressed: _clearFilters,
-                  child: const Text('清除筛选'),
-                ),
-              if (_selectedIds.isNotEmpty)
-                prism.OutlinedButton.icon(
-                  onPressed: _busy.isEmpty ? _deleteSelected : null,
-                  icon: const PrismGlyph(AntGlyphs.delete, size: 16),
-                  label: Text('删除所选（${_selectedIds.length}）'),
-                ),
-            ],
-          ),
           const SizedBox(height: 12),
           Expanded(
-            child: _loading
-                ? const Center(child: PrismProgressIndicator())
-                : _error != null
-                ? PrismEmptyState(
-                    title: '加载代理池失败',
-                    subtitle: _error!,
-                    glyph: AntGlyphs.error,
-                    action: prism.FilledButton(
-                      onPressed: _refresh,
-                      child: const Text('重试'),
-                    ),
-                  )
-                : visible.isEmpty
-                ? PrismEmptyState(
-                    title: '没有匹配的代理',
-                    subtitle: _proxies.length <= 1
-                        ? '点击右上角“添加代理”或“导入订阅”开始构建代理池。'
-                        : '当前筛选条件下没有结果，尝试清除筛选条件。',
-                    glyph: AntGlyphs.globe,
-                    action: _query.isNotEmpty ||
-                            _filterProtocol != 'all' ||
-                            _filterGroup != 'all' ||
-                            _availableOnly
-                        ? prism.OutlinedButton(
-                            onPressed: _clearFilters,
-                            child: const Text('清除筛选'),
-                          )
-                        : prism.FilledButton.icon(
-                            onPressed: () => _edit(),
-                            icon: const PrismGlyph(AntGlyphs.add, size: 16),
-                            label: const Text('添加代理'),
-                          ),
-                  )
-                : ListView.separated(
-                    itemCount: visible.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final item = visible[index];
-                      final id = (item['proxyId'] ?? '').toString();
-                      final isSelectable = id.isNotEmpty && id != '__direct__';
-                      final isDirect = item['proxyConfig'] == 'direct://';
-                      final speed = _speedResults[id];
-                      final health = _ipHealthResults[id];
-                      final sourceId = (item['sourceId'] ?? '').toString();
-                      final sourceHost = _subscriptionHost(
-                        (item['sourceUrl'] ?? '').toString(),
-                      );
-                      final (latencyLabel, latencyTone) = _latencyBadgeInfo(
-                        item,
-                      );
-                      final engine =
-                          (speed?['engine'] ?? item['lastTestEngine'] ?? '')
-                              .toString()
-                              .trim();
-                      final ipSummary = _formatIpHealthSummary(health);
-                      final ipAddr = health != null && health['ok'] == true
-                          ? (health['ip'] ?? '').toString().trim()
-                          : '';
-                      final kernelPref = _normalizeKernel(
-                        item['preferredKernel'],
-                      );
-                      final endpoint = _proxyEndpointSummary(item);
-                      final groupName = (item['groupName'] ?? '')
-                          .toString()
-                          .trim();
-
-                      return PrismCard(
-                        margin: EdgeInsets.zero,
-                        child: PrismListTile(
-                          leading: isSelectable
-                              ? prism.Checkbox(
-                                  value: _selectedIds.contains(id),
-                                  onChanged: _busy.isEmpty
-                                      ? (value) => setState(() {
-                                          if (value == true) {
-                                            _selectedIds.add(id);
-                                          } else {
-                                            _selectedIds.remove(id);
-                                          }
-                                        })
-                                      : null,
-                                )
-                              : const PrismGlyph(AntGlyphs.shield, size: 18),
-                          title: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  (item['proxyName'] ?? id).toString(),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: prism.AppTextStyle.subheadline.of(
-                                    context,
-                                    emphasized: true,
-                                  ),
-                                ),
-                              ),
-                              if (groupName.isNotEmpty) ...[
-                                const SizedBox(width: 6),
-                                PrismBadge(
-                                  label: groupName,
-                                  tone: PrismTone.neutral,
-                                ),
-                              ],
-                              if (kernelPref != 'auto') ...[
-                                const SizedBox(width: 6),
-                                PrismBadge(
-                                  label: _kernelLabels[kernelPref] ?? kernelPref,
-                                  tone: PrismTone.primary,
-                                ),
-                              ],
-                              if (item['sourceMissing'] == true) ...[
-                                const SizedBox(width: 6),
-                                const PrismBadge(
-                                  label: '订阅异常',
-                                  tone: PrismTone.danger,
-                                ),
-                              ],
-                            ],
-                          ),
-                          subtitle: Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Wrap(
-                              spacing: 6,
-                              runSpacing: 4,
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              children: [
-                                PrismBadge(
-                                  label: _proxyProtocol(item).toUpperCase(),
-                                  tone: PrismTone.neutral,
-                                ),
-                                Text(
-                                  endpoint,
-                                  style: prism.AppTextStyle.caption1
-                                      .of(context)
-                                      .copyWith(
-                                        color: prism.Theme.of(
-                                          context,
-                                        ).colorScheme.onSurfaceVariant,
-                                      ),
-                                ),
-                                PrismBadge(
-                                  label: engine.isEmpty
-                                      ? latencyLabel
-                                      : '$latencyLabel · $engine',
-                                  tone: latencyTone,
-                                  dot: true,
-                                ),
-                                if (ipAddr.isNotEmpty || ipSummary.isNotEmpty)
-                                  PrismBadge(
-                                    label: [
-                                      if (ipAddr.isNotEmpty) ipAddr,
-                                      if (ipSummary.isNotEmpty) ipSummary,
-                                    ].join(' · '),
-                                    tone: health?['ok'] == true
-                                        ? PrismTone.info
-                                        : PrismTone.danger,
-                                    onPressed: () => _showIPHealthDetail(item),
-                                  ),
-                                if (sourceHost.isNotEmpty)
-                                  PrismBadge(
-                                    label:
-                                        '$sourceHost · ${item['sourceAutoRefresh'] == true ? '自动' : '手动'}',
-                                    glyph: AntGlyphs.link,
-                                    tone: PrismTone.neutral,
-                                  ),
-                              ],
-                            ),
-                          ),
-                          trailing: Wrap(
-                            children: [
-                              prism.IconButton(
-                                tooltip: '检查代理 IP',
-                                onPressed: _busy.isEmpty
-                                    ? () => _testIpHealth(item)
-                                    : null,
-                                icon: const PrismGlyph(
-                                  AntGlyphs.globe,
-                                  size: 18,
-                                ),
-                              ),
-                              prism.IconButton(
-                                tooltip: '测试连接',
-                                onPressed: _busy.isEmpty && !isDirect
-                                    ? () => _test(item)
-                                    : null,
-                                icon: _busy == id || _testingIds.contains(id)
-                                    ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: PrismProgressIndicator(size: 18),
-                                      )
-                                    : const PrismGlyph(
-                                        AntGlyphs.speed,
-                                        size: 18,
-                                      ),
-                              ),
-                              prism.IconButton(
-                                tooltip: '桥接预热',
-                                onPressed: _busy.isEmpty && !isDirect
-                                    ? () => _warmupBridge(item)
-                                    : null,
-                                icon: _busy == 'batch-warmup'
-                                    ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: PrismProgressIndicator(size: 18),
-                                      )
-                                    : const PrismGlyph(
-                                        AntGlyphs.fire,
-                                        size: 18,
-                                      ),
-                              ),
-                              PrismPopupMenuButton<String>(
-                                tooltip: '更多操作',
-                                enabled: _busy.isEmpty,
-                                icon: const PrismGlyph(
-                                  AntGlyphs.more,
-                                  size: 18,
-                                ),
-                                itemBuilder: (_) => [
-                                  if (sourceId.isNotEmpty)
-                                    const PrismMenuItem(
-                                      value: 'refresh',
-                                      child: Text('刷新订阅'),
-                                    ),
-                                  if (health != null)
-                                    const PrismMenuItem(
-                                      value: 'ip-detail',
-                                      child: Text('查看 IP 检测详情'),
-                                    ),
-                                  PrismMenuItem(
-                                    value: 'edit',
-                                    child: const Text('编辑'),
-                                    enabled: isSelectable,
-                                  ),
-                                  const PrismMenuItem(
-                                    value: 'ip-health',
-                                    child: Text('IP 健康'),
-                                  ),
-                                  PrismMenuItem(
-                                    value: 'delete',
-                                    child: const Text('删除'),
-                                    danger: true,
-                                    enabled: isSelectable,
-                                  ),
-                                ],
-                                onSelected: (action) {
-                                  if (action == 'refresh') {
-                                    _refreshSource(item);
-                                  } else if (action == 'ip-detail') {
-                                    _showIPHealthDetail(item);
-                                  } else if (action == 'ip-health') {
-                                    _testIpHealth(item);
-                                  } else if (action == 'edit') {
-                                    _edit(item);
-                                  } else if (action == 'delete') {
-                                    _delete(item);
-                                  }
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+            child: _buildProxyListSection(
+              context,
+              visible: visible,
+              selectable: selectable,
+              allFilteredSelected: allFilteredSelected,
+            ),
           ),
         ],
       ),
@@ -5983,12 +6161,15 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
     'AU': ['au', 'australia', '澳大利亚', '澳洲'],
   };
 
+  final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> _groups = [];
   List<Map<String, dynamic>> _proxies = [];
   List<Map<String, dynamic>> _health = [];
   final Map<String, Map<String, dynamic>> _speedCache = {};
   bool _loading = true;
   String _busy = '';
+  String _query = '';
+  String _filter = 'all';
   final List<void Function()> _eventUnsubscribers = [];
 
   @override
@@ -6017,6 +6198,7 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
     for (final remove in _eventUnsubscribers) {
       remove();
     }
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -6613,162 +6795,455 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
     }
   }
 
+  void _clearFilters() {
+    setState(() {
+      _searchController.clear();
+      _query = '';
+      _filter = 'all';
+    });
+  }
+
+  Map<String, dynamic>? _groupHealth(Map<String, dynamic> group) {
+    final id = (group['groupId'] ?? '').toString();
+    return _health.where((row) => row['groupId'] == id).firstOrNull;
+  }
+
+  List<Map<String, dynamic>> _filteredGroups() {
+    final query = _query.trim().toLowerCase();
+    return _groups.where((group) {
+      final strategy = (group['strategy'] ?? 'round_robin').toString();
+      final health = _groupHealth(group);
+      final isDegraded = health != null && health['allDegraded'] == true;
+      final filterOk = switch (_filter) {
+        'round_robin' => strategy != 'sticky',
+        'sticky' => strategy == 'sticky',
+        'degraded' => isDegraded,
+        _ => true,
+      };
+      if (!filterOk) return false;
+      if (query.isEmpty) return true;
+      final memberNames = _resolveMemberProxyIds(group)
+          .map(
+            (id) =>
+                (_proxies.where((p) => p['proxyId'] == id).firstOrNull?[
+                        'proxyName'] ??
+                    id)
+                .toString(),
+          )
+          .join(' ');
+      final haystack = [
+        group['groupName'],
+        group['groupId'],
+        strategy == 'sticky' ? '固定节点' : '轮询',
+        memberNames,
+      ].join(' ').toLowerCase();
+      return haystack.contains(query);
+    }).toList();
+  }
+
+  Widget _buildOverviewStrip(BuildContext context) {
+    final totalGroups = _groups.length;
+    final stickyCount = _groups
+        .where((g) => g['strategy'] == 'sticky')
+        .length;
+    final roundRobinCount = totalGroups - stickyCount;
+    final uniqueMemberIds = <String>{};
+    var healthyGroups = 0;
+    var degradedGroups = 0;
+    for (final group in _groups) {
+      uniqueMemberIds.addAll(_resolveMemberProxyIds(group));
+      final health = _groupHealth(group);
+      if (health != null) {
+        if (health['allDegraded'] == true) {
+          degradedGroups++;
+        } else {
+          healthyGroups++;
+        }
+      }
+    }
+    final unprobedGroups = totalGroups - healthyGroups - degradedGroups;
+
+    final tiles = [
+      PrismMetricTile(
+        label: '虚拟分组',
+        value: '$totalGroups',
+        subtitle: totalGroups == 0
+            ? '支持轮询调度与故障转移'
+            : '轮询 $roundRobinCount · 固定 $stickyCount',
+        glyph: AntGlyphs.hub,
+        tone: PrismTone.primary,
+        onPressed: _filter != 'all' || _query.isNotEmpty ? _clearFilters : null,
+        staggerIndex: 0,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+      PrismMetricTile(
+        label: '调度节点',
+        value: '${uniqueMemberIds.length}',
+        subtitle: '候选代理 ${_candidateProxies.length} 个',
+        glyph: AntGlyphs.globe,
+        tone: PrismTone.info,
+        staggerIndex: 1,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+      PrismMetricTile(
+        label: '健康分组',
+        value: '$healthyGroups/$totalGroups',
+        subtitle: degradedGroups > 0
+            ? '全部降级 $degradedGroups 组 · 点击筛选'
+            : (unprobedGroups > 0 ? '待探测 $unprobedGroups 组' : '健康探测全部正常'),
+        glyph: AntGlyphs.health,
+        tone: degradedGroups > 0
+            ? PrismTone.danger
+            : (healthyGroups > 0 ? PrismTone.success : PrismTone.neutral),
+        onPressed: degradedGroups > 0
+            ? () => setState(
+                () => _filter = _filter == 'degraded' ? 'all' : 'degraded',
+              )
+            : null,
+        staggerIndex: 2,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+      PrismMetricTile(
+        label: '调度策略',
+        value: stickyCount > 0 ? '$roundRobinCount / $stickyCount' : '轮询 $roundRobinCount',
+        subtitle: _filter == 'sticky' ? '正在筛选固定节点组' : '点击筛选固定节点组',
+        glyph: AntGlyphs.tune,
+        tone: _filter == 'sticky' ? PrismTone.primary : PrismTone.neutral,
+        onPressed: stickyCount > 0
+            ? () => setState(
+                () => _filter = _filter == 'sticky' ? 'all' : 'sticky',
+              )
+            : null,
+        staggerIndex: 3,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= 760) {
+          return Row(
+            children: [
+              for (var i = 0; i < tiles.length; i++) ...[
+                if (i > 0) const SizedBox(width: 12),
+                Expanded(child: tiles[i]),
+              ],
+            ],
+          );
+        }
+        return Column(
+          children: [
+            Row(
+              children: [
+                Expanded(child: tiles[0]),
+                const SizedBox(width: 10),
+                Expanded(child: tiles[1]),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(child: tiles[2]),
+                const SizedBox(width: 10),
+                Expanded(child: tiles[3]),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildToolbar(BuildContext context, VoidCallback? backAction) {
+    final filterControl = SizedBox(
+      width: 248,
+      child: prism.SegmentedControl<String>(
+        value: _filter,
+        onChanged: (value) => setState(() => _filter = value),
+        segments: const [
+          ('all', '全部'),
+          ('round_robin', '轮询'),
+          ('sticky', '固定'),
+          ('degraded', '降级'),
+        ],
+      ),
+    );
+
+    final actionWidgets = <Widget>[
+      PrismHoverMotion(
+        child: prism.FilledButton.icon(
+          onPressed: () => _edit(),
+          icon: const PrismGlyph(AntGlyphs.add, size: 15),
+          label: const Text('新建分组'),
+        ),
+      ),
+      prism.IconButton(
+        tooltip: '刷新',
+        onPressed: _loading ? null : _refresh,
+        icon: const PrismGlyph(AntGlyphs.refresh, size: 17),
+      ),
+    ];
+
+    return PrismHoverCard(
+      staggerIndex: 4,
+      staggerDelay: const Duration(milliseconds: 45),
+      radius: prism.AppCorner.xl,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= 820;
+          if (wide) {
+            return Row(
+              children: [
+                if (backAction != null) ...[
+                  prism.IconButton(
+                    tooltip: '返回代理池',
+                    onPressed: backAction,
+                    icon: const PrismGlyph(AntGlyphs.arrowBack, size: 18),
+                  ),
+                  const SizedBox(width: 6),
+                ],
+                Expanded(
+                  child: PrismSearchBar(
+                    controller: _searchController,
+                    hintText: '搜索分组名称、策略或成员节点…',
+                    height: 36,
+                    onChanged: (value) => setState(() => _query = value),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                filterControl,
+                const SizedBox(width: 10),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: actionWidgets,
+                ),
+              ],
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  if (backAction != null) ...[
+                    prism.IconButton(
+                      tooltip: '返回代理池',
+                      onPressed: backAction,
+                      icon: const PrismGlyph(AntGlyphs.arrowBack, size: 18),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
+                  Expanded(
+                    child: PrismSearchBar(
+                      controller: _searchController,
+                      hintText: '搜索分组名称、策略或成员节点…',
+                      height: 36,
+                      onChanged: (value) => setState(() => _query = value),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  filterControl,
+                ],
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: actionWidgets,
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildGroupRow(BuildContext context, Map<String, dynamic> group) {
+    final id = (group['groupId'] ?? '').toString();
+    final health = _groupHealth(group);
+    final members = _resolveMemberProxyIds(group).length;
+    final healthTone = health == null
+        ? PrismTone.neutral
+        : health['allDegraded'] == true
+        ? PrismTone.danger
+        : PrismTone.success;
+    final healthLabel = health == null
+        ? '待检测'
+        : health['allDegraded'] == true
+        ? '全部降级'
+        : '可用 ${health['healthy'] ?? 0}/${health['total'] ?? 0}';
+    return PrismCard(
+      margin: EdgeInsets.zero,
+      child: PrismListTile(
+        onTap: () => _showMembers(group),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                (group['groupName'] ?? id).toString(),
+                style: prism.AppTextStyle.subheadline.of(
+                  context,
+                  emphasized: true,
+                ),
+              ),
+            ),
+            PrismBadge(
+              label: group['strategy'] == 'sticky' ? '固定节点' : '轮询',
+              tone: PrismTone.primary,
+            ),
+            const SizedBox(width: 6),
+            PrismBadge(
+              label: healthLabel,
+              tone: healthTone,
+              dot: true,
+            ),
+          ],
+        ),
+        subtitle: Text('$members 个成员 · 点击查看成员与健康详情'),
+        trailing: Wrap(
+          children: [
+            prism.IconButton(
+              tooltip: '探测',
+              onPressed: _busy == id ? null : () => _probe(group),
+              icon: _busy == id
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: PrismProgressIndicator(size: 18),
+                    )
+                  : const PrismGlyph(AntGlyphs.health, size: 18),
+            ),
+            prism.IconButton(
+              tooltip: '重置健康',
+              onPressed: _busy.isEmpty ? () => _resetHealth(group) : null,
+              icon: const PrismGlyph(AntGlyphs.restart, size: 18),
+            ),
+            prism.IconButton(
+              tooltip: '编辑',
+              onPressed: () => _edit(group),
+              icon: const PrismGlyph(AntGlyphs.edit, size: 18),
+            ),
+            prism.IconButton(
+              tooltip: '删除',
+              onPressed: () => _delete(group),
+              icon: const PrismGlyph(AntGlyphs.delete, size: 18),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGroupsSection(
+    BuildContext context,
+    List<Map<String, dynamic>> filteredGroups,
+  ) {
+    final hasActiveFilters = _query.trim().isNotEmpty || _filter != 'all';
+    return PrismHoverCard(
+      staggerIndex: 5,
+      staggerDelay: const Duration(milliseconds: 45),
+      radius: prism.AppCorner.xl,
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          prism.InfoHeader(
+            info: const prism.Info(label: '虚拟分组列表', glyph: AntGlyphs.hub),
+            actions: [
+              if (hasActiveFilters)
+                prism.TextButton(
+                  onPressed: _clearFilters,
+                  child: const Text('清除筛选'),
+                ),
+              PrismBadge(
+                label: '${filteredGroups.length} 组',
+                tone: filteredGroups.isEmpty
+                    ? PrismTone.neutral
+                    : PrismTone.primary,
+              ),
+            ],
+            padding: const EdgeInsets.fromLTRB(16, 12, 14, 10),
+          ),
+          const prism.Divider(height: 1),
+          Expanded(
+            child: prism.PageTransitionSwitcher(
+              duration: PrismMotionSpec.current.pageDuration,
+              transitionBuilder: PrismSlideThroughTransition.builder,
+              child: KeyedSubtree(
+                key: ValueKey(
+                  '$_filter-${_query.trim()}-$_loading-${filteredGroups.isEmpty}',
+                ),
+                child: _loading
+                    ? const Center(child: PrismProgressIndicator())
+                    : filteredGroups.isEmpty
+                    ? (_groups.isEmpty
+                          ? PrismEmptyState(
+                              title: '还没有虚拟分组',
+                              subtitle: '将多个代理节点组合为虚拟分组，支持轮询调度、自动健康探测与故障转移。',
+                              glyph: AntGlyphs.hub,
+                              action: PrismHoverMotion(
+                                child: prism.FilledButton.icon(
+                                  onPressed: () => _edit(),
+                                  icon: const PrismGlyph(
+                                    AntGlyphs.add,
+                                    size: 16,
+                                  ),
+                                  label: const Text('新建分组'),
+                                ),
+                              ),
+                            )
+                          : PrismEmptyState(
+                              title: '没有匹配的虚拟分组',
+                              subtitle: '尝试调整搜索关键词或切换策略筛选条件。',
+                              glyph: AntGlyphs.search,
+                              action: prism.OutlinedButton(
+                                onPressed: _clearFilters,
+                                child: const Text('重置筛选'),
+                              ),
+                            ))
+                    : Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 6,
+                        ),
+                        child: ListView.separated(
+                          padding: kPrismListPadding,
+                          itemCount: filteredGroups.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 10),
+                          itemBuilder: (context, index) =>
+                              _buildGroupRow(context, filteredGroups[index]),
+                        ),
+                      ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final canPop = Navigator.of(context).canPop();
     final backAction =
         widget.onBack ?? (canPop ? () => Navigator.of(context).maybePop() : null);
+    final filteredGroups = _filteredGroups();
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 6, 24, 24),
+      padding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              if (backAction != null) ...[
-                prism.IconButton(
-                  tooltip: '返回代理池',
-                  onPressed: backAction,
-                  icon: const PrismGlyph(AntGlyphs.arrowBack, size: 18),
-                ),
-                const SizedBox(width: 6),
-              ],
-              Expanded(
-                child: PrismPageContextBar(
-                  glyph: AntGlyphs.hub,
-                  title: '代理虚拟分组',
-                  subtitle: '将多个代理节点组合为分组，支持轮询调度、健康探测与故障转移。',
-                  actions: [
-                    prism.IconButton(
-                      tooltip: '刷新',
-                      onPressed: _refresh,
-                      icon: const PrismGlyph(AntGlyphs.refresh, size: 18),
-                    ),
-                    prism.FilledButton.icon(
-                      onPressed: () => _edit(),
-                      icon: const PrismGlyph(AntGlyphs.add, size: 16),
-                      label: const Text('新建分组'),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          Expanded(
-            child: _loading
-                ? const Center(child: PrismProgressIndicator())
-                : _groups.isEmpty
-                ? PrismEmptyState(
-                    title: '还没有虚拟分组',
-                    subtitle: '将多个代理节点组合为虚拟分组，支持轮询调度、自动健康探测与故障转移。',
-                    glyph: AntGlyphs.hub,
-                    action: prism.FilledButton.icon(
-                      onPressed: () => _edit(),
-                      icon: const PrismGlyph(AntGlyphs.add, size: 16),
-                      label: const Text('新建分组'),
-                    ),
-                  )
-                : ListView.separated(
-                    itemCount: _groups.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final group = _groups[index];
-                      final id = (group['groupId'] ?? '').toString();
-                      final health = _health
-                          .where((row) => row['groupId'] == id)
-                          .firstOrNull;
-                      final members = _resolveMemberProxyIds(group).length;
-                      final healthTone = health == null
-                          ? PrismTone.neutral
-                          : health['allDegraded'] == true
-                          ? PrismTone.danger
-                          : PrismTone.success;
-                      final healthLabel = health == null
-                          ? '待检测'
-                          : health['allDegraded'] == true
-                          ? '全部降级'
-                          : '可用 ${health['healthy'] ?? 0}/${health['total'] ?? 0}';
-                      return PrismCard(
-                        margin: EdgeInsets.zero,
-                        child: PrismListTile(
-                          onTap: () => _showMembers(group),
-                          title: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  (group['groupName'] ?? id).toString(),
-                                  style: prism.AppTextStyle.subheadline.of(
-                                    context,
-                                    emphasized: true,
-                                  ),
-                                ),
-                              ),
-                              PrismBadge(
-                                label: group['strategy'] == 'sticky'
-                                    ? '固定节点'
-                                    : '轮询',
-                                tone: PrismTone.primary,
-                              ),
-                              const SizedBox(width: 6),
-                              PrismBadge(
-                                label: healthLabel,
-                                tone: healthTone,
-                                dot: true,
-                              ),
-                            ],
-                          ),
-                          subtitle: Text('$members 个成员 · 点击查看成员与健康详情'),
-                          trailing: Wrap(
-                            children: [
-                              prism.IconButton(
-                                tooltip: '探测',
-                                onPressed: _busy == id
-                                    ? null
-                                    : () => _probe(group),
-                                icon: _busy == id
-                                    ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: PrismProgressIndicator(size: 18),
-                                      )
-                                    : const PrismGlyph(
-                                        AntGlyphs.health,
-                                        size: 18,
-                                      ),
-                              ),
-                              prism.IconButton(
-                                tooltip: '重置健康',
-                                onPressed: _busy.isEmpty
-                                    ? () => _resetHealth(group)
-                                    : null,
-                                icon: const PrismGlyph(
-                                  AntGlyphs.restart,
-                                  size: 18,
-                                ),
-                              ),
-                              prism.IconButton(
-                                tooltip: '编辑',
-                                onPressed: () => _edit(group),
-                                icon: const PrismGlyph(
-                                  AntGlyphs.edit,
-                                  size: 18,
-                                ),
-                              ),
-                              prism.IconButton(
-                                tooltip: '删除',
-                                onPressed: () => _delete(group),
-                                icon: const PrismGlyph(
-                                  AntGlyphs.delete,
-                                  size: 18,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
+          _buildOverviewStrip(context),
+          const SizedBox(height: 12),
+          _buildToolbar(context, backAction),
+          const SizedBox(height: 12),
+          Expanded(child: _buildGroupsSection(context, filteredGroups)),
         ],
       ),
     );

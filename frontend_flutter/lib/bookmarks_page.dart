@@ -42,6 +42,7 @@ class BookmarksPage extends StatefulWidget {
 class _BookmarksPageState extends State<BookmarksPage> {
   static const _protectedUrl = 'ant://fingerprint-check';
   final List<_BookmarkEntry> _entries = [];
+  final _searchController = TextEditingController();
   int _nextId = 1;
   bool _loading = true;
   bool _saving = false;
@@ -55,6 +56,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
 
   @override
   void dispose() {
+    _searchController.dispose();
     for (final entry in _entries) {
       entry.dispose();
     }
@@ -102,6 +104,9 @@ class _BookmarksPageState extends State<BookmarksPage> {
   }
 
   void _add() {
+    if (_searchController.text.isNotEmpty) {
+      _searchController.clear();
+    }
     setState(() {
       _entries.add(
         _BookmarkEntry(id: _nextId++, name: '', url: '', openOnStart: false),
@@ -302,57 +307,236 @@ class _BookmarksPageState extends State<BookmarksPage> {
     );
   }
 
+  bool _matchesQuery(_BookmarkEntry entry, String query) {
+    if (query.isEmpty) return true;
+    return entry.nameController.text.toLowerCase().contains(query) ||
+        entry.urlController.text.toLowerCase().contains(query);
+  }
+
+  Widget _buildOverviewStrip(
+    List<_BookmarkEntry> protectedEntries,
+    List<_BookmarkEntry> regularEntries,
+    bool isFiltering,
+  ) {
+    final openOnStartCount = regularEntries.where((e) => e.openOnStart).length;
+    final tiles = [
+      PrismMetricTile(
+        label: '书签总数',
+        value: '${_entries.length}',
+        subtitle:
+            '内置 ${protectedEntries.length} · 自定义 ${regularEntries.length}',
+        glyph: AntGlyphs.bookmark,
+        tone: PrismTone.primary,
+        staggerIndex: 0,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+      PrismMetricTile(
+        label: '自定义书签',
+        value: '${regularEntries.length}',
+        subtitle: '启动时打开 $openOnStartCount 项',
+        glyph: AntGlyphs.link,
+        tone: PrismTone.info,
+        staggerIndex: 1,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+      PrismMetricTile(
+        label: '内置检测',
+        value: '${protectedEntries.length}',
+        subtitle: protectedEntries.any((e) => e.openOnStart)
+            ? '已开启启动检测'
+            : '默认指纹检测项',
+        glyph: AntGlyphs.shield,
+        tone: PrismTone.success,
+        staggerIndex: 2,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+      PrismMetricTile(
+        label: '拖拽排序',
+        value: isFiltering ? '已暂停' : '已就绪',
+        subtitle: isFiltering ? '清空搜索后可拖拽排序' : '拖动把手调整顺序',
+        glyph: AntGlyphs.sort,
+        tone: isFiltering ? PrismTone.warning : PrismTone.neutral,
+        onPressed: isFiltering
+            ? () => setState(() => _searchController.clear())
+            : null,
+        staggerIndex: 3,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= 760) {
+          return Row(
+            children: [
+              for (var i = 0; i < tiles.length; i++) ...[
+                if (i > 0) const SizedBox(width: 12),
+                Expanded(child: tiles[i]),
+              ],
+            ],
+          );
+        }
+        return Column(
+          children: [
+            Row(
+              children: [
+                Expanded(child: tiles[0]),
+                const SizedBox(width: 10),
+                Expanded(child: tiles[1]),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(child: tiles[2]),
+                const SizedBox(width: 10),
+                Expanded(child: tiles[3]),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildToolbar() {
+    final actionWidgets = <Widget>[
+      PrismHoverMotion(
+        enabled: !_loading,
+        child: prism.FilledButton.icon(
+          onPressed: _loading ? null : _add,
+          icon: const PrismGlyph(AntGlyphs.add, size: 15),
+          label: const Text('添加书签'),
+        ),
+      ),
+      PrismHoverMotion(
+        enabled: !_saving && !_loading,
+        child: PrismTonalButton.icon(
+          onPressed: _saving || _loading ? null : _save,
+          icon: const PrismGlyph(AntGlyphs.save, size: 15),
+          child: Text(_saving ? '保存中' : '保存'),
+        ),
+      ),
+      PrismPopupMenuButton<String>(
+        tooltip: '更多操作',
+        enabled: !_loading,
+        onSelected: (action) {
+          switch (action) {
+            case 'sync':
+              _sync();
+            case 'reset':
+              _reset();
+          }
+        },
+        itemBuilder: (_) => [
+          PrismMenuItem(
+            value: 'sync',
+            enabled: !_syncing,
+            child: Text(_syncing ? '同步中…' : '手动同步'),
+          ),
+          const PrismMenuItem(value: 'reset', child: Text('恢复默认')),
+        ],
+      ),
+      prism.IconButton(
+        tooltip: '刷新',
+        onPressed: _loading ? null : _load,
+        icon: const PrismGlyph(AntGlyphs.refresh, size: 17),
+      ),
+    ];
+
+    return PrismHoverCard(
+      staggerIndex: 4,
+      staggerDelay: const Duration(milliseconds: 45),
+      radius: prism.AppCorner.xl,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= 760;
+          if (wide) {
+            return Row(
+              children: [
+                Expanded(
+                  child: PrismSearchBar(
+                    controller: _searchController,
+                    hintText: '搜索书签名称或网址…',
+                    height: 36,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: actionWidgets,
+                ),
+              ],
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              PrismSearchBar(
+                controller: _searchController,
+                hintText: '搜索书签名称或网址…',
+                height: 36,
+                onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: actionWidgets,
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final protectedEntries = _protectedEntries;
     final regularEntries = _regularEntries;
+    final query = _searchController.text.trim().toLowerCase();
+    final isFiltering = query.isNotEmpty;
+    final filteredProtected = protectedEntries
+        .where((e) => _matchesQuery(e, query))
+        .toList();
+    final filteredRegular = regularEntries
+        .where((e) => _matchesQuery(e, query))
+        .toList();
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 6, 24, 24),
+      padding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          PrismPageContextBar(
-            glyph: AntGlyphs.bookmark,
-            title: '默认书签',
-            subtitle: '管理默认书签，保存后自动同步到浏览器实例。',
-            actions: [
-              prism.OutlinedButton.icon(
-                onPressed: _syncing ? null : _sync,
-                icon: const PrismGlyph(AntGlyphs.sync, size: 17),
-                label: Text(_syncing ? '同步中' : '手动同步'),
-              ),
-              prism.OutlinedButton.icon(
-                onPressed: _reset,
-                icon: const PrismGlyph(AntGlyphs.restore, size: 17),
-                label: const Text('恢复默认'),
-              ),
-              prism.FilledButton.icon(
-                onPressed: _saving || _loading ? null : _save,
-                icon: const PrismGlyph(AntGlyphs.save, size: 17),
-                label: Text(_saving ? '保存中' : '保存'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
+          _buildOverviewStrip(protectedEntries, regularEntries, isFiltering),
+          const SizedBox(height: 12),
+          _buildToolbar(),
+          const SizedBox(height: 12),
           Expanded(
             child: _loading
                 ? const Center(child: PrismProgressIndicator())
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      if (protectedEntries.isNotEmpty) ...[
+                      if (filteredProtected.isNotEmpty) ...[
                         PrismSectionCard(
                           title: '内置检测',
                           glyph: AntGlyphs.shield,
-                          staggerIndex: 0,
-                          staggerDelay: const Duration(milliseconds: 55),
+                          staggerIndex: 5,
+                          staggerDelay: const Duration(milliseconds: 45),
                           actions: const [
                             PrismBadge(label: '内置', tone: PrismTone.info),
                           ],
                           child: Column(
                             children: [
-                              for (final entry in protectedEntries)
+                              for (final entry in filteredProtected)
                                 _buildBookmarkRow(entry, protected: true),
                             ],
                           ),
@@ -361,67 +545,128 @@ class _BookmarksPageState extends State<BookmarksPage> {
                       ],
                       Expanded(
                         child: PrismHoverCard(
-                          staggerIndex: protectedEntries.isEmpty ? 0 : 1,
-                          staggerDelay: const Duration(milliseconds: 55),
+                          staggerIndex: 6,
+                          staggerDelay: const Duration(milliseconds: 45),
                           radius: prism.AppCorner.xl,
                           padding: EdgeInsets.zero,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               prism.InfoHeader(
-                                info: prism.Info(
-                                  label: '书签列表（${regularEntries.length} 项）',
+                                info: const prism.Info(
+                                  label: '书签列表',
                                   glyph: AntGlyphs.bookmark,
                                 ),
                                 actions: [
-                                  prism.OutlinedButton.icon(
-                                    onPressed: _add,
-                                    icon: const PrismGlyph(
-                                      AntGlyphs.add,
-                                      size: 16,
+                                  if (isFiltering) ...[
+                                    const PrismBadge(
+                                      label: '筛选中 · 拖拽已暂停',
+                                      tone: PrismTone.warning,
                                     ),
-                                    label: const Text('添加书签'),
+                                    prism.TextButton(
+                                      onPressed: () =>
+                                          setState(() => _searchController.clear()),
+                                      child: const Text('清空筛选'),
+                                    ),
+                                  ],
+                                  PrismBadge(
+                                    label: '${filteredRegular.length} 项',
+                                    tone: filteredRegular.isEmpty
+                                        ? PrismTone.neutral
+                                        : PrismTone.primary,
                                   ),
                                 ],
                                 padding: const EdgeInsets.fromLTRB(
                                   16,
-                                  14,
+                                  12,
                                   14,
                                   10,
                                 ),
                               ),
                               const prism.Divider(height: 1),
                               Expanded(
-                                child: regularEntries.isEmpty
-                                    ? PrismEmptyState(
-                                        glyph: AntGlyphs.bookmark,
-                                        title: '暂无自定义书签',
-                                        subtitle: '点击右上角“添加书签”创建常用网址。',
-                                        action: prism.OutlinedButton.icon(
-                                          onPressed: _add,
-                                          icon: const PrismGlyph(
-                                            AntGlyphs.add,
-                                            size: 16,
+                                child: prism.PageTransitionSwitcher(
+                                  duration: PrismMotionSpec.current.pageDuration,
+                                  transitionBuilder:
+                                      PrismSlideThroughTransition.builder,
+                                  child: KeyedSubtree(
+                                    key: ValueKey(
+                                      '$isFiltering-${filteredRegular.isEmpty}',
+                                    ),
+                                    child: filteredRegular.isEmpty
+                                        ? (regularEntries.isEmpty
+                                              ? PrismEmptyState(
+                                                  glyph: AntGlyphs.bookmark,
+                                                  title: '暂无自定义书签',
+                                                  subtitle:
+                                                      '点击上方“添加书签”创建常用网址。',
+                                                  action: PrismHoverMotion(
+                                                    child:
+                                                        prism.OutlinedButton.icon(
+                                                          onPressed: _add,
+                                                          icon: const PrismGlyph(
+                                                            AntGlyphs.add,
+                                                            size: 16,
+                                                          ),
+                                                          label: const Text(
+                                                            '添加书签',
+                                                          ),
+                                                        ),
+                                                  ),
+                                                )
+                                              : PrismEmptyState(
+                                                  glyph: AntGlyphs.search,
+                                                  title: '没有匹配的书签',
+                                                  subtitle:
+                                                      '尝试更换关键词，或清空搜索查看全部书签并启用拖拽排序。',
+                                                  action: prism.OutlinedButton(
+                                                    onPressed: () => setState(
+                                                      () => _searchController
+                                                          .clear(),
+                                                    ),
+                                                    child: const Text('清空搜索'),
+                                                  ),
+                                                ))
+                                        : Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 6,
+                                            ),
+                                            child: isFiltering
+                                                ? ListView.builder(
+                                                    padding: kPrismListPadding,
+                                                    itemCount:
+                                                        filteredRegular.length,
+                                                    itemBuilder:
+                                                        (context, index) =>
+                                                            _buildBookmarkRow(
+                                                              filteredRegular[index],
+                                                              protected: false,
+                                                            ),
+                                                  )
+                                                : prism.PrismReorderableListView(
+                                                    padding: kPrismListPadding,
+                                                    proxyDecorator:
+                                                        (
+                                                          child,
+                                                          index,
+                                                          animation,
+                                                        ) => child,
+                                                    itemCount:
+                                                        regularEntries.length,
+                                                    onReorderItem:
+                                                        _reorderRegular,
+                                                    itemBuilder:
+                                                        (context, index) =>
+                                                            _buildBookmarkRow(
+                                                              regularEntries[index],
+                                                              protected: false,
+                                                              dragIndex: index,
+                                                            ),
+                                                  ),
                                           ),
-                                          label: const Text('添加书签'),
-                                        ),
-                                      )
-                                    : Padding(
-                                        padding: const EdgeInsets.all(14),
-                                        child: prism.PrismReorderableListView(
-                                          proxyDecorator:
-                                              (child, index, animation) =>
-                                                  child,
-                                          itemCount: regularEntries.length,
-                                          onReorderItem: _reorderRegular,
-                                          itemBuilder: (context, index) =>
-                                              _buildBookmarkRow(
-                                                regularEntries[index],
-                                                protected: false,
-                                                dragIndex: index,
-                                              ),
-                                        ),
-                                      ),
+                                  ),
+                                ),
                               ),
                             ],
                           ),

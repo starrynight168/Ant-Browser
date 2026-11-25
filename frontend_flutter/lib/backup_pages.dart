@@ -576,8 +576,11 @@ class _BackupPageState extends State<BackupPage>
   List<Map<String, dynamic>> _s3Backups = [];
   bool _openListConfigured = false;
   bool _s3Configured = false;
+  bool _openListLoaded = false;
+  bool _s3Loaded = false;
   Map<String, String> _openListPayload = {};
   Map<String, String> _s3Payload = {};
+  Map<String, dynamic> _scheduleSettings = {};
   bool _loading = true;
   bool _loadingRemote = false;
   String _busy = '';
@@ -704,6 +707,22 @@ class _BackupPageState extends State<BackupPage>
       _s3Configured = false;
     }
 
+    try {
+      final sched = await AppBridge.call('BackupScheduledGetSettings');
+      if (sched is Map) {
+        _scheduleSettings = Map<String, dynamic>.from(sched);
+      }
+    } catch (_) {}
+
+    if (!_openListConfigured) {
+      _openListLoaded = false;
+      _openListBackups = [];
+    }
+    if (!_s3Configured) {
+      _s3Loaded = false;
+      _s3Backups = [];
+    }
+
     if (_historyTab == 1 && _openListConfigured) {
       await _loadOpenListBackups();
     } else if (_historyTab == 2 && _s3Configured) {
@@ -722,6 +741,7 @@ class _BackupPageState extends State<BackupPage>
           .whereType<Map>()
           .map((row) => Map<String, dynamic>.from(row))
           .toList();
+      _openListLoaded = true;
     } catch (error) {
       if (mounted) _message('读取 OpenList 备份失败：$error');
     } finally {
@@ -738,6 +758,7 @@ class _BackupPageState extends State<BackupPage>
           .whereType<Map>()
           .map((row) => Map<String, dynamic>.from(row))
           .toList();
+      _s3Loaded = true;
     } catch (error) {
       if (mounted) _message('读取 S3 备份失败：$error');
     } finally {
@@ -796,7 +817,12 @@ class _BackupPageState extends State<BackupPage>
     Map<String, dynamic> schedule = {};
     try {
       final raw = await AppBridge.call('BackupScheduledGetSettings');
-      if (raw is Map) schedule = Map<String, dynamic>.from(raw);
+      if (raw is Map) {
+        schedule = Map<String, dynamic>.from(raw);
+        if (mounted) {
+          setState(() => _scheduleSettings = Map<String, dynamic>.from(schedule));
+        }
+      }
     } catch (error) {
       _message('读取定时备份设置失败：$error');
       return;
@@ -990,6 +1016,13 @@ class _BackupPageState extends State<BackupPage>
                           );
                           if (updated is Map) {
                             schedule = Map<String, dynamic>.from(updated);
+                            if (mounted) {
+                              setState(() {
+                                _scheduleSettings = Map<String, dynamic>.from(
+                                  schedule,
+                                );
+                              });
+                            }
                           }
                           if (dialogContext.mounted) {
                             showPrismNotice(dialogContext, '定时备份设置已保存');
@@ -1843,128 +1876,316 @@ class _BackupPageState extends State<BackupPage>
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
+  void _selectHistoryTab(int value) {
+    setState(() => _historyTab = value);
+    if (value == 1 && _openListConfigured) {
+      _loadOpenListBackups();
+    } else if (value == 2 && _s3Configured) {
+      _loadS3Backups();
+    }
+  }
+
+  Widget _buildOverviewStrip(BuildContext context) {
+    var localTotalBytes = 0.0;
+    for (final backup in _localBackups) {
+      final size = backup['size'];
+      if (size is num) {
+        localTotalBytes += size.toDouble();
+      } else {
+        localTotalBytes += double.tryParse('$size') ?? 0;
+      }
+    }
+    final scheduledEnabled = _scheduleSettings['enabled'] == true;
+    final scheduledTime = (_scheduleSettings['dailyTime'] ?? '03:00')
+        .toString();
+    final scheduledStatus = (_scheduleSettings['status'] ?? 'never').toString();
+    final (scheduledStatusLabel, _) = _scheduleStatusInfo(scheduledStatus);
+
+    final tiles = [
+      PrismMetricTile(
+        label: '本地备份',
+        value: '${_localBackups.length}',
+        subtitle: _localBackups.isEmpty
+            ? (_directory.isEmpty ? '尚未选择目录' : '当前目录暂无备份')
+            : '共 ${_formatFileSize(localTotalBytes)} · 点击查看',
+        glyph: AntGlyphs.archive,
+        tone: PrismTone.primary,
+        onPressed: () => _selectHistoryTab(0),
+        staggerIndex: 0,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+      PrismMetricTile(
+        label: 'OpenList',
+        value: _openListConfigured
+            ? (_openListLoaded ? '${_openListBackups.length}' : '已配置')
+            : '未配置',
+        subtitle: _openListConfigured
+            ? (_openListLoaded ? '云端备份包 · 点击查看' : '点击加载云端备份')
+            : '点击前往配置连接',
+        glyph: _openListConfigured ? AntGlyphs.cloud : AntGlyphs.cloudOff,
+        tone: _openListConfigured ? PrismTone.info : PrismTone.neutral,
+        onPressed: _openListConfigured
+            ? () => _selectHistoryTab(1)
+            : widget.onOpenOpenList,
+        staggerIndex: 1,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+      PrismMetricTile(
+        label: 'S3 存储',
+        value: _s3Configured
+            ? (_s3Loaded ? '${_s3Backups.length}' : '已配置')
+            : '未配置',
+        subtitle: _s3Configured
+            ? (_s3Loaded ? '远端备份包 · 点击查看' : '点击加载远端备份')
+            : '点击前往配置存储',
+        glyph: _s3Configured ? AntGlyphs.cloudUpload : AntGlyphs.cloudOff,
+        tone: _s3Configured ? PrismTone.info : PrismTone.neutral,
+        onPressed: _s3Configured ? () => _selectHistoryTab(2) : widget.onOpenS3,
+        staggerIndex: 2,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+      PrismMetricTile(
+        label: '定时备份',
+        value: scheduledEnabled ? '每日 $scheduledTime' : '未启用',
+        subtitle: scheduledEnabled
+            ? '上次状态：$scheduledStatusLabel · 点击设置'
+            : '自动上传到 OpenList · 点击设置',
+        glyph: AntGlyphs.schedule,
+        tone: scheduledEnabled
+            ? (scheduledStatus == 'failed'
+                  ? PrismTone.danger
+                  : PrismTone.success)
+            : PrismTone.neutral,
+        onPressed: _openScheduledBackupModal,
+        staggerIndex: 3,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= 760) {
+          return Row(
+            children: [
+              for (var i = 0; i < tiles.length; i++) ...[
+                if (i > 0) const SizedBox(width: 12),
+                Expanded(child: tiles[i]),
+              ],
+            ],
+          );
+        }
+        return Column(
+          children: [
+            Row(
+              children: [
+                Expanded(child: tiles[0]),
+                const SizedBox(width: 10),
+                Expanded(child: tiles[1]),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(child: tiles[2]),
+                const SizedBox(width: 10),
+                Expanded(child: tiles[3]),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildToolbar(BuildContext context) {
     final colors = prism.Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 6, 24, 24),
+    final directoryInfo = Row(
+      children: [
+        PrismGlyph(AntGlyphs.folder, size: 17, color: colors.primary),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '本地备份目录',
+                style: prism.AppTextStyle.caption1.of(
+                  context,
+                  emphasized: true,
+                ),
+              ),
+              const SizedBox(height: 1),
+              prism.SelectableText(
+                _directory.isEmpty ? '尚未选择目录' : _directory,
+                maxLines: 1,
+                style: prism.AppTextStyle.footnote
+                    .of(context)
+                    .copyWith(color: colors.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        prism.OutlinedButton(
+          onPressed: _busy.isEmpty ? _chooseDirectory : null,
+          child: const Text('选择目录'),
+        ),
+      ],
+    );
+
+    final actionWidgets = <Widget>[
+      prism.TonalButtonGroup(
+        size: prism.TonalButtonSize.section,
+        children: [
+          prism.IconButton(
+            tooltip: 'OpenList 配置',
+            onPressed: widget.onOpenOpenList,
+            icon: const PrismGlyph(AntGlyphs.cloud, size: 17),
+          ),
+          prism.IconButton(
+            tooltip: 'S3 配置',
+            onPressed: widget.onOpenS3,
+            icon: const PrismGlyph(AntGlyphs.cloudUpload, size: 17),
+          ),
+          prism.IconButton(
+            tooltip: '定时备份',
+            onPressed: _openScheduledBackupModal,
+            icon: const PrismGlyph(AntGlyphs.schedule, size: 17),
+          ),
+          prism.IconButton(
+            tooltip: '刷新',
+            onPressed: _loading ? null : _load,
+            icon: const PrismGlyph(AntGlyphs.refresh, size: 17),
+          ),
+        ],
+      ),
+      prism.OutlinedButton.icon(
+        onPressed: _busy.isEmpty ? _importBackup : null,
+        icon: const PrismGlyph(AntGlyphs.restore, size: 15),
+        label: const Text('导入备份'),
+      ),
+      PrismHoverMotion(
+        enabled: _busy.isEmpty,
+        child: prism.FilledButton.icon(
+          onPressed: _busy.isEmpty ? _createBackup : null,
+          icon: const PrismGlyph(AntGlyphs.archive, size: 15),
+          label: Text(_busy == 'backup' ? '备份中…' : '立即备份'),
+        ),
+      ),
+    ];
+
+    return PrismHoverCard(
+      staggerIndex: 4,
+      staggerDelay: const Duration(milliseconds: 45),
+      radius: prism.AppCorner.xl,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth >= 880) {
+            return Row(
+              children: [
+                Expanded(child: directoryInfo),
+                const SizedBox(width: 14),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: actionWidgets,
+                ),
+              ],
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              directoryInfo,
+              const SizedBox(height: 10),
+              const prism.Divider(height: 1),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: actionWidgets,
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildHistorySection(BuildContext context) {
+    final currentCount = switch (_historyTab) {
+      0 => _localBackups.length,
+      1 => _openListBackups.length,
+      _ => _s3Backups.length,
+    };
+    return PrismHoverCard(
+      staggerIndex: 5,
+      staggerDelay: const Duration(milliseconds: 45),
+      radius: prism.AppCorner.xl,
+      padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          PrismPageContextBar(
-            glyph: AntGlyphs.archive,
-            title: '备份与恢复',
-            subtitle: '管理本地与云端（OpenList / S3）备份包及定时任务。',
+          prism.InfoHeader(
+            info: const prism.Info(label: '备份历史', glyph: AntGlyphs.history),
             actions: [
-              prism.TonalButtonGroup(
-                size: prism.TonalButtonSize.section,
-                children: [
-                  prism.IconButton(
-                    tooltip: 'OpenList 设置',
-                    onPressed: widget.onOpenOpenList,
-                    icon: const PrismGlyph(AntGlyphs.cloud, size: 17),
-                  ),
-                  prism.IconButton(
-                    tooltip: 'S3 设置',
-                    onPressed: widget.onOpenS3,
-                    icon: const PrismGlyph(AntGlyphs.cloudUpload, size: 17),
-                  ),
-                  prism.IconButton(
-                    tooltip: '定时备份',
-                    onPressed: _openScheduledBackupModal,
-                    icon: const PrismGlyph(AntGlyphs.schedule, size: 17),
-                  ),
-                  prism.IconButton(
-                    tooltip: '刷新',
-                    onPressed: _loading ? null : _load,
-                    icon: const PrismGlyph(AntGlyphs.refresh, size: 17),
-                  ),
-                ],
-              ),
-              prism.OutlinedButton.icon(
-                onPressed: _busy.isEmpty ? _importBackup : null,
-                icon: const PrismGlyph(AntGlyphs.restore, size: 15),
-                label: const Text('导入备份'),
-              ),
-              prism.FilledButton.icon(
-                onPressed: _busy.isEmpty ? _createBackup : null,
-                icon: const PrismGlyph(AntGlyphs.archive, size: 15),
-                label: Text(_busy == 'backup' ? '备份中…' : '立即备份'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          PrismSectionCard(
-            title: '本地备份目录',
-            glyph: AntGlyphs.folder,
-            staggerIndex: 0,
-            staggerDelay: const Duration(milliseconds: 55),
-            actions: [
-              prism.OutlinedButton(
-                onPressed: _busy.isEmpty ? _chooseDirectory : null,
-                child: const Text('选择目录'),
-              ),
-            ],
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                prism.SelectableText(
-                  _directory.isEmpty ? '尚未选择目录' : _directory,
-                  style: prism.AppTextStyle.footnote
-                      .of(context)
-                      .copyWith(color: colors.onSurfaceVariant),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  '使用页面右上角的「立即备份」「导入备份」操作当前目录；此处仅维护目录位置。',
-                  style: prism.AppTextStyle.caption1
-                      .of(context)
-                      .copyWith(color: colors.onSurfaceVariant),
-                ),
-              ],
-            ),
-          ),
-          if (_activeProgress != null) ...[
-            const SizedBox(height: 12),
-            _buildProgressSection(),
-          ],
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '备份历史',
-                  style: prism.AppTextStyle.headline.of(context),
-                ),
+              PrismBadge(
+                label: '$currentCount 个',
+                tone: currentCount == 0
+                    ? PrismTone.neutral
+                    : PrismTone.primary,
               ),
               SizedBox(
                 width: 280,
                 child: prism.SegmentedControl<int>(
                   segments: const [(0, '本地'), (1, 'OpenList'), (2, 'S3')],
                   value: _historyTab,
-                  onChanged: (value) {
-                    setState(() => _historyTab = value);
-                    if (value == 1 && _openListConfigured) {
-                      _loadOpenListBackups();
-                    } else if (value == 2 && _s3Configured) {
-                      _loadS3Backups();
-                    }
-                  },
+                  onChanged: _selectHistoryTab,
                 ),
               ),
             ],
+            padding: const EdgeInsets.fromLTRB(16, 12, 14, 10),
           ),
-          const SizedBox(height: 10),
+          const prism.Divider(height: 1),
           Expanded(
-            child: prism.PageTransitionSwitcher(
-              duration: PrismMotionSpec.current.pageDuration,
-              transitionBuilder: PrismSlideThroughTransition.builder,
-              child: KeyedSubtree(
-                key: ValueKey(_historyTab),
-                child: _buildHistoryBody(),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
+              child: prism.PageTransitionSwitcher(
+                duration: PrismMotionSpec.current.pageDuration,
+                transitionBuilder: PrismSlideThroughTransition.builder,
+                child: KeyedSubtree(
+                  key: ValueKey(_historyTab),
+                  child: _buildHistoryBody(),
+                ),
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildOverviewStrip(context),
+          const SizedBox(height: 12),
+          _buildToolbar(context),
+          if (_activeProgress != null) ...[
+            const SizedBox(height: 12),
+            _buildProgressSection(),
+          ],
+          const SizedBox(height: 12),
+          Expanded(child: _buildHistorySection(context)),
         ],
       ),
     );

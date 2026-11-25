@@ -18,6 +18,7 @@ class NotificationsPage extends StatefulWidget {
 }
 
 class _NotificationsPageState extends State<NotificationsPage> {
+  final _searchController = TextEditingController();
   String _filter = 'all';
 
   @override
@@ -26,6 +27,12 @@ class _NotificationsPageState extends State<NotificationsPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) widget.store.markAllRead();
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _clear() async {
@@ -50,237 +57,443 @@ class _NotificationsPageState extends State<NotificationsPage> {
     if (confirmed == true) widget.store.clear();
   }
 
+  String _sourceLabel(dynamic rawSource) => switch ('${rawSource ?? 'system'}') {
+    'operation' => '操作',
+    'runtime' => '运行状态',
+    'frontend' => '前端',
+    _ => '系统',
+  };
+
+  Widget _buildOverviewStrip({
+    required int total,
+    required int unread,
+    required int errorCount,
+    required int warningCount,
+  }) {
+    final tiles = [
+      PrismMetricTile(
+        label: '全部通知',
+        value: '$total',
+        subtitle: _filter == 'all' ? '当前查看全部' : '点击查看全部通知',
+        glyph: AntGlyphs.bell,
+        tone: PrismTone.primary,
+        onPressed: () => setState(() => _filter = 'all'),
+        staggerIndex: 0,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+      PrismMetricTile(
+        label: '未读',
+        value: '$unread',
+        subtitle: _filter == 'unread' ? '已筛选 · 点击恢复全部' : '点击仅看未读',
+        glyph: AntGlyphs.mail,
+        tone: unread > 0 ? PrismTone.info : PrismTone.neutral,
+        onPressed: () => setState(
+          () => _filter = _filter == 'unread' ? 'all' : 'unread',
+        ),
+        staggerIndex: 1,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+      PrismMetricTile(
+        label: '错误',
+        value: '$errorCount',
+        subtitle: _filter == 'error' ? '已筛选 · 点击恢复全部' : '点击仅看错误',
+        glyph: AntGlyphs.error,
+        tone: errorCount > 0 ? PrismTone.danger : PrismTone.neutral,
+        onPressed: () => setState(
+          () => _filter = _filter == 'error' ? 'all' : 'error',
+        ),
+        staggerIndex: 2,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+      PrismMetricTile(
+        label: '警告',
+        value: '$warningCount',
+        subtitle: _filter == 'warning' ? '已筛选 · 点击恢复全部' : '点击仅看警告',
+        glyph: AntGlyphs.warning,
+        tone: warningCount > 0 ? PrismTone.warning : PrismTone.neutral,
+        onPressed: () => setState(
+          () => _filter = _filter == 'warning' ? 'all' : 'warning',
+        ),
+        staggerIndex: 3,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= 760) {
+          return Row(
+            children: [
+              for (var i = 0; i < tiles.length; i++) ...[
+                if (i > 0) const SizedBox(width: 12),
+                Expanded(child: tiles[i]),
+              ],
+            ],
+          );
+        }
+        return Column(
+          children: [
+            Row(
+              children: [
+                Expanded(child: tiles[0]),
+                const SizedBox(width: 10),
+                Expanded(child: tiles[1]),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(child: tiles[2]),
+                const SizedBox(width: 10),
+                Expanded(child: tiles[3]),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildToolbar({
+    required int total,
+    required int unread,
+    required int errorCount,
+    required int warningCount,
+  }) {
+    final filterControl = ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 360),
+      child: prism.SegmentedControl<String>(
+        value: _filter,
+        onChanged: (value) => setState(() => _filter = value),
+        segments: [
+          ('all', '全部 ($total)'),
+          ('unread', '未读 ($unread)'),
+          ('error', '错误 ($errorCount)'),
+          ('warning', '警告 ($warningCount)'),
+        ],
+      ),
+    );
+    final actionWidgets = <Widget>[
+      PrismHoverMotion(
+        enabled: unread > 0,
+        child: PrismTonalButton.icon(
+          onPressed: unread > 0 ? widget.store.markAllRead : null,
+          icon: const PrismGlyph(AntGlyphs.doneAll, size: 16),
+          child: const Text('全部已读'),
+        ),
+      ),
+      PrismHoverMotion(
+        enabled: total > 0,
+        child: prism.OutlinedButton.icon(
+          onPressed: total > 0 ? _clear : null,
+          icon: const PrismGlyph(AntGlyphs.delete, size: 16),
+          label: const Text('清空通知'),
+        ),
+      ),
+    ];
+
+    return PrismHoverCard(
+      staggerIndex: 4,
+      staggerDelay: const Duration(milliseconds: 45),
+      radius: prism.AppCorner.xl,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= 860;
+          if (wide) {
+            return Row(
+              children: [
+                Expanded(
+                  child: PrismSearchBar(
+                    controller: _searchController,
+                    hintText: '搜索通知标题、内容或来源…',
+                    height: 36,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                filterControl,
+                const SizedBox(width: 10),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: actionWidgets,
+                ),
+              ],
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: PrismSearchBar(
+                      controller: _searchController,
+                      hintText: '搜索通知标题、内容或来源…',
+                      height: 36,
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  filterControl,
+                ],
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: actionWidgets,
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildNotificationCard(
+    BuildContext context,
+    Map<String, dynamic> item,
+    int index,
+  ) {
+    final colors = prism.Theme.of(context).colorScheme;
+    final id = '${item['id'] ?? ''}';
+    final type = '${item['type'] ?? 'info'}';
+    final isRead = item['read'] == true;
+    final tone = switch (type) {
+      'error' => PrismTone.danger,
+      'warning' => PrismTone.warning,
+      'success' => PrismTone.success,
+      _ => PrismTone.info,
+    };
+    final palette = PrismToneColors.of(context, tone);
+    final glyph = switch (type) {
+      'error' => AntGlyphs.error,
+      'warning' => AntGlyphs.warning,
+      'success' => AntGlyphs.checkCircle,
+      _ => AntGlyphs.info,
+    };
+    final action = item['action'] is Map
+        ? Map<String, dynamic>.from(item['action'] as Map)
+        : null;
+    final source = _sourceLabel(item['source']);
+
+    return PrismHoverCard(
+      staggerIndex: index.clamp(0, 6),
+      staggerDelay: const Duration(milliseconds: 40),
+      radius: prism.AppCorner.xl,
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          prism.Surface(
+            color: palette.bg,
+            shape: prism.AppShape.md,
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: PrismGlyph(glyph, color: palette.fg, size: 18),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    if (!isRead) ...[
+                      const PrismBadge(
+                        label: '未读',
+                        tone: PrismTone.primary,
+                        dot: true,
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    Expanded(
+                      child: Text(
+                        '${item['title'] ?? '通知'}',
+                        style: prism.AppTextStyle.subheadline.of(
+                          context,
+                          emphasized: !isRead,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '$source · ${item['time'] ?? ''}',
+                  style: prism.AppTextStyle.caption1
+                      .of(context)
+                      .copyWith(color: colors.onSurfaceVariant),
+                ),
+                const SizedBox(height: 8),
+                prism.SelectableText(
+                  '${item['message'] ?? ''}',
+                  style: prism.AppTextStyle.body
+                      .of(context)
+                      .copyWith(color: colors.onSurface, height: 1.5),
+                ),
+                if (action != null && action['path'] is String) ...[
+                  const SizedBox(height: 8),
+                  prism.TextButton.icon(
+                    onPressed: () {
+                      widget.store.markRead(id);
+                      widget.onNavigate(action['path'] as String);
+                    },
+                    icon: const PrismGlyph(AntGlyphs.arrowForward, size: 16),
+                    label: Text('${action['label'] ?? '查看'}'),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (!isRead)
+            prism.IconButton(
+              tooltip: '标记为已读',
+              onPressed: () => widget.store.markRead(id),
+              icon: const PrismGlyph(AntGlyphs.check, size: 18),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final colors = prism.Theme.of(context).colorScheme;
     return AnimatedBuilder(
       animation: widget.store,
       builder: (context, child) {
         final all = widget.store.notifications;
         final unread = widget.store.unreadCount;
+        final errorCount = all.where((item) => item['type'] == 'error').length;
+        final warningCount = all
+            .where((item) => item['type'] == 'warning')
+            .length;
+        final query = _searchController.text.trim().toLowerCase();
+
         final filtered = all.where((item) {
-          switch (_filter) {
-            case 'unread':
-              return item['read'] != true;
-            case 'error':
-            case 'warning':
-              return item['type'] == _filter;
-            default:
-              return true;
-          }
+          final matchesType = switch (_filter) {
+            'unread' => item['read'] != true,
+            'error' || 'warning' => item['type'] == _filter,
+            _ => true,
+          };
+          if (!matchesType) return false;
+          if (query.isEmpty) return true;
+          final title = '${item['title'] ?? ''}'.toLowerCase();
+          final message = '${item['message'] ?? ''}'.toLowerCase();
+          final source = _sourceLabel(item['source']).toLowerCase();
+          final time = '${item['time'] ?? ''}'.toLowerCase();
+          return title.contains(query) ||
+              message.contains(query) ||
+              source.contains(query) ||
+              time.contains(query);
         }).toList();
-        final counts = {
-          'all': all.length,
-          'unread': unread,
-          'error': all.where((item) => item['type'] == 'error').length,
-          'warning': all.where((item) => item['type'] == 'warning').length,
-        };
+
+        final hasActiveFilter = _filter != 'all' || query.isNotEmpty;
 
         return Padding(
-          padding: const EdgeInsets.fromLTRB(24, 6, 24, 24),
+          padding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              PrismPageContextBar(
-                glyph: AntGlyphs.bell,
-                title: '通知中心',
-                subtitle: '实例崩溃、代理桥接与备份任务的运行通知。',
-                actions: [
-                  if (unread > 0)
-                    PrismBadge(
-                      label: '$unread 条未读',
-                      tone: PrismTone.primary,
-                      dot: true,
-                    ),
-                  if (unread > 0)
-                    prism.TextButton.icon(
-                      onPressed: widget.store.markAllRead,
-                      icon: const PrismGlyph(AntGlyphs.doneAll, size: 17),
-                      label: const Text('全部标为已读'),
-                    ),
-                  if (all.isNotEmpty)
-                    prism.TextButton.icon(
-                      onPressed: _clear,
-                      icon: const PrismGlyph(AntGlyphs.delete, size: 17),
-                      label: const Text('清空通知'),
-                    ),
-                ],
+              _buildOverviewStrip(
+                total: all.length,
+                unread: unread,
+                errorCount: errorCount,
+                warningCount: warningCount,
               ),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 520),
-                child: prism.SegmentedControl<String>(
-                  value: _filter,
-                  onChanged: (value) => setState(() => _filter = value),
-                  segments: [
-                    ('all', '全部 (${counts['all']})'),
-                    ('unread', '未读 (${counts['unread']})'),
-                    ('error', '错误 (${counts['error']})'),
-                    ('warning', '警告 (${counts['warning']})'),
-                  ],
-                ),
+              const SizedBox(height: 12),
+              _buildToolbar(
+                total: all.length,
+                unread: unread,
+                errorCount: errorCount,
+                warningCount: warningCount,
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               Expanded(
-                child: prism.PageTransitionSwitcher(
-                  duration: PrismMotionSpec.current.pageDuration,
-                  transitionBuilder: PrismSlideThroughTransition.builder,
-                  child: KeyedSubtree(
-                    key: ValueKey('$_filter-${filtered.isEmpty}'),
-                    child: filtered.isEmpty
-                        ? PrismEmptyState(
-                            glyph: AntGlyphs.bell,
-                            title: all.isEmpty ? '暂无通知' : '当前筛选没有通知',
-                            subtitle: all.isEmpty
-                                ? '系统提醒、运行状态与错误消息会显示在这里。'
-                                : '切换到“全部”查看所有历史通知。',
-                            action: all.isNotEmpty && _filter != 'all'
-                                ? prism.OutlinedButton(
-                                    onPressed: () =>
-                                        setState(() => _filter = 'all'),
-                                    child: const Text('查看全部通知'),
-                                  )
-                                : null,
-                          )
-                        : ListView.separated(
-                            padding: kPrismListPadding,
-                            itemCount: filtered.length,
-                            separatorBuilder: (context, index) =>
-                                const SizedBox(height: 8),
-                            itemBuilder: (context, index) {
-                              final item = filtered[index];
-                              final id = '${item['id'] ?? ''}';
-                              final type = '${item['type'] ?? 'info'}';
-                              final isRead = item['read'] == true;
-                              final tone = switch (type) {
-                                'error' => PrismTone.danger,
-                                'warning' => PrismTone.warning,
-                                'success' => PrismTone.success,
-                                _ => PrismTone.info,
-                              };
-                              final palette = PrismToneColors.of(context, tone);
-                              final glyph = switch (type) {
-                                'error' => AntGlyphs.error,
-                                'warning' => AntGlyphs.warning,
-                                'success' => AntGlyphs.checkCircle,
-                                _ => AntGlyphs.info,
-                              };
-                              final action = item['action'] is Map
-                                  ? Map<String, dynamic>.from(
-                                      item['action'] as Map,
-                                    )
-                                  : null;
-                              final source =
-                                  switch ('${item['source'] ?? 'system'}') {
-                                    'operation' => '操作',
-                                    'runtime' => '运行状态',
-                                    'frontend' => '前端',
-                                    _ => '系统',
-                                  };
-                              return PrismHoverCard(
-                                staggerIndex: index.clamp(0, 6),
-                                staggerDelay: const Duration(milliseconds: 40),
-                                radius: prism.AppCorner.xl,
-                                padding: const EdgeInsets.all(14),
-                                child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                prism.Surface(
-                                  color: palette.bg,
-                                  shape: prism.AppShape.md,
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(8),
-                                    child: PrismGlyph(
-                                      glyph,
-                                      color: palette.fg,
-                                      size: 18,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          if (!isRead) ...[
-                                            const PrismBadge(
-                                              label: '未读',
-                                              tone: PrismTone.primary,
-                                              dot: true,
-                                            ),
-                                            const SizedBox(width: 8),
-                                          ],
-                                          Expanded(
-                                            child: Text(
-                                              '${item['title'] ?? '通知'}',
-                                              style: prism
-                                                  .AppTextStyle
-                                                  .subheadline
-                                                  .of(
-                                                    context,
-                                                    emphasized: !isRead,
-                                                  ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        '$source · ${item['time'] ?? ''}',
-                                        style: prism.AppTextStyle.caption1
-                                            .of(context)
-                                            .copyWith(
-                                              color: colors.onSurfaceVariant,
-                                            ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      prism.SelectableText(
-                                        '${item['message'] ?? ''}',
-                                        style: prism.AppTextStyle.body
-                                            .of(context)
-                                            .copyWith(
-                                              color: colors.onSurface,
-                                              height: 1.5,
-                                            ),
-                                      ),
-                                      if (action != null &&
-                                          action['path'] is String) ...[
-                                        const SizedBox(height: 8),
-                                        prism.TextButton.icon(
-                                          onPressed: () {
-                                            widget.store.markRead(id);
-                                            widget.onNavigate(
-                                              action['path'] as String,
-                                            );
-                                          },
-                                          icon: const PrismGlyph(
-                                            AntGlyphs.arrowForward,
-                                            size: 16,
-                                          ),
-                                          label: Text(
-                                            '${action['label'] ?? '查看'}',
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
-                                if (!isRead)
-                                  prism.IconButton(
-                                    tooltip: '标记为已读',
-                                    onPressed: () => widget.store.markRead(id),
-                                    icon: const PrismGlyph(
-                                      AntGlyphs.check,
-                                      size: 18,
-                                    ),
-                                  ),
-                              ],
+                child: PrismHoverCard(
+                  staggerIndex: 5,
+                  staggerDelay: const Duration(milliseconds: 45),
+                  radius: prism.AppCorner.xl,
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      prism.InfoHeader(
+                        info: const prism.Info(
+                          label: '通知列表',
+                          glyph: AntGlyphs.bell,
+                        ),
+                        actions: [
+                          if (unread > 0)
+                            PrismBadge(
+                              label: '$unread 条未读',
+                              tone: PrismTone.primary,
+                              dot: true,
                             ),
-                          );
-                        },
+                          PrismBadge(
+                            label: '${filtered.length} 条',
+                            tone: filtered.isEmpty
+                                ? PrismTone.neutral
+                                : PrismTone.info,
+                          ),
+                        ],
+                        padding: const EdgeInsets.fromLTRB(16, 12, 14, 10),
                       ),
+                      const prism.Divider(height: 1),
+                      Expanded(
+                        child: prism.PageTransitionSwitcher(
+                          duration: PrismMotionSpec.current.pageDuration,
+                          transitionBuilder:
+                              PrismSlideThroughTransition.builder,
+                          child: KeyedSubtree(
+                            key: ValueKey(
+                              '$_filter-$query-${filtered.isEmpty}',
+                            ),
+                            child: filtered.isEmpty
+                                ? PrismEmptyState(
+                                    glyph: AntGlyphs.bell,
+                                    title: all.isEmpty ? '暂无通知' : '当前筛选没有通知',
+                                    subtitle: all.isEmpty
+                                        ? '系统提醒、运行状态与错误消息会显示在这里。'
+                                        : '清空搜索或切换到“全部”查看所有历史通知。',
+                                    action: all.isNotEmpty && hasActiveFilter
+                                        ? prism.OutlinedButton(
+                                            onPressed: () => setState(() {
+                                              _filter = 'all';
+                                              _searchController.clear();
+                                            }),
+                                            child: const Text('查看全部通知'),
+                                          )
+                                        : null,
+                                  )
+                                : Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 6,
+                                    ),
+                                    child: ListView.separated(
+                                      padding: kPrismListPadding,
+                                      itemCount: filtered.length,
+                                      separatorBuilder: (context, index) =>
+                                          const SizedBox(height: 8),
+                                      itemBuilder: (context, index) =>
+                                          _buildNotificationCard(
+                                            context,
+                                            filtered[index],
+                                            index,
+                                          ),
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
