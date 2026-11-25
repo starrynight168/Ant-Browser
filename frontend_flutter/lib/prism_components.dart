@@ -218,26 +218,28 @@ class PrismSectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: margin,
-      child: prism.Card(
-        radius: radius,
-        inert: true,
-        padding: EdgeInsets.zero,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (title != null && title!.isNotEmpty) ...[
-              prism.InfoHeader(
-                info: prism.Info(label: title!, glyph: glyph),
-                actions: actions,
-                padding: const EdgeInsets.fromLTRB(16, 14, 14, 10),
-              ),
-              const prism.Divider(height: 1),
+    return RepaintBoundary(
+      child: Padding(
+        padding: margin,
+        child: prism.Card(
+          radius: radius,
+          inert: true,
+          padding: EdgeInsets.zero,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (title != null && title!.isNotEmpty) ...[
+                prism.InfoHeader(
+                  info: prism.Info(label: title!, glyph: glyph),
+                  actions: actions,
+                  padding: const EdgeInsets.fromLTRB(16, 14, 14, 10),
+                ),
+                const prism.Divider(height: 1),
+              ],
+              Padding(padding: padding, child: child),
             ],
-            Padding(padding: padding, child: child),
-          ],
+          ),
         ),
       ),
     );

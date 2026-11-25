@@ -489,14 +489,16 @@ class _SettingsPageState extends State<SettingsPage> {
       }
       children.add(rows[i]);
     }
-    return prism.Card(
-      radius: prism.AppCorner.xl,
-      inert: true,
-      padding: EdgeInsets.zero,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: children,
+    return RepaintBoundary(
+      child: prism.Card(
+        radius: prism.AppCorner.xl,
+        inert: true,
+        padding: EdgeInsets.zero,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: children,
+        ),
       ),
     );
   }
@@ -1226,34 +1228,38 @@ class _SettingsPageState extends State<SettingsPage> {
             title: '运行时诊断信息',
             glyph: AntGlyphs.info,
             padding: EdgeInsets.zero,
-            child: Column(
-              children: [
-                for (var i = 0; i < runtimeDetails.length; i++) ...[
-                  if (i > 0)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 18),
-                      child: prism.Divider(height: 1),
-                    ),
-                  prism.ListRow(
-                    minHeight: 44,
-                    minVerticalPadding: 6,
-                    title: Text(
-                      runtimeDetails[i].$1,
-                      style: prism.AppTextStyle.footnote
-                          .of(context)
-                          .copyWith(color: colors.onSurfaceVariant),
-                    ),
-                    trailing: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 480),
-                      child: prism.SelectableText(
-                        runtimeDetails[i].$2,
-                        textAlign: TextAlign.end,
-                        style: prism.AppTextStyle.footnote.of(context),
+            child: prism.SelectionArea(
+              child: Column(
+                children: [
+                  for (var i = 0; i < runtimeDetails.length; i++) ...[
+                    if (i > 0)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 18),
+                        child: prism.Divider(height: 1),
+                      ),
+                    prism.ListRow(
+                      minHeight: 44,
+                      minVerticalPadding: 6,
+                      title: Text(
+                        runtimeDetails[i].$1,
+                        style: prism.AppTextStyle.footnote
+                            .of(context)
+                            .copyWith(color: colors.onSurfaceVariant),
+                      ),
+                      trailing: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 480),
+                        child: Text(
+                          runtimeDetails[i].$2,
+                          textAlign: TextAlign.end,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: prism.AppTextStyle.footnote.of(context),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ],
