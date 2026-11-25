@@ -81,7 +81,7 @@ class _SettingsPageState extends State<SettingsPage> {
   String _nodeSource = 'auto';
   String _savedNodeSource = 'auto';
   String _savedSystemNodePath = '';
-  bool _loading = true;
+  bool _loading = false;
   bool _saving = false;
   String _busy = '';
   void Function()? _unsubscribeRuntimeProgress;
@@ -89,11 +89,22 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void initState() {
     super.initState();
+    try {
+      final raw = AppBridge.readStorage('app_settings');
+      final stored = raw.isEmpty ? null : jsonDecode(raw);
+      if (stored is Map) {
+        _settings = <String, dynamic>{
+          ..._defaultAppSettings,
+          ...Map<String, dynamic>.from(stored),
+        };
+        _savedSettings = Map<String, dynamic>.from(_settings);
+      }
+    } catch (_) {}
     for (final entry in _numberBounds.entries) {
       final key = entry.key;
       final (min, max) = entry.value;
       _numberControllers[key] = TextEditingController(
-        text: '${_defaultAppSettings[key]}',
+        text: '${_int(key, min)}',
       );
       final node = FocusNode();
       node.addListener(() {
@@ -103,6 +114,7 @@ class _SettingsPageState extends State<SettingsPage> {
       });
       _numberFocusNodes[key] = node;
     }
+    _syncControllersFromSettings();
     _systemNodePathController.addListener(_onRuntimeInputChanged);
     _unsubscribeRuntimeProgress = AppBridge.onEvent(
       'automation:runtime:progress',
@@ -204,7 +216,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    if (mounted) setState(() => _loading = true);
     try {
       final raw = AppBridge.readStorage('app_settings');
       final stored = raw.isEmpty ? null : jsonDecode(raw);
@@ -213,9 +225,15 @@ class _SettingsPageState extends State<SettingsPage> {
         if (stored is Map) ...Map<String, dynamic>.from(stored),
       };
       final results = await Future.wait([
-        AppBridge.call('GetAutomationState'),
-        AppBridge.call('GetLaunchServerInfo'),
-        AppBridge.call('GetLogLevel'),
+        AppBridge.call('GetAutomationState')
+            .timeout(const Duration(seconds: 4))
+            .catchError((_) => null),
+        AppBridge.call('GetLaunchServerInfo')
+            .timeout(const Duration(seconds: 4))
+            .catchError((_) => null),
+        AppBridge.call('GetLogLevel')
+            .timeout(const Duration(seconds: 4))
+            .catchError((_) => null),
       ]);
       final automation = _asMap(results[0]);
       final launchServer = _asMap(results[1]);
@@ -224,13 +242,14 @@ class _SettingsPageState extends State<SettingsPage> {
       }
       if (!mounted) return;
       final rtSettings = _nested(automation, 'settings');
-      final nodeSource = '${rtSettings['nodeSource'] ?? 'auto'}';
-      final sysNodePath = '${rtSettings['systemNodePath'] ?? ''}';
+      final nodeSource = '${rtSettings['nodeSource'] ?? _nodeSource}';
+      final sysNodePath =
+          '${rtSettings['systemNodePath'] ?? _savedSystemNodePath}';
       setState(() {
         _settings = settings;
         _savedSettings = Map<String, dynamic>.from(settings);
-        _automation = automation;
-        _launchServer = launchServer;
+        if (automation.isNotEmpty) _automation = automation;
+        if (launchServer.isNotEmpty) _launchServer = launchServer;
         _nodeSource = nodeSource;
         _savedNodeSource = nodeSource;
         _savedSystemNodePath = sysNodePath;
@@ -568,8 +587,6 @@ class _SettingsPageState extends State<SettingsPage> {
     final automationReady = automationStatus['ready'] == true;
     final automationInstalling = automationStatus['installing'] == true;
     final launchReady = _launchServer['ready'] == true;
-
-    if (_loading) return const Center(child: PrismProgressIndicator());
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 6, 24, 24),

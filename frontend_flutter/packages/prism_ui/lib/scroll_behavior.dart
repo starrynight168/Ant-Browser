@@ -2,6 +2,7 @@ import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:prism_ui/scroll.dart';
 import 'package:prism_ui/theme_data.dart';
@@ -47,10 +48,12 @@ class BaseScrollBehavior extends ScrollBehavior {
         !showScrollbar(context)) {
       return child;
     }
-    return Scrollbar.ambient(
-      controller: details.controller,
-      padding: scrollbarPadding,
-      child: child,
+    return _SmoothWheelScroll(
+      child: Scrollbar.ambient(
+        controller: details.controller,
+        padding: scrollbarPadding,
+        child: child,
+      ),
     );
   }
 
@@ -81,6 +84,67 @@ class BaseScrollBehavior extends ScrollBehavior {
   @override
   bool shouldNotify(covariant BaseScrollBehavior oldDelegate) {
     return oldDelegate.scrollbarPadding != scrollbarPadding;
+  }
+}
+
+class _SmoothWheelScroll extends StatefulWidget {
+  const _SmoothWheelScroll({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_SmoothWheelScroll> createState() => _SmoothWheelScrollState();
+}
+
+class _SmoothWheelScrollState extends State<_SmoothWheelScroll> {
+  double? _target;
+  int _lastDirection = 0;
+  DateTime _lastEventAt = DateTime.fromMillisecondsSinceEpoch(0);
+
+  void _handlePointerSignal(PointerSignalEvent event) {
+    if (event is! PointerScrollEvent) return;
+    if (event.kind != PointerDeviceKind.mouse) return;
+    final dy = event.scrollDelta.dy;
+    if (dy == 0) return;
+    final position = Scrollable.maybeOf(context)?.position;
+    if (position == null || !position.hasPixels) return;
+    if (position.maxScrollExtent <= position.minScrollExtent) return;
+
+    final direction = dy > 0 ? 1 : -1;
+    final atEdge =
+        (direction > 0 && position.pixels >= position.maxScrollExtent - 0.5) ||
+        (direction < 0 && position.pixels <= position.minScrollExtent + 0.5);
+    if (atEdge) return;
+
+    GestureBinding.instance.pointerSignalResolver.register(event, (_) {
+      if (!mounted || !position.hasPixels) return;
+      final now = DateTime.now();
+      final continuing =
+          _target != null &&
+          direction == _lastDirection &&
+          now.difference(_lastEventAt).inMilliseconds < 280;
+      final base = continuing ? _target! : position.pixels;
+      final next = (base + dy * 1.15).clamp(
+        position.minScrollExtent,
+        position.maxScrollExtent,
+      );
+      _target = next;
+      _lastDirection = direction;
+      _lastEventAt = now;
+      position.animateTo(
+        next,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      onPointerSignal: _handlePointerSignal,
+      child: widget.child,
+    );
   }
 }
 
