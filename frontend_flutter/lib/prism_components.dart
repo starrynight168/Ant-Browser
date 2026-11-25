@@ -876,12 +876,14 @@ class PrismSlidingRail<T> extends StatelessWidget {
                     height: itemHeight,
                     child: Stack(
                       children: [
-                        _PrismSlidingRailTile<T>(
-                          item: items[i],
-                          selected: items[i].value == selectedValue,
-                          showSelectionBadge: showSelectionBadge,
-                          showSubtitle: showSubtitle,
-                          onTap: () => onSelected(items[i].value),
+                        Positioned.fill(
+                          child: _PrismSlidingRailTile<T>(
+                            item: items[i],
+                            selected: items[i].value == selectedValue,
+                            showSelectionBadge: showSelectionBadge,
+                            showSubtitle: showSubtitle,
+                            onTap: () => onSelected(items[i].value),
+                          ),
                         ),
                         if (showDividers &&
                             i < items.length - 1 &&
