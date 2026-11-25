@@ -685,14 +685,10 @@ class _SettingsPageState extends State<SettingsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
-                    child: Text(
-                      '设置分类',
-                      style: prism.AppTextStyle.caption1
-                          .of(context, emphasized: true)
-                          .copyWith(color: colors.onSurfaceVariant),
-                    ),
+                  PrismSectionDividerHeader(
+                    label: '设置分类',
+                    trailing: '${_SettingsSection.values.length}',
+                    padding: const EdgeInsets.fromLTRB(10, 4, 10, 8),
                   ),
                   PrismSlidingRail<_SettingsSection>(
                     items: [

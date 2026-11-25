@@ -362,9 +362,10 @@ class _SidebarPane extends StatelessWidget {
                             selected: index == selectedIndex,
                             tooltip: rowTooltip(destination.label),
                             onTap: () => onSelected(index),
-                            child: _DestinationRow(
+                            hoverBuilder: (context, hovered) => _DestinationRow(
                               destination: destination,
                               selected: index == selectedIndex,
+                              hovered: hovered,
                               width: rowWidth,
                               iconInset: iconInset,
                               style: index == selectedIndex
@@ -398,7 +399,7 @@ class _SidebarPane extends StatelessWidget {
   }
 }
 
-class _SidebarButton extends StatelessWidget {
+class _SidebarButton extends StatefulWidget {
   const _SidebarButton({
     super.key,
     required this.colors,
@@ -406,7 +407,8 @@ class _SidebarButton extends StatelessWidget {
     required this.sideInset,
     required this.tooltip,
     required this.onTap,
-    required this.child,
+    this.child,
+    this.hoverBuilder,
     this.selected,
     this.tooltipIsLabel = false,
   });
@@ -418,13 +420,24 @@ class _SidebarButton extends StatelessWidget {
   final String tooltip;
   final bool tooltipIsLabel;
   final VoidCallback onTap;
-  final Widget child;
+  final Widget? child;
+  final Widget Function(BuildContext context, bool hovered)? hoverBuilder;
+
+  @override
+  State<_SidebarButton> createState() => _SidebarButtonState();
+}
+
+class _SidebarButtonState extends State<_SidebarButton> {
+  bool _hovered = false;
 
   @override
   Widget build(BuildContext context) {
+    final selected = widget.selected;
+    final content =
+        widget.hoverBuilder?.call(context, _hovered) ?? widget.child!;
     return Padding(
       padding: EdgeInsets.symmetric(
-        horizontal: sideInset,
+        horizontal: widget.sideInset,
         vertical: _itemGap / 2,
       ),
       child: Semantics(
@@ -434,20 +447,27 @@ class _SidebarButton extends StatelessWidget {
         child: FocusRing(
           shape: _itemShape,
           child: PressRegion(
-            onTap: onTap,
+            onTap: widget.onTap,
+            onHover: (hovered) {
+              if (_hovered != hovered) {
+                setState(() => _hovered = hovered);
+              }
+            },
             shape: _itemShape,
-            fill: selected == true ? colors.selectedFill : null,
-            overlay: colors.overlay,
+            fill: selected == true ? widget.colors.selectedFill : null,
+            overlay: widget.colors.overlay,
             mouseCursor: SystemMouseCursors.click,
             child: Tooltip(
-              message: tooltip,
-              excludeFromSemantics: !tooltipIsLabel,
+              message: widget.tooltip,
+              excludeFromSemantics: !widget.tooltipIsLabel,
               child: IconTheme.merge(
                 data: IconThemeData(
                   size: _iconSize,
-                  color: selected == true ? colors.selectedIcon : colors.icon,
+                  color: selected == true
+                      ? widget.colors.selectedIcon
+                      : widget.colors.icon,
                 ),
-                child: SizedBox(height: height, child: child),
+                child: SizedBox(height: widget.height, child: content),
               ),
             ),
           ),
@@ -481,6 +501,7 @@ class _DestinationRow extends StatelessWidget {
   const _DestinationRow({
     required this.destination,
     required this.selected,
+    this.hovered = false,
     required this.width,
     required this.iconInset,
     required this.style,
@@ -489,6 +510,7 @@ class _DestinationRow extends StatelessWidget {
 
   final SidebarDestination destination;
   final bool selected;
+  final bool hovered;
   final double width;
   final double iconInset;
   final TextStyle? style;
@@ -496,31 +518,37 @@ class _DestinationRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final nudge = (hovered || selected) && labelOpacity > 0.5 ? 5.0 : 0.0;
     return ClipRect(
       child: OverflowBox(
         alignment: AlignmentDirectional.centerStart,
         minWidth: width,
         maxWidth: width,
-        child: Row(
-          children: [
-            SizedBox(width: iconInset),
-            AnimatedGlyph(glyph: destination.glyph, filled: selected),
-            const SizedBox(width: _labelGap),
-            Expanded(
-              child: Opacity(
-                opacity: labelOpacity,
-                alwaysIncludeSemantics: true,
-                child: Text(
-                  destination.label,
-                  maxLines: 1,
-                  softWrap: false,
-                  overflow: TextOverflow.ellipsis,
-                  style: style,
+        child: AnimatedPadding(
+          duration: context.motionDuration(const Duration(milliseconds: 220)),
+          curve: Curves.easeOutCubic,
+          padding: EdgeInsetsDirectional.only(start: nudge),
+          child: Row(
+            children: [
+              SizedBox(width: iconInset),
+              AnimatedGlyph(glyph: destination.glyph, filled: selected),
+              const SizedBox(width: _labelGap),
+              Expanded(
+                child: Opacity(
+                  opacity: labelOpacity,
+                  alwaysIncludeSemantics: true,
+                  child: Text(
+                    destination.label,
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.ellipsis,
+                    style: style,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: _labelGap),
-          ],
+              const SizedBox(width: _labelGap),
+            ],
+          ),
         ),
       ),
     );

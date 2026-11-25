@@ -457,31 +457,60 @@ class _TagsPageState extends State<TagsPage> {
                           child: ListView(
                             padding: const EdgeInsets.all(8),
                             children: [
-                              _TagButton(
-                                label: '全部实例',
-                                count: _profiles.length,
-                                selected: _selectedTag == null,
-                                onTap: () => setState(() {
-                                  _selectedTag = null;
+                              PrismSlidingRail<String>(
+                                itemHeight: 42,
+                                gap: 2,
+                                showDividers: true,
+                                selectedValue: _selectedTag ?? '',
+                                onSelected: (value) => setState(() {
+                                  _selectedTag = value.isEmpty ? null : value;
                                   _selectedIds.clear();
                                 }),
+                                items: [
+                                  PrismSlidingRailItem<String>(
+                                    value: '',
+                                    title: '全部实例',
+                                    glyph: AntGlyphs.browser,
+                                    trailing: PrismBadge(
+                                      label: '${_profiles.length}',
+                                      tone: _selectedTag == null
+                                          ? PrismTone.primary
+                                          : PrismTone.neutral,
+                                    ),
+                                  ),
+                                  for (var i = 0; i < tags.length; i++)
+                                    PrismSlidingRailItem<String>(
+                                      value: tags[i],
+                                      title: tags[i],
+                                      glyph: AntGlyphs.tag,
+                                      sectionHeader: i == 0 ? '标签分组' : null,
+                                      sectionTrailing: i == 0
+                                          ? '${tags.length}'
+                                          : null,
+                                      trailing: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          PrismBadge(
+                                            label: '${counts[tags[i]] ?? 0}',
+                                            tone: _selectedTag == tags[i]
+                                                ? PrismTone.primary
+                                                : PrismTone.neutral,
+                                          ),
+                                          const SizedBox(width: 2),
+                                          prism.IconButton(
+                                            tooltip: '重命名',
+                                            onPressed: () =>
+                                                _renameTag(tags[i]),
+                                            icon: const PrismGlyph(
+                                              AntGlyphs.edit,
+                                              size: 14,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                ],
                               ),
-                              PrismSectionDividerHeader(
-                                label: '标签分组',
-                                trailing: '${tags.length}',
-                              ),
-                              for (var i = 0; i < tags.length; i++)
-                                _TagButton(
-                                  label: tags[i],
-                                  count: counts[tags[i]] ?? 0,
-                                  selected: _selectedTag == tags[i],
-                                  showDivider: i < tags.length - 1,
-                                  onTap: () => setState(() {
-                                    _selectedTag = tags[i];
-                                    _selectedIds.clear();
-                                  }),
-                                  onRename: () => _renameTag(tags[i]),
-                                ),
                               if (tags.isEmpty)
                                 Padding(
                                   padding: const EdgeInsets.all(14),
@@ -876,50 +905,4 @@ class _TagsPageState extends State<TagsPage> {
   }
 
   Future<void> _removeSelectedTag() => _removeTag();
-}
-
-class _TagButton extends StatelessWidget {
-  const _TagButton({
-    required this.label,
-    required this.count,
-    required this.selected,
-    required this.onTap,
-    this.onRename,
-    this.showDivider = false,
-  });
-
-  final String label;
-  final int count;
-  final bool selected;
-  final VoidCallback onTap;
-  final VoidCallback? onRename;
-  final bool showDivider;
-
-  @override
-  Widget build(BuildContext context) {
-    return PrismNavItem(
-      label: label,
-      glyph: AntGlyphs.tag,
-      selected: selected,
-      showDivider: showDivider,
-      onTap: onTap,
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          PrismBadge(
-            label: '$count',
-            tone: selected ? PrismTone.primary : PrismTone.neutral,
-          ),
-          if (onRename != null) ...[
-            const SizedBox(width: 2),
-            prism.IconButton(
-              tooltip: '重命名',
-              onPressed: onRename,
-              icon: const PrismGlyph(AntGlyphs.edit, size: 14),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
 }

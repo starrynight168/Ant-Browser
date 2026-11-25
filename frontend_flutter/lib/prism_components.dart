@@ -745,6 +745,9 @@ class PrismSlidingRailItem<T> {
     this.subtitle,
     this.glyph,
     this.statusTone,
+    this.trailing,
+    this.sectionHeader,
+    this.sectionTrailing,
   });
 
   final T value;
@@ -752,9 +755,12 @@ class PrismSlidingRailItem<T> {
   final String? subtitle;
   final prism_icons.Glyph? glyph;
   final PrismTone? statusTone;
+  final Widget? trailing;
+  final String? sectionHeader;
+  final String? sectionTrailing;
 }
 
-/// 滑动弹簧胶囊导航栏：选中项背景以弹簧轨迹在列表项间无缝滑动，悬停/选中附带轻推与颜色渐变。
+/// 滑动弹簧胶囊导航栏：选中背景与左侧竖向指示条以弹簧轨迹在条目与分组间联动滑动，悬停附带水平微推与下划线分隔。
 class PrismSlidingRail<T> extends StatelessWidget {
   const PrismSlidingRail({
     super.key,
@@ -763,6 +769,9 @@ class PrismSlidingRail<T> extends StatelessWidget {
     required this.onSelected,
     this.itemHeight = 54.0,
     this.gap = 4.0,
+    this.showDividers = true,
+    this.showSelectionBadge = false,
+    this.sectionHeaderHeight = 34.0,
   });
 
   final List<PrismSlidingRailItem<T>> items;
@@ -770,6 +779,17 @@ class PrismSlidingRail<T> extends StatelessWidget {
   final ValueChanged<T> onSelected;
   final double itemHeight;
   final double gap;
+  final bool showDividers;
+  final bool showSelectionBadge;
+  final double sectionHeaderHeight;
+
+  double _topOf(int index) {
+    var headers = 0;
+    for (var i = 0; i <= index && i < items.length; i++) {
+      if (items[i].sectionHeader != null) headers++;
+    }
+    return index * (itemHeight + gap) + headers * sectionHeaderHeight;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -777,7 +797,7 @@ class PrismSlidingRail<T> extends StatelessWidget {
     final colors = prism.Theme.of(context).colorScheme;
     final rawIndex = items.indexWhere((item) => item.value == selectedValue);
     final activeIndex = rawIndex < 0 ? 0 : rawIndex;
-    final pitch = itemHeight + gap;
+    final indicatorHeight = (itemHeight * 0.42).clamp(16.0, 22.0);
 
     return ListenableBuilder(
       listenable: appMotionIntensity,
@@ -790,12 +810,32 @@ class PrismSlidingRail<T> extends StatelessWidget {
               curve: spec.springCurve,
               left: 0,
               right: 0,
-              top: activeIndex * pitch,
+              top: _topOf(activeIndex),
               height: itemHeight,
-              child: prism.Surface(
-                color: colors.primaryContainer,
-                shape: prism.AppShape.lg,
-                child: const SizedBox.expand(),
+              child: IgnorePointer(
+                child: prism.Surface(
+                  color: colors.primaryContainer,
+                  shape: prism.AppShape.lg,
+                  child: Stack(
+                    alignment: AlignmentDirectional.centerStart,
+                    children: [
+                      const SizedBox.expand(),
+                      PositionedDirectional(
+                        start: 4,
+                        child: SizedBox(
+                          width: 3,
+                          height: indicatorHeight,
+                          child: DecoratedBox(
+                            decoration: ShapeDecoration(
+                              color: colors.primary,
+                              shape: prism.AppShape.full,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
             Column(
@@ -803,12 +843,42 @@ class PrismSlidingRail<T> extends StatelessWidget {
               children: [
                 for (var i = 0; i < items.length; i++) ...[
                   if (i > 0) SizedBox(height: gap),
+                  if (items[i].sectionHeader != null)
+                    SizedBox(
+                      height: sectionHeaderHeight,
+                      child: Align(
+                        alignment: Alignment.bottomLeft,
+                        child: PrismSectionDividerHeader(
+                          label: items[i].sectionHeader!,
+                          trailing: items[i].sectionTrailing,
+                          padding: const EdgeInsets.fromLTRB(10, 4, 10, 4),
+                        ),
+                      ),
+                    ),
                   SizedBox(
                     height: itemHeight,
-                    child: _PrismSlidingRailTile<T>(
-                      item: items[i],
-                      selected: items[i].value == selectedValue,
-                      onTap: () => onSelected(items[i].value),
+                    child: Stack(
+                      children: [
+                        _PrismSlidingRailTile<T>(
+                          item: items[i],
+                          selected: items[i].value == selectedValue,
+                          showSelectionBadge: showSelectionBadge,
+                          onTap: () => onSelected(items[i].value),
+                        ),
+                        if (showDividers &&
+                            i < items.length - 1 &&
+                            items[i + 1].sectionHeader == null &&
+                            i != activeIndex &&
+                            i + 1 != activeIndex)
+                          const Positioned(
+                            left: 42,
+                            right: 10,
+                            bottom: 0,
+                            child: IgnorePointer(
+                              child: prism.Divider(height: 1),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ],
@@ -825,11 +895,13 @@ class _PrismSlidingRailTile<T> extends StatefulWidget {
   const _PrismSlidingRailTile({
     required this.item,
     required this.selected,
+    required this.showSelectionBadge,
     required this.onTap,
   });
 
   final PrismSlidingRailItem<T> item;
   final bool selected;
+  final bool showSelectionBadge;
   final VoidCallback onTap;
 
   @override
@@ -855,55 +927,69 @@ class _PrismSlidingRailTileState<T> extends State<_PrismSlidingRailTile<T>> {
         : colors.onSurfaceVariant;
 
     final spec = PrismMotionSpec.current;
-    // 背景由外层 Stack 滑动胶囊承担；缩放/左推由全局动效强度驱动。
+    // 背景与左竖条由外层 Stack 滑动胶囊承担；保留水平轻推，不缩放点击热区以确保命中稳固。
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
-      child: PrismHoverMotion(
-        hoverScale: spec.railHoverScale,
-        pressScale: spec.railPressScale,
-        scaleByIntensity: false,
-        child: prism.PressRegion(
-          onTap: widget.onTap,
-          shape: prism.AppShape.lg,
-          child: AnimatedContainer(
-            duration: spec.enabled
-                ? const Duration(milliseconds: 160)
-                : Duration.zero,
-            curve: Curves.easeOut,
-            decoration: ShapeDecoration(
-              color: !widget.selected && _hovered
-                  ? colors.onSurface.withValues(alpha: 0.05)
-                  : const Color(0x00000000),
-              shape: prism.AppShape.lg,
+      child: prism.PressRegion(
+        onTap: widget.onTap,
+        shape: prism.AppShape.lg,
+        overlay: prism.PressRegion.pressOverlay,
+        mouseCursor: SystemMouseCursors.click,
+        child: AnimatedContainer(
+          duration: spec.enabled
+              ? const Duration(milliseconds: 160)
+              : Duration.zero,
+          curve: Curves.easeOut,
+          decoration: ShapeDecoration(
+            color: !widget.selected && _hovered
+                ? colors.primary.withValues(alpha: 0.06)
+                : const Color(0x00000000),
+            shape: prism.AppShape.lg,
+          ),
+          child: AnimatedPadding(
+            duration: spec.railPaddingDuration,
+            curve: spec.springCurve,
+            padding: EdgeInsets.fromLTRB(
+              (_hovered || widget.selected)
+                  ? 14.0 + spec.railNudgePx * 0.65
+                  : 14.0,
+              6,
+              10,
+              6,
             ),
-            child: AnimatedPadding(
-              duration: spec.railPaddingDuration,
-              curve: spec.springCurve,
-              padding: EdgeInsets.fromLTRB(
-                (_hovered || widget.selected) ? 12.0 + spec.railNudgePx : 12.0,
-                8,
-                12,
-                8,
-              ),
-              child: Row(
-                children: [
-                  if (item.glyph != null) ...[
-                    PrismGlyph(
-                      item.glyph!,
-                      size: 18,
-                      color: widget.selected
-                          ? colors.onPrimaryContainer
-                          : colors.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 10),
-                  ],
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
+            child: Row(
+              children: [
+                if (item.glyph != null) ...[
+                  PrismGlyph(
+                    item.glyph!,
+                    size: 18,
+                    color: widget.selected
+                        ? colors.onPrimaryContainer
+                        : colors.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 10),
+                ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AnimatedDefaultTextStyle(
+                        duration: spec.enabled
+                            ? const Duration(milliseconds: 220)
+                            : Duration.zero,
+                        curve: Curves.easeOut,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: prism.AppTextStyle.subheadline
+                            .of(context, emphasized: widget.selected)
+                            .copyWith(color: titleColor),
+                        child: Text(item.title),
+                      ),
+                      if (item.subtitle != null &&
+                          item.subtitle!.isNotEmpty) ...[
                         AnimatedDefaultTextStyle(
                           duration: spec.enabled
                               ? const Duration(milliseconds: 220)
@@ -911,44 +997,42 @@ class _PrismSlidingRailTileState<T> extends State<_PrismSlidingRailTile<T>> {
                           curve: Curves.easeOut,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: prism.AppTextStyle.subheadline
-                              .of(context, emphasized: widget.selected)
-                              .copyWith(color: titleColor),
-                          child: Text(item.title),
+                          style: prism.AppTextStyle.caption2
+                              .of(context)
+                              .copyWith(color: subtitleColor),
+                          child: Text(item.subtitle!),
                         ),
-                        if (item.subtitle != null &&
-                            item.subtitle!.isNotEmpty) ...[
-                          AnimatedDefaultTextStyle(
-                            duration: spec.enabled
-                                ? const Duration(milliseconds: 220)
-                                : Duration.zero,
-                            curve: Curves.easeOut,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: prism.AppTextStyle.caption2
-                                .of(context)
-                                .copyWith(color: subtitleColor),
-                            child: Text(item.subtitle!),
-                          ),
-                        ],
                       ],
-                    ),
+                    ],
                   ),
-                  if (dotColor != null) ...[
-                    const SizedBox(width: 6),
-                    SizedBox(
-                      width: 7,
-                      height: 7,
-                      child: DecoratedBox(
-                        decoration: ShapeDecoration(
-                          color: dotColor,
-                          shape: const CircleBorder(),
-                        ),
+                ),
+                if (item.trailing != null) ...[
+                  const SizedBox(width: 8),
+                  item.trailing!,
+                ] else if (dotColor != null) ...[
+                  const SizedBox(width: 6),
+                  SizedBox(
+                    width: 7,
+                    height: 7,
+                    child: DecoratedBox(
+                      decoration: ShapeDecoration(
+                        color: dotColor,
+                        shape: const CircleBorder(),
                       ),
                     ),
-                  ],
+                  ),
+                ] else if (widget.showSelectionBadge) ...[
+                  const SizedBox(width: 8),
+                  if (widget.selected)
+                    const prism.SelectionBadge(size: 18, tonal: true)
+                  else
+                    PrismGlyph(
+                      AntGlyphs.chevronForward,
+                      size: 14,
+                      color: colors.onSurfaceVariant.withValues(alpha: 0.45),
+                    ),
                 ],
-              ),
+              ],
             ),
           ),
         ),

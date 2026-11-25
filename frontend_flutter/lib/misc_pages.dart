@@ -299,30 +299,34 @@ class _DocsPageState extends State<DocsPage> {
                               : ListView(
                                   padding: const EdgeInsets.all(10),
                                   children: [
-                                    for (final group in filteredGroups) ...[
-                                      PrismSectionDividerHeader(
-                                        label: group.label,
-                                        trailing: '${group.items.length}',
-                                      ),
-                                      for (
-                                        var i = 0;
-                                        i < group.items.length;
-                                        i++
-                                      )
-                                        PrismNavItem(
-                                          label: group.items[i].label,
-                                          glyph: group.glyph,
-                                          selected:
-                                              group.items[i].id == _selected,
-                                          showDivider:
-                                              i < group.items.length - 1,
-                                          showSelectionBadge: true,
-                                          onTap: () => setState(
-                                            () =>
-                                                _selected = group.items[i].id,
-                                          ),
-                                        ),
-                                    ],
+                                    PrismSlidingRail<String>(
+                                      itemHeight: 42,
+                                      gap: 2,
+                                      showDividers: true,
+                                      showSelectionBadge: true,
+                                      selectedValue: section.id,
+                                      onSelected: (id) =>
+                                          setState(() => _selected = id),
+                                      items: [
+                                        for (final group in filteredGroups)
+                                          for (
+                                            var i = 0;
+                                            i < group.items.length;
+                                            i++
+                                          )
+                                            PrismSlidingRailItem<String>(
+                                              value: group.items[i].id,
+                                              title: group.items[i].label,
+                                              glyph: group.glyph,
+                                              sectionHeader: i == 0
+                                                  ? group.label
+                                                  : null,
+                                              sectionTrailing: i == 0
+                                                  ? '${group.items.length}'
+                                                  : null,
+                                            ),
+                                      ],
+                                    ),
                                   ],
                                 ),
                         ),
