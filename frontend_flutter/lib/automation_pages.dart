@@ -1110,6 +1110,8 @@ class _AutomationPageState extends State<AutomationPage> {
   String _apiAuthHeader = 'X-Ant-Api-Key';
   bool _apiAuthEnabled = false;
   final Set<String> _selectedScriptIds = {};
+  final _searchController = TextEditingController();
+  String _modeFilter = 'all';
   bool _loading = true;
   String _busy = '';
 
@@ -1117,6 +1119,36 @@ class _AutomationPageState extends State<AutomationPage> {
   void initState() {
     super.initState();
     _refresh();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<Map<String, dynamic>> _filteredScripts() {
+    final query = _searchController.text.trim().toLowerCase();
+    return _scripts.where((script) {
+      final interfaceMode = _isInterfaceMode(script);
+      final status = '${script['status'] ?? 'draft'}';
+      final matchesMode = switch (_modeFilter) {
+        'script' => !interfaceMode,
+        'api' => interfaceMode,
+        'ready' => status == 'ready',
+        _ => true,
+      };
+      if (!matchesMode) return false;
+      if (query.isEmpty) return true;
+      final name = '${script['name'] ?? ''}'.toLowerCase();
+      final desc = '${script['description'] ?? ''}'.toLowerCase();
+      final id = '${script['id'] ?? ''}'.toLowerCase();
+      final code = _resolveLaunchCode(script, _profiles).toLowerCase();
+      return name.contains(query) ||
+          desc.contains(query) ||
+          id.contains(query) ||
+          code.contains(query);
+    }).toList();
   }
 
   Future<void> _refresh() async {
@@ -1847,7 +1879,11 @@ class _AutomationPageState extends State<AutomationPage> {
     );
   }
 
-  Widget _buildScriptCard(BuildContext context, Map<String, dynamic> script) {
+  Widget _buildScriptCard(
+    BuildContext context,
+    Map<String, dynamic> script, {
+    int index = 0,
+  }) {
     final colors = prism.Theme.of(context).colorScheme;
     final id = '${script['id'] ?? ''}';
     final name = '${script['name'] ?? '未命名脚本'}';
@@ -1862,13 +1898,14 @@ class _AutomationPageState extends State<AutomationPage> {
     );
     final pinned = id == _dualInstanceScriptId;
 
-    return PrismCard(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+    return PrismHoverCard(
+      staggerIndex: index.clamp(0, 6),
+      staggerDelay: const Duration(milliseconds: 35),
+      radius: prism.AppCorner.xl,
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -2062,159 +2099,447 @@ class _AutomationPageState extends State<AutomationPage> {
             ),
           ],
         ),
+    );
+  }
+
+  Widget _buildOverviewStrip(BuildContext context) {
+    final readyCount = _scripts
+        .where((s) => '${s['status'] ?? 'draft'}' == 'ready')
+        .length;
+    final draftCount = _scripts.length - readyCount;
+    final apiModeCount = _scripts.where(_isInterfaceMode).length;
+    final successRuns = _runs.where((r) => r['status'] == 'success').length;
+    final failedRuns = _runs.length - successRuns;
+    final runningProfiles = _profiles
+        .where((p) => p['running'] == true)
+        .length;
+
+    final tiles = [
+      PrismMetricTile(
+        label: '脚本总数',
+        value: '${_scripts.length}',
+        subtitle: _scripts.isEmpty
+            ? '支持 Playwright 与 API 模式'
+            : '就绪 $readyCount · 草稿 $draftCount',
+        glyph: AntGlyphs.robot,
+        tone: PrismTone.primary,
+        staggerIndex: 0,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+      PrismMetricTile(
+        label: '接口模式',
+        value: '$apiModeCount',
+        subtitle: _apiAuthEnabled ? 'API 鉴权已开启' : 'Launch Server 就绪',
+        glyph: AntGlyphs.api,
+        tone: PrismTone.info,
+        staggerIndex: 1,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+      PrismMetricTile(
+        label: '近期运行',
+        value: '${_runs.length}',
+        subtitle: _runs.isEmpty
+            ? '暂无执行记录'
+            : '成功 $successRuns · 失败 $failedRuns',
+        glyph: AntGlyphs.history,
+        tone: failedRuns > 0 ? PrismTone.warning : PrismTone.success,
+        onPressed: _showHistory,
+        staggerIndex: 2,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+      PrismMetricTile(
+        label: '可用实例',
+        value: '${_profiles.length}',
+        subtitle: '运行中 $runningProfiles 个',
+        glyph: AntGlyphs.browser,
+        tone: PrismTone.neutral,
+        staggerIndex: 3,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= 760) {
+          return Row(
+            children: [
+              for (var i = 0; i < tiles.length; i++) ...[
+                if (i > 0) const SizedBox(width: 12),
+                Expanded(child: tiles[i]),
+              ],
+            ],
+          );
+        }
+        return Column(
+          children: [
+            Row(
+              children: [
+                Expanded(child: tiles[0]),
+                const SizedBox(width: 10),
+                Expanded(child: tiles[1]),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(child: tiles[2]),
+                const SizedBox(width: 10),
+                Expanded(child: tiles[3]),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildToolbar(BuildContext context) {
+    final filterControl = SizedBox(
+      width: 280,
+      child: prism.SegmentedControl<String>(
+        value: _modeFilter,
+        onChanged: (value) => setState(() => _modeFilter = value),
+        segments: const [
+          ('all', '全部'),
+          ('script', '脚本'),
+          ('api', '接口'),
+          ('ready', '就绪'),
+        ],
+      ),
+    );
+    final actionWidgets = <Widget>[
+      if (_selectedScriptIds.isNotEmpty)
+        PrismTonalButton.icon(
+          onPressed: _busy.isEmpty ? _exportSelectedScripts : null,
+          icon: const PrismGlyph(AntGlyphs.download, size: 15),
+          child: Text('导出 (${_selectedScriptIds.length})'),
+        ),
+      PrismHoverMotion(
+        enabled: _busy.isEmpty,
+        child: prism.FilledButton.icon(
+          onPressed: _busy.isEmpty ? widget.onCreate : null,
+          icon: const PrismGlyph(AntGlyphs.add, size: 15),
+          label: const Text('新建脚本'),
+        ),
+      ),
+      PrismPopupMenuButton<String>(
+        tooltip: '导入脚本',
+        enabled: _busy.isEmpty,
+        icon: const PrismGlyph(AntGlyphs.upload, size: 17),
+        onSelected: _import,
+        itemBuilder: (_) => const [
+          PrismMenuItem(value: 'file', child: Text('从文件导入')),
+          PrismMenuItem(value: 'directory', child: Text('从文件夹导入')),
+          PrismMenuItem(value: 'library', child: Text('导入内置脚本库')),
+          PrismMenuItem(value: 'remote', child: Text('从网址导入')),
+          PrismMenuItem(value: 'git', child: Text('从 Git 仓库导入')),
+          PrismMenuItem(value: 'text', child: Text('粘贴文本导入')),
+        ],
+      ),
+      prism.IconButton(
+        tooltip: '刷新',
+        onPressed: _refresh,
+        icon: const PrismGlyph(AntGlyphs.refresh, size: 17),
+      ),
+    ];
+
+    return PrismHoverCard(
+      staggerIndex: 4,
+      staggerDelay: const Duration(milliseconds: 45),
+      radius: prism.AppCorner.xl,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= 820;
+          if (wide) {
+            return Row(
+              children: [
+                Expanded(
+                  child: PrismSearchBar(
+                    controller: _searchController,
+                    hintText: '搜索脚本名称、说明或启动码…',
+                    height: 36,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                filterControl,
+                const SizedBox(width: 10),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: actionWidgets,
+                ),
+              ],
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: PrismSearchBar(
+                      controller: _searchController,
+                      hintText: '搜索脚本名称、说明或启动码…',
+                      height: 36,
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  filterControl,
+                ],
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: actionWidgets,
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildScriptsSection(
+    BuildContext context,
+    List<Map<String, dynamic>> filteredScripts,
+  ) {
+    final queryText = _searchController.text.trim();
+    return PrismHoverCard(
+      staggerIndex: 5,
+      staggerDelay: const Duration(milliseconds: 45),
+      radius: prism.AppCorner.xl,
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          prism.InfoHeader(
+            info: const prism.Info(label: '脚本列表', glyph: AntGlyphs.code),
+            actions: [
+              if (_selectedScriptIds.isNotEmpty)
+                prism.TextButton(
+                  onPressed: () => setState(() => _selectedScriptIds.clear()),
+                  child: const Text('取消选择'),
+                ),
+              PrismBadge(
+                label: '${filteredScripts.length} 个',
+                tone: filteredScripts.isEmpty
+                    ? PrismTone.neutral
+                    : PrismTone.primary,
+              ),
+            ],
+            padding: const EdgeInsets.fromLTRB(16, 12, 14, 10),
+          ),
+          const prism.Divider(height: 1),
+          Expanded(
+            child: prism.PageTransitionSwitcher(
+              duration: PrismMotionSpec.current.pageDuration,
+              transitionBuilder: PrismSlideThroughTransition.builder,
+              child: KeyedSubtree(
+                key: ValueKey(
+                  '$_modeFilter-$queryText-${filteredScripts.isEmpty}',
+                ),
+                child: filteredScripts.isEmpty
+                    ? (_scripts.isEmpty
+                          ? PrismEmptyState(
+                              glyph: AntGlyphs.robot,
+                              title: '还没有自动化脚本',
+                              subtitle: '创建第一个 Playwright / Launch API 脚本，或直接导入内置脚本库快速上手。',
+                              action: Wrap(
+                                spacing: 10,
+                                runSpacing: 8,
+                                alignment: WrapAlignment.center,
+                                children: [
+                                  PrismHoverMotion(
+                                    child: prism.FilledButton.icon(
+                                      onPressed: widget.onCreate,
+                                      icon: const PrismGlyph(
+                                        AntGlyphs.add,
+                                        size: 15,
+                                      ),
+                                      label: const Text('新建脚本'),
+                                    ),
+                                  ),
+                                  PrismHoverMotion(
+                                    child: prism.OutlinedButton.icon(
+                                      onPressed: _busy.isEmpty
+                                          ? () => _import('library')
+                                          : null,
+                                      icon: const PrismGlyph(
+                                        AntGlyphs.download,
+                                        size: 15,
+                                      ),
+                                      label: const Text('导入内置脚本库'),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : PrismEmptyState(
+                              glyph: AntGlyphs.search,
+                              title: '没有匹配的脚本',
+                              subtitle: '尝试调整关键词或切换上方筛选分类。',
+                              action: prism.OutlinedButton(
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() => _modeFilter = 'all');
+                                },
+                                child: const Text('重置筛选'),
+                              ),
+                            ))
+                    : ListView.separated(
+                        padding: const EdgeInsets.all(12),
+                        itemCount: filteredScripts.length,
+                        separatorBuilder: (_, __) =>
+                            const SizedBox(height: 10),
+                        itemBuilder: (context, index) => _buildScriptCard(
+                          context,
+                          filteredScripts[index],
+                          index: index,
+                        ),
+                      ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecentRunsSection(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
+    final recentRuns = _runs.take(15).toList();
+    return PrismHoverCard(
+      staggerIndex: 6,
+      staggerDelay: const Duration(milliseconds: 45),
+      radius: prism.AppCorner.xl,
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          prism.InfoHeader(
+            info: const prism.Info(label: '最近运行', glyph: AntGlyphs.history),
+            actions: [
+              prism.TextButton(
+                onPressed: _showHistory,
+                child: const Text('全部记录'),
+              ),
+            ],
+            padding: const EdgeInsets.fromLTRB(16, 12, 10, 10),
+          ),
+          const prism.Divider(height: 1),
+          Expanded(
+            child: recentRuns.isEmpty
+                ? const PrismEmptyState(
+                    glyph: AntGlyphs.history,
+                    title: '暂无运行记录',
+                    subtitle: '运行脚本或通过对外接口触发后，调用记录会显示在这里。',
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    itemCount: recentRuns.length,
+                    separatorBuilder: (_, __) => const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 14),
+                      child: prism.Divider(height: 1),
+                    ),
+                    itemBuilder: (context, index) {
+                      final run = recentRuns[index];
+                      final success = run['status'] == 'success';
+                      final tone = PrismToneColors.of(
+                        context,
+                        success ? PrismTone.success : PrismTone.danger,
+                      );
+                      return PrismListTile(
+                        onTap: () => _showRunDetails(run),
+                        leading: prism.Surface(
+                          color: tone.bg,
+                          shape: prism.AppShape.md,
+                          child: Padding(
+                            padding: const EdgeInsets.all(6),
+                            child: PrismGlyph(
+                              success ? AntGlyphs.checkCircle : AntGlyphs.error,
+                              size: 16,
+                              color: tone.fg,
+                            ),
+                          ),
+                        ),
+                        title: Text(
+                          (run['scriptName'] ?? run['scriptId'] ?? '')
+                              .toString(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: prism.AppTextStyle.subheadline.of(
+                            context,
+                            emphasized: true,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '${_formatDateTime(run['startedAt'])} · '
+                          '${_formatDuration(run['durationMs'])}'
+                          '${'${run['summary'] ?? run['error'] ?? ''}'.trim().isNotEmpty ? '\n${run['summary'] ?? run['error']}' : ''}',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: prism.AppTextStyle.caption1
+                              .of(context)
+                              .copyWith(color: colors.onSurfaceVariant),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors = prism.Theme.of(context).colorScheme;
+    final filteredScripts = _filteredScripts();
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 6, 24, 24),
+      padding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          PrismPageContextBar(
-            glyph: AntGlyphs.robot,
-            title: '自动化脚本',
-            subtitle: '管理脚本与接口模式，运行并跟踪调用记录。',
-            actions: [
-              prism.FilledButton.icon(
-                onPressed: _busy.isEmpty ? widget.onCreate : null,
-                icon: const PrismGlyph(AntGlyphs.add, size: 16),
-                label: const Text('新建脚本'),
-              ),
-              prism.TonalButtonGroup(
-                size: prism.TonalButtonSize.section,
-                children: [
-                  prism.IconButton(
-                    tooltip: '调用记录',
-                    onPressed: _showHistory,
-                    icon: const PrismGlyph(AntGlyphs.history, size: 18),
-                  ),
-                  if (_selectedScriptIds.isNotEmpty)
-                    prism.IconButton(
-                      tooltip: '导出选中脚本 ZIP',
-                      onPressed: _busy.isEmpty
-                          ? _exportSelectedScripts
-                          : null,
-                      icon: const PrismGlyph(AntGlyphs.download, size: 18),
-                    ),
-                  prism.IconButton(
-                    tooltip: '刷新',
-                    onPressed: _refresh,
-                    icon: const PrismGlyph(AntGlyphs.refresh, size: 18),
-                  ),
-                ],
-              ),
-              PrismPopupMenuButton<String>(
-                tooltip: '导入脚本',
-                enabled: _busy.isEmpty,
-                icon: const PrismGlyph(AntGlyphs.upload, size: 17),
-                onSelected: _import,
-                itemBuilder: (_) => const [
-                  PrismMenuItem(value: 'file', child: Text('从文件导入')),
-                  PrismMenuItem(value: 'directory', child: Text('从文件夹导入')),
-                  PrismMenuItem(value: 'library', child: Text('导入内置脚本库')),
-                  PrismMenuItem(value: 'remote', child: Text('从网址导入')),
-                  PrismMenuItem(value: 'git', child: Text('从 Git 仓库导入')),
-                  PrismMenuItem(value: 'text', child: Text('粘贴文本导入')),
-                ],
-              ),
-            ],
-          ),
+          _buildOverviewStrip(context),
+          const SizedBox(height: 12),
+          _buildToolbar(context),
+          const SizedBox(height: 12),
           Expanded(
             child: _loading
                 ? const Center(child: PrismProgressIndicator())
-                : ListView(
-                    children: [
-                      Text(
-                        '脚本列表（${_scripts.length}）',
-                        style: prism.AppTextStyle.subheadline.of(
-                          context,
-                          emphasized: true,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      if (_scripts.isEmpty)
-                        PrismEmptyState(
-                          glyph: AntGlyphs.robot,
-                          title: '还没有自动化脚本',
-                          subtitle: '点击“新建脚本”或从右上角导入脚本包',
-                          action: prism.FilledButton.icon(
-                            onPressed: widget.onCreate,
-                            icon: const PrismGlyph(AntGlyphs.add, size: 15),
-                            label: const Text('新建脚本'),
-                          ),
-                        ),
-                      for (final script in _scripts)
-                        _buildScriptCard(context, script),
-                      const SizedBox(height: 18),
-                      Row(
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      final scriptsSection = _buildScriptsSection(
+                        context,
+                        filteredScripts,
+                      );
+                      final recentRunsSection = _buildRecentRunsSection(
+                        context,
+                      );
+                      if (constraints.maxWidth >= 960) {
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(child: scriptsSection),
+                            const SizedBox(width: 14),
+                            SizedBox(width: 340, child: recentRunsSection),
+                          ],
+                        );
+                      }
+                      return Column(
                         children: [
-                          Expanded(
-                            child: Text(
-                              '最近运行',
-                              style: prism.AppTextStyle.subheadline.of(
-                                context,
-                                emphasized: true,
-                              ),
-                            ),
-                          ),
-                          prism.TextButton(
-                            onPressed: _showHistory,
-                            child: const Text('查看全部记录'),
-                          ),
+                          Expanded(flex: 3, child: scriptsSection),
+                          const SizedBox(height: 12),
+                          Expanded(flex: 2, child: recentRunsSection),
                         ],
-                      ),
-                      const SizedBox(height: 8),
-                      if (_runs.isEmpty)
-                        const PrismEmptyState(
-                          glyph: AntGlyphs.history,
-                          title: '暂无运行记录',
-                        ),
-                      for (final run in _runs.take(10))
-                        Builder(
-                          builder: (context) {
-                            final success = run['status'] == 'success';
-                            final tone = PrismToneColors.of(
-                              context,
-                              success ? PrismTone.success : PrismTone.danger,
-                            );
-                            return PrismCard(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              child: PrismListTile(
-                                onTap: () => _showRunDetails(run),
-                                leading: PrismGlyph(
-                                  success
-                                      ? AntGlyphs.checkCircle
-                                      : AntGlyphs.error,
-                                  size: 18,
-                                  color: tone.fg,
-                                ),
-                                title: Text(
-                                  (run['scriptName'] ?? run['scriptId'] ?? '')
-                                      .toString(),
-                                  style: prism.AppTextStyle.subheadline.of(
-                                    context,
-                                    emphasized: true,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  '${_formatDateTime(run['startedAt'])} · '
-                                  '${_formatDuration(run['durationMs'])} · '
-                                  '${run['summary'] ?? run['error'] ?? ''}',
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: prism.AppTextStyle.caption1
-                                      .of(context)
-                                      .copyWith(color: colors.onSurfaceVariant),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                    ],
+                      );
+                    },
                   ),
           ),
         ],
