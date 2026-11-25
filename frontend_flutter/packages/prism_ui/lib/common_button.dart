@@ -727,9 +727,9 @@ class _StyledButtonState extends State<_StyledButton> {
     final pressed = enabled && _states.value.contains(WidgetState.pressed);
     final hovered = enabled && _states.value.contains(WidgetState.hovered);
     final scale = pressed
-        ? 0.965
+        ? 0.96
         : hovered
-        ? 1.025
+        ? 1.035
         : 1.0;
     return AnimatedScale(
       scale: scale,

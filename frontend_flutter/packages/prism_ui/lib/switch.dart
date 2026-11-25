@@ -63,6 +63,7 @@ class _SwitchState extends State<Switch> with TickerProviderStateMixin {
   late final _motion = Listenable.merge([_position, _press]);
 
   Timer? _tapLiftTimer;
+  bool _hovered = false;
   var _dragging = false;
   var _focused = false;
 
@@ -284,6 +285,7 @@ class _SwitchState extends State<Switch> with TickerProviderStateMixin {
         enabled: enabled,
         mouseCursor: enabled ? SystemMouseCursors.click : MouseCursor.defer,
         onShowFocusHighlight: (value) => setState(() => _focused = value),
+        onShowHoverHighlight: (value) => setState(() => _hovered = value),
         actions: {
           ActivateIntent: CallbackAction<ActivateIntent>(
             onInvoke: (_) => _flip(),
@@ -300,11 +302,16 @@ class _SwitchState extends State<Switch> with TickerProviderStateMixin {
           onHorizontalDragCancel: enabled ? _handleCancel : null,
           child: _buildTapTarget(
             enabled: enabled,
-            child: SizedBox.fromSize(
-              size: size,
-              child: AnimatedBuilder(
-                animation: _motion,
-                builder: (context, _) => _buildParts(context, size),
+            child: AnimatedScale(
+              scale: enabled && _hovered ? 1.06 : 1.0,
+              duration: const Duration(milliseconds: 160),
+              curve: Curves.easeOutCubic,
+              child: SizedBox.fromSize(
+                size: size,
+                child: AnimatedBuilder(
+                  animation: _motion,
+                  builder: (context, _) => _buildParts(context, size),
+                ),
               ),
             ),
           ),

@@ -58,39 +58,93 @@ class SegmentedControl<T> extends StatelessWidget {
             children: [
               for (final (option, label) in segments)
                 Expanded(
-                  child: PressSurface(
-                    fill: const Color(0x00000000),
-                    shape: AppShape.full,
-                    look: option == value ? PressLook.none : PressLook.ink,
-                    ringStandsOff: option == value,
+                  child: _SegmentButton(
+                    label: label,
                     selected: option == value,
-                    childFills: true,
-                    // A null onPressed would unfocus the selected segment.
                     onPressed: option == value
                         ? () {}
                         : () => onChanged(option),
-                    child: Center(
-                      child: AnimatedDefaultTextStyle(
-                        duration: const Duration(milliseconds: 200),
-                        style: AppTextStyle.subheadline
-                            .of(context, emphasized: option == value)
-                            .copyWith(
-                              color: option == value
-                                  ? colorScheme.onPrimary
-                                  : colorScheme.onSurfaceVariant,
-                            ),
-                        child: Text(
-                          label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
                   ),
                 ),
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SegmentButton extends StatefulWidget {
+  const _SegmentButton({
+    required this.label,
+    required this.selected,
+    required this.onPressed,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onPressed;
+
+  @override
+  State<_SegmentButton> createState() => _SegmentButtonState();
+}
+
+class _SegmentButtonState extends State<_SegmentButton> {
+  bool _hovered = false;
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = context.colorScheme;
+    final scale = _pressed
+        ? 0.94
+        : _hovered
+        ? 1.05
+        : 1.0;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() {
+        _hovered = false;
+        _pressed = false;
+      }),
+      child: Listener(
+        onPointerDown: (_) => setState(() => _pressed = true),
+        onPointerUp: (_) => setState(() => _pressed = false),
+        onPointerCancel: (_) => setState(() => _pressed = false),
+        child: PressSurface(
+          fill: const Color(0x00000000),
+          shape: AppShape.full,
+          look: widget.selected ? PressLook.none : PressLook.ink,
+          ringStandsOff: widget.selected,
+          selected: widget.selected,
+          childFills: true,
+          onPressed: widget.onPressed,
+          child: Center(
+            child: AnimatedScale(
+              scale: scale,
+              duration: Duration(milliseconds: _pressed ? 85 : 165),
+              curve: Curves.easeOutCubic,
+              child: AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 200),
+                style: AppTextStyle.subheadline
+                    .of(context, emphasized: widget.selected || _hovered)
+                    .copyWith(
+                      color: widget.selected
+                          ? colorScheme.onPrimary
+                          : _hovered
+                          ? colorScheme.onSurface
+                          : colorScheme.onSurfaceVariant,
+                    ),
+                child: Text(
+                  widget.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
