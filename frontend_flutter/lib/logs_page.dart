@@ -79,11 +79,15 @@ class _LogsPageState extends State<LogsPage> {
             _initialScrollDone = true;
             _scrollController.jumpTo(position.maxScrollExtent);
           } else if (_autoScroll) {
-            _scrollController.animateTo(
-              position.maxScrollExtent,
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOut,
-            );
+            if (!PrismMotionSpec.current.enabled) {
+              _scrollController.jumpTo(position.maxScrollExtent);
+            } else {
+              _scrollController.animateTo(
+                position.maxScrollExtent,
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOut,
+              );
+            }
           }
         });
       }
@@ -463,6 +467,7 @@ class _LogsPageState extends State<LogsPage> {
                   )
                 : ListView.separated(
                     controller: _scrollController,
+                    padding: const EdgeInsets.only(bottom: 12),
                     itemCount: filtered.length,
                     separatorBuilder: (context, index) =>
                         const SizedBox(height: 6),

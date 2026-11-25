@@ -536,38 +536,11 @@ class _SettingsPageState extends State<SettingsPage> {
   int _staggerSeq = 0;
 
   Widget _groupedCard(List<Widget> rows, {bool hoverGlow = true}) {
-    final children = <Widget>[];
-    for (var i = 0; i < rows.length; i++) {
-      if (i > 0) {
-        children.add(
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 18),
-            child: prism.Divider(height: 1),
-          ),
-        );
-      }
-      children.add(rows[i]);
-    }
-    return RepaintBoundary(
-      // 进场 stagger（逐卡浮入）+ 悬停高光描边（文字完全静止）。
-      child: PrismStaggerIn(
-        index: _staggerSeq++,
-        initialDelay: const Duration(milliseconds: 55),
-        child: PrismHoverGlow(
-          radius: prism.AppCorner.xl,
-          enabled: hoverGlow,
-          child: prism.Card(
-            radius: prism.AppCorner.xl,
-            inert: true,
-            padding: EdgeInsets.zero,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: children,
-            ),
-          ),
-        ),
-      ),
+    return PrismGroupedCard(
+      staggerIndex: _staggerSeq++,
+      staggerDelay: const Duration(milliseconds: 55),
+      hoverGlow: hoverGlow,
+      children: rows,
     );
   }
 
@@ -972,7 +945,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     child: SizedBox.expand(
                       key: ValueKey(_activeSection),
                       child: SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(4, 4, 4, 20),
+                        padding: kPrismScrollPadding,
                         child: switch (_activeSection) {
                           _SettingsSection.appearance =>
                             _buildAppearanceSection(context),

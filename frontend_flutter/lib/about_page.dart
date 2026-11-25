@@ -205,12 +205,12 @@ class _AboutPageState extends State<AboutPage> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 6, 24, 24),
+      padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _authorCard(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               LayoutBuilder(
                 builder: (context, constraints) {
                   final columns = constraints.maxWidth < 560
@@ -221,6 +221,7 @@ class _AboutPageState extends State<AboutPage> {
                   return GridView.count(
                     crossAxisCount: columns,
                     shrinkWrap: true,
+                    clipBehavior: Clip.none,
                     physics: const NeverScrollableScrollPhysics(),
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
@@ -234,9 +235,9 @@ class _AboutPageState extends State<AboutPage> {
                   );
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               _skillsCard(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               _projectCard(),
         ],
       ),
@@ -251,6 +252,8 @@ class _AboutPageState extends State<AboutPage> {
     final email = (_author['email'] ?? '').toString().trim();
     return PrismSectionCard(
       padding: const EdgeInsets.all(22),
+      staggerIndex: 0,
+      staggerDelay: const Duration(milliseconds: 55),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -365,7 +368,9 @@ class _AboutPageState extends State<AboutPage> {
     final href = (channel['href'] ?? '').toString().trim();
     final title = (channel['name'] ?? '').toString();
     final detail = (channel['detail'] ?? '').toString();
-    return prism.Card(
+    return PrismHoverCard(
+      staggerIndex: 1,
+      staggerDelay: const Duration(milliseconds: 55),
       radius: prism.AppCorner.xl,
       onPressed: href.isEmpty ? null : () => AppBridge.openExternal(href),
       inert: href.isEmpty,
@@ -434,6 +439,8 @@ class _AboutPageState extends State<AboutPage> {
       title: '技术栈与技能',
       glyph: AntGlyphs.sparkles,
       padding: const EdgeInsets.all(20),
+      staggerIndex: 2,
+      staggerDelay: const Duration(milliseconds: 55),
       child: Wrap(
         spacing: 10,
         runSpacing: 10,
@@ -495,6 +502,8 @@ class _AboutPageState extends State<AboutPage> {
       title: '项目介绍',
       glyph: AntGlyphs.browser,
       padding: const EdgeInsets.all(22),
+      staggerIndex: 3,
+      staggerDelay: const Duration(milliseconds: 55),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

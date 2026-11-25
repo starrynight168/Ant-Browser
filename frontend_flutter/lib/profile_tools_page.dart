@@ -745,71 +745,84 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
             },
           ),
           Expanded(
-            child: IndexedStack(
-              index: _selectedDetailTab,
-              children: [
-                ListView(
-                  padding: const EdgeInsets.only(top: 16),
-                  children: [
-                    if (lastError.isNotEmpty) ...[
-                      PrismBanner(
-                        tone: PrismTone.danger,
-                        title: '最近错误',
-                        message: lastError,
-                      ),
-                      const SizedBox(height: 10),
-                    ],
-                    if (runtimeWarning.isNotEmpty) ...[
-                      PrismBanner(
-                        tone: PrismTone.warning,
-                        title: '运行提示',
-                        message: runtimeWarning,
-                      ),
-                      const SizedBox(height: 10),
-                    ],
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: [
-                        PrismMetricTile(
-                          label: '运行状态',
-                          value: statusInfo.label,
-                          glyph: AntGlyphs.browser,
-                          tone: statusInfo.tone,
+            child: prism.PageTransitionSwitcher(
+              duration: PrismMotionSpec.current.pageDuration,
+              transitionBuilder: PrismSlideThroughTransition.builder,
+              child: KeyedSubtree(
+                key: ValueKey(_selectedDetailTab),
+                child: switch (_selectedDetailTab) {
+                  0 => ListView(
+                    padding: const EdgeInsets.fromLTRB(4, 12, 4, 20),
+                    children: [
+                      if (lastError.isNotEmpty) ...[
+                        PrismBanner(
+                          tone: PrismTone.danger,
+                          title: '最近错误',
+                          message: lastError,
                         ),
-                        PrismMetricTile(
-                          label: '进程 PID',
-                          value: pid > 0 ? '$pid' : '-',
-                          glyph: AntGlyphs.cpu,
-                          tone: pid > 0 ? PrismTone.info : PrismTone.neutral,
-                        ),
-                        PrismMetricTile(
-                          label: '调试端口',
-                          value: debugPort > 0 ? '$debugPort' : '-',
-                          subtitle: _running
-                              ? (_debugReady ? 'CDP 已就绪' : '等待 CDP 就绪')
-                              : '未启动',
-                          glyph: AntGlyphs.api,
-                          tone: _debugReady
-                              ? PrismTone.success
-                              : _running
-                              ? PrismTone.warning
-                              : PrismTone.neutral,
-                        ),
-                        PrismMetricTile(
-                          label: '最近启动',
-                          value: _formatDateTime(profile['lastStartAt']),
-                          subtitle:
-                              '最近停止：${_formatDateTime(profile['lastStopAt'])}',
-                          glyph: AntGlyphs.schedule,
-                          tone: PrismTone.neutral,
-                        ),
+                        const SizedBox(height: 10),
                       ],
-                    ),
-                    const SizedBox(height: 14),
-                    PrismSectionCard(
-                      title: '实例配置与启动码',
-                      glyph: AntGlyphs.settings,
+                      if (runtimeWarning.isNotEmpty) ...[
+                        PrismBanner(
+                          tone: PrismTone.warning,
+                          title: '运行提示',
+                          message: runtimeWarning,
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          PrismMetricTile(
+                            label: '运行状态',
+                            value: statusInfo.label,
+                            glyph: AntGlyphs.browser,
+                            tone: statusInfo.tone,
+                            staggerIndex: 0,
+                            staggerDelay: const Duration(milliseconds: 45),
+                          ),
+                          PrismMetricTile(
+                            label: '进程 PID',
+                            value: pid > 0 ? '$pid' : '-',
+                            glyph: AntGlyphs.cpu,
+                            tone: pid > 0 ? PrismTone.info : PrismTone.neutral,
+                            staggerIndex: 1,
+                            staggerDelay: const Duration(milliseconds: 45),
+                          ),
+                          PrismMetricTile(
+                            label: '调试端口',
+                            value: debugPort > 0 ? '$debugPort' : '-',
+                            subtitle: _running
+                                ? (_debugReady ? 'CDP 已就绪' : '等待 CDP 就绪')
+                                : '未启动',
+                            glyph: AntGlyphs.api,
+                            tone: _debugReady
+                                ? PrismTone.success
+                                : _running
+                                ? PrismTone.warning
+                                : PrismTone.neutral,
+                            staggerIndex: 2,
+                            staggerDelay: const Duration(milliseconds: 45),
+                          ),
+                          PrismMetricTile(
+                            label: '最近启动',
+                            value: _formatDateTime(profile['lastStartAt']),
+                            subtitle:
+                                '最近停止：${_formatDateTime(profile['lastStopAt'])}',
+                            glyph: AntGlyphs.schedule,
+                            tone: PrismTone.neutral,
+                            staggerIndex: 3,
+                            staggerDelay: const Duration(milliseconds: 45),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      PrismSectionCard(
+                        title: '实例配置与启动码',
+                        glyph: AntGlyphs.settings,
+                        staggerIndex: 4,
+                        staggerDelay: const Duration(milliseconds: 45),
                       // 整卡单个 SelectionArea + 普通 Text，
                       // 避免逐行 SelectableText 在滚动容器内堆叠。
                       child: RepaintBoundary(
@@ -908,6 +921,8 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                     PrismSectionCard(
                       title: '打开网址与标签页',
                       glyph: AntGlyphs.globe,
+                      staggerIndex: 5,
+                      staggerDelay: const Duration(milliseconds: 45),
                       actions: [
                         prism.IconButton(
                           tooltip: '刷新标签页',
@@ -996,7 +1011,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                     ),
                   ],
                 ),
-                Column(
+                  1 => Column(
                   children: [
                     Padding(
                       padding: const EdgeInsets.only(top: 16, bottom: 10),
@@ -1086,7 +1101,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                     ),
                   ],
                 ),
-                Column(
+                  _ => Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const SizedBox(height: 14),
@@ -1326,7 +1341,8 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                     ),
                   ],
                 ),
-              ],
+                },
+              ),
             ),
           ),
         ],

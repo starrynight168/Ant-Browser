@@ -345,6 +345,8 @@ class _BookmarksPageState extends State<BookmarksPage> {
                         PrismSectionCard(
                           title: '内置检测',
                           glyph: AntGlyphs.shield,
+                          staggerIndex: 0,
+                          staggerDelay: const Duration(milliseconds: 55),
                           actions: const [
                             PrismBadge(label: '内置', tone: PrismTone.info),
                           ],
@@ -358,9 +360,10 @@ class _BookmarksPageState extends State<BookmarksPage> {
                         const SizedBox(height: 12),
                       ],
                       Expanded(
-                        child: prism.Card(
+                        child: PrismHoverCard(
+                          staggerIndex: protectedEntries.isEmpty ? 0 : 1,
+                          staggerDelay: const Duration(milliseconds: 55),
                           radius: prism.AppCorner.xl,
-                          inert: true,
                           padding: EdgeInsets.zero,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -8,6 +8,10 @@ import 'theme_state.dart';
 
 enum PrismTone { neutral, primary, success, warning, danger, info }
 
+/// 滚动视口默认留白，避免卡片悬停浮起与高光描边被边缘裁切。
+const EdgeInsets kPrismScrollPadding = EdgeInsets.fromLTRB(4, 4, 4, 20);
+const EdgeInsets kPrismListPadding = EdgeInsets.fromLTRB(4, 4, 4, 16);
+
 class PrismToneColors {
   const PrismToneColors({
     required this.bg,
@@ -997,6 +1001,104 @@ class PrismSectionCard extends StatelessWidget {
   }
 }
 
+/// 具备悬停高光与可选入场编排的通用 Prism 卡片容器。
+class PrismHoverCard extends StatelessWidget {
+  const PrismHoverCard({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(16),
+    this.margin = EdgeInsets.zero,
+    this.radius = prism.AppCorner.xl,
+    this.onPressed,
+    this.inert,
+    this.staggerIndex,
+    this.staggerDelay = Duration.zero,
+    this.hoverGlow = true,
+  });
+
+  final Widget child;
+  final EdgeInsets padding;
+  final EdgeInsetsGeometry margin;
+  final double radius;
+  final VoidCallback? onPressed;
+  final bool? inert;
+  final int? staggerIndex;
+  final Duration staggerDelay;
+  final bool hoverGlow;
+
+  @override
+  Widget build(BuildContext context) {
+    final card = PrismHoverGlow(
+      radius: radius,
+      enabled: hoverGlow,
+      child: prism.Card(
+        radius: radius,
+        onPressed: onPressed,
+        inert: inert ?? (onPressed == null),
+        padding: padding,
+        child: child,
+      ),
+    );
+    return RepaintBoundary(
+      child: Padding(
+        padding: margin,
+        child: staggerIndex != null
+            ? PrismStaggerIn(
+                index: staggerIndex!,
+                initialDelay: staggerDelay,
+                child: card,
+              )
+            : card,
+      ),
+    );
+  }
+}
+
+/// 多行分组设置/详情卡片：行间自动插入细分隔线并统一接入悬停与编排动效。
+class PrismGroupedCard extends StatelessWidget {
+  const PrismGroupedCard({
+    super.key,
+    required this.children,
+    this.radius = prism.AppCorner.xl,
+    this.staggerIndex = 0,
+    this.staggerDelay = Duration.zero,
+    this.hoverGlow = true,
+    this.dividerIndent = const EdgeInsets.symmetric(horizontal: 18),
+  });
+
+  final List<Widget> children;
+  final double radius;
+  final int staggerIndex;
+  final Duration staggerDelay;
+  final bool hoverGlow;
+  final EdgeInsetsGeometry dividerIndent;
+
+  @override
+  Widget build(BuildContext context) {
+    return PrismHoverCard(
+      radius: radius,
+      padding: EdgeInsets.zero,
+      staggerIndex: staggerIndex,
+      staggerDelay: staggerDelay,
+      hoverGlow: hoverGlow,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < children.length; i++) ...[
+            if (i > 0)
+              Padding(
+                padding: dividerIndent,
+                child: const prism.Divider(height: 1),
+              ),
+            children[i],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class PrismMetricTile extends StatelessWidget {
   const PrismMetricTile({
     super.key,
@@ -1006,6 +1108,8 @@ class PrismMetricTile extends StatelessWidget {
     this.glyph,
     this.tone = PrismTone.primary,
     this.onPressed,
+    this.staggerIndex,
+    this.staggerDelay = Duration.zero,
   });
 
   final String label;
@@ -1014,6 +1118,8 @@ class PrismMetricTile extends StatelessWidget {
   final prism_icons.Glyph? glyph;
   final PrismTone tone;
   final VoidCallback? onPressed;
+  final int? staggerIndex;
+  final Duration staggerDelay;
 
   @override
   Widget build(BuildContext context) {
@@ -1081,8 +1187,15 @@ class PrismMetricTile extends StatelessWidget {
         ),
       ),
     );
-    if (onPressed == null) return card;
-    return PrismHoverMotion(hoverScale: 1.02, pressScale: 0.98, child: card);
+    final result = onPressed == null
+        ? card
+        : PrismHoverMotion(hoverScale: 1.02, pressScale: 0.98, child: card);
+    if (staggerIndex == null) return result;
+    return PrismStaggerIn(
+      index: staggerIndex!,
+      initialDelay: staggerDelay,
+      child: result,
+    );
   }
 }
 
@@ -1297,50 +1410,53 @@ class PrismProgressPanel extends StatelessWidget {
     final pct = progress == null
         ? null
         : '${(progress!.clamp(0.0, 1.0) * 100).round()}%';
-    return prism.Card(
+    return PrismHoverGlow(
       radius: prism.AppCorner.lg,
-      inert: true,
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: prism.AppTextStyle.subheadline.of(
-                    context,
-                    emphasized: true,
+      child: prism.Card(
+        radius: prism.AppCorner.lg,
+        inert: true,
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    style: prism.AppTextStyle.subheadline.of(
+                      context,
+                      emphasized: true,
+                    ),
                   ),
                 ),
-              ),
-              if (pct != null)
-                Text(
-                  pct,
-                  style: prism.AppTextStyle.footnote
-                      .of(context, emphasized: true)
-                      .copyWith(color: colors.primary),
-                ),
-              if (trailing != null) ...[
-                const SizedBox(width: 8),
-                trailing!,
+                if (pct != null)
+                  Text(
+                    pct,
+                    style: prism.AppTextStyle.footnote
+                        .of(context, emphasized: true)
+                        .copyWith(color: colors.primary),
+                  ),
+                if (trailing != null) ...[
+                  const SizedBox(width: 8),
+                  trailing!,
+                ],
               ],
-            ],
-          ),
-          const SizedBox(height: 8),
-          prism.LinearProgressIndicator(value: progress, minHeight: 6),
-          if (subtitle != null && subtitle!.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(
-              subtitle!,
-              style: prism.AppTextStyle.caption1
-                  .of(context)
-                  .copyWith(color: colors.onSurfaceVariant),
             ),
+            const SizedBox(height: 8),
+            prism.LinearProgressIndicator(value: progress, minHeight: 6),
+            if (subtitle != null && subtitle!.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                subtitle!,
+                style: prism.AppTextStyle.caption1
+                    .of(context)
+                    .copyWith(color: colors.onSurfaceVariant),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

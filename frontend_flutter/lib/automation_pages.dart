@@ -876,6 +876,8 @@ class _AutomationScriptRunModalState extends State<AutomationScriptRunModal> {
                   title: '变量参数（替换 {{变量名}}）',
                   glyph: AntGlyphs.tune,
                   padding: const EdgeInsets.all(12),
+                  staggerIndex: 0,
+                  staggerDelay: const Duration(milliseconds: 45),
                   child: Column(
                     children: [
                       for (final v in _variables)
@@ -916,6 +918,8 @@ class _AutomationScriptRunModalState extends State<AutomationScriptRunModal> {
                 PrismSectionCard(
                   title: '执行结果',
                   glyph: AntGlyphs.factCheck,
+                  staggerIndex: 1,
+                  staggerDelay: const Duration(milliseconds: 45),
                   actions: [
                     PrismBadge(
                       label: status == 'success'
@@ -3392,6 +3396,8 @@ class _AutomationScriptDetailPageState
         PrismSectionCard(
           title: '基础信息',
           glyph: AntGlyphs.docs,
+          staggerIndex: 0,
+          staggerDelay: const Duration(milliseconds: 45),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -3457,6 +3463,8 @@ class _AutomationScriptDetailPageState
         PrismSectionCard(
           title: _isLaunchApi ? '启动配置' : '目标实例与运行参数',
           glyph: AntGlyphs.browser,
+          staggerIndex: 1,
+          staggerDelay: const Duration(milliseconds: 45),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -3579,6 +3587,8 @@ class _AutomationScriptDetailPageState
           PrismSectionCard(
             title: 'OpenClaw 指令模板',
             glyph: AntGlyphs.sparkles,
+            staggerIndex: 2,
+            staggerDelay: const Duration(milliseconds: 45),
             child: PrismCodeSurface(
               code: _openClawTemplate(),
               language: 'bash',
@@ -3590,6 +3600,8 @@ class _AutomationScriptDetailPageState
           PrismSectionCard(
             title: '固定接口模板（只读预览）',
             glyph: AntGlyphs.code,
+            staggerIndex: 3,
+            staggerDelay: const Duration(milliseconds: 45),
             child: PrismCodeSurface(
               code: _script.text,
               language: 'javascript',
@@ -3601,6 +3613,8 @@ class _AutomationScriptDetailPageState
           PrismSectionCard(
             title: '脚本内容',
             glyph: AntGlyphs.code,
+            staggerIndex: 2,
+            staggerDelay: const Duration(milliseconds: 45),
             child: PrismTextField(
               controller: _script,
               minLines: 12,
@@ -3612,6 +3626,8 @@ class _AutomationScriptDetailPageState
         PrismSectionCard(
           title: '对外 API 配置',
           glyph: AntGlyphs.api,
+          staggerIndex: 4,
+          staggerDelay: const Duration(milliseconds: 45),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

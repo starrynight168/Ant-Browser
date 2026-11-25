@@ -299,9 +299,10 @@ class _TagsPageState extends State<TagsPage> {
         children: [
           SizedBox(
             width: 248,
-            child: prism.Card(
+            child: PrismHoverCard(
+              staggerIndex: 0,
+              staggerDelay: const Duration(milliseconds: 55),
               radius: prism.AppCorner.xl,
-              inert: true,
               padding: EdgeInsets.zero,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -390,6 +391,8 @@ class _TagsPageState extends State<TagsPage> {
               children: [
                 PrismSectionCard(
                   padding: const EdgeInsets.all(12),
+                  staggerIndex: 1,
+                  staggerDelay: const Duration(milliseconds: 55),
                   child: Wrap(
                     spacing: 8,
                     runSpacing: 8,
@@ -456,9 +459,10 @@ class _TagsPageState extends State<TagsPage> {
                 ),
                 const SizedBox(height: 12),
                 Expanded(
-                  child: prism.Card(
+                  child: PrismHoverCard(
+                    staggerIndex: 2,
+                    staggerDelay: const Duration(milliseconds: 55),
                     radius: prism.AppCorner.xl,
-                    inert: true,
                     padding: EdgeInsets.zero,
                     child: _loading
                         ? const Center(child: PrismProgressIndicator())

@@ -5036,6 +5036,7 @@ class _ProxyCoreDownloadDialogState extends State<_ProxyCoreDownloadDialog> {
         width: 580,
         height: 540,
         child: SingleChildScrollView(
+          padding: kPrismScrollPadding,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -5161,6 +5162,8 @@ class _ProxyCoreDownloadDialogState extends State<_ProxyCoreDownloadDialog> {
               const SizedBox(height: 12),
               PrismSectionCard(
                 padding: const EdgeInsets.all(12),
+                staggerIndex: 0,
+                staggerDelay: const Duration(milliseconds: 45),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -5226,6 +5229,8 @@ class _ProxyCoreDownloadDialogState extends State<_ProxyCoreDownloadDialog> {
                   title: '手动下载信息',
                   glyph: AntGlyphs.info,
                   padding: const EdgeInsets.all(12),
+                  staggerIndex: 1,
+                  staggerDelay: const Duration(milliseconds: 45),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

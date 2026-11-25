@@ -190,7 +190,9 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
         Scrollable.ensureVisible(
           target,
           alignment: 0.35,
-          duration: const Duration(milliseconds: 180),
+          duration: PrismMotionSpec.current.enabled
+              ? const Duration(milliseconds: 180)
+              : Duration.zero,
         );
       }
     });
@@ -203,7 +205,9 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
       Scrollable.ensureVisible(
         target,
         alignment: 0,
-        duration: const Duration(milliseconds: 220),
+        duration: PrismMotionSpec.current.enabled
+            ? const Duration(milliseconds: 220)
+            : Duration.zero,
       );
     }
   }

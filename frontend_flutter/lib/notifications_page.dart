@@ -121,58 +121,67 @@ class _NotificationsPageState extends State<NotificationsPage> {
               ),
               const SizedBox(height: 14),
               Expanded(
-                child: filtered.isEmpty
-                    ? PrismEmptyState(
-                        glyph: AntGlyphs.bell,
-                        title: all.isEmpty ? '暂无通知' : '当前筛选没有通知',
-                        subtitle: all.isEmpty
-                            ? '系统提醒、运行状态与错误消息会显示在这里。'
-                            : '切换到“全部”查看所有历史通知。',
-                        action: all.isNotEmpty && _filter != 'all'
-                            ? prism.OutlinedButton(
-                                onPressed: () =>
-                                    setState(() => _filter = 'all'),
-                                child: const Text('查看全部通知'),
-                              )
-                            : null,
-                      )
-                    : ListView.separated(
-                        itemCount: filtered.length,
-                        separatorBuilder: (context, index) =>
-                            const SizedBox(height: 8),
-                        itemBuilder: (context, index) {
-                          final item = filtered[index];
-                          final id = '${item['id'] ?? ''}';
-                          final type = '${item['type'] ?? 'info'}';
-                          final isRead = item['read'] == true;
-                          final tone = switch (type) {
-                            'error' => PrismTone.danger,
-                            'warning' => PrismTone.warning,
-                            'success' => PrismTone.success,
-                            _ => PrismTone.info,
-                          };
-                          final palette = PrismToneColors.of(context, tone);
-                          final glyph = switch (type) {
-                            'error' => AntGlyphs.error,
-                            'warning' => AntGlyphs.warning,
-                            'success' => AntGlyphs.checkCircle,
-                            _ => AntGlyphs.info,
-                          };
-                          final action = item['action'] is Map
-                              ? Map<String, dynamic>.from(item['action'] as Map)
-                              : null;
-                          final source =
-                              switch ('${item['source'] ?? 'system'}') {
-                                'operation' => '操作',
-                                'runtime' => '运行状态',
-                                'frontend' => '前端',
-                                _ => '系统',
+                child: prism.PageTransitionSwitcher(
+                  duration: PrismMotionSpec.current.pageDuration,
+                  transitionBuilder: PrismSlideThroughTransition.builder,
+                  child: KeyedSubtree(
+                    key: ValueKey('$_filter-${filtered.isEmpty}'),
+                    child: filtered.isEmpty
+                        ? PrismEmptyState(
+                            glyph: AntGlyphs.bell,
+                            title: all.isEmpty ? '暂无通知' : '当前筛选没有通知',
+                            subtitle: all.isEmpty
+                                ? '系统提醒、运行状态与错误消息会显示在这里。'
+                                : '切换到“全部”查看所有历史通知。',
+                            action: all.isNotEmpty && _filter != 'all'
+                                ? prism.OutlinedButton(
+                                    onPressed: () =>
+                                        setState(() => _filter = 'all'),
+                                    child: const Text('查看全部通知'),
+                                  )
+                                : null,
+                          )
+                        : ListView.separated(
+                            padding: kPrismListPadding,
+                            itemCount: filtered.length,
+                            separatorBuilder: (context, index) =>
+                                const SizedBox(height: 8),
+                            itemBuilder: (context, index) {
+                              final item = filtered[index];
+                              final id = '${item['id'] ?? ''}';
+                              final type = '${item['type'] ?? 'info'}';
+                              final isRead = item['read'] == true;
+                              final tone = switch (type) {
+                                'error' => PrismTone.danger,
+                                'warning' => PrismTone.warning,
+                                'success' => PrismTone.success,
+                                _ => PrismTone.info,
                               };
-                          return prism.Card(
-                            radius: prism.AppCorner.xl,
-                            inert: true,
-                            padding: const EdgeInsets.all(16),
-                            child: Row(
+                              final palette = PrismToneColors.of(context, tone);
+                              final glyph = switch (type) {
+                                'error' => AntGlyphs.error,
+                                'warning' => AntGlyphs.warning,
+                                'success' => AntGlyphs.checkCircle,
+                                _ => AntGlyphs.info,
+                              };
+                              final action = item['action'] is Map
+                                  ? Map<String, dynamic>.from(
+                                      item['action'] as Map,
+                                    )
+                                  : null;
+                              final source =
+                                  switch ('${item['source'] ?? 'system'}') {
+                                    'operation' => '操作',
+                                    'runtime' => '运行状态',
+                                    'frontend' => '前端',
+                                    _ => '系统',
+                                  };
+                              return PrismHoverCard(
+                                staggerIndex: index.clamp(0, 6),
+                                staggerDelay: const Duration(milliseconds: 40),
+                                radius: prism.AppCorner.xl,
+                                padding: const EdgeInsets.all(14),
+                                child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 prism.Surface(
@@ -272,6 +281,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
                           );
                         },
                       ),
+                  ),
+                ),
               ),
             ],
           ),

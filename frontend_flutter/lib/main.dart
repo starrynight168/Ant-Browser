@@ -332,14 +332,19 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
     try {
       final platform = await AppBridge.platform();
       if (!mounted) return;
+      final motionSpec = PrismMotionSpec.current;
       action = await Navigator.of(context, rootNavigator: false).push<String>(
         PageRouteBuilder<String>(
           opaque: false,
           barrierDismissible: true,
           barrierColor: const Color(0x990A110E),
           barrierLabel: '关闭确认',
-          transitionDuration: const Duration(milliseconds: 320),
-          reverseTransitionDuration: const Duration(milliseconds: 380),
+          transitionDuration: motionSpec.enabled
+              ? motionSpec.pageDuration
+              : Duration.zero,
+          reverseTransitionDuration: motionSpec.enabled
+              ? motionSpec.barDuration
+              : Duration.zero,
           pageBuilder: (context, animation, secondaryAnimation) =>
               CallbackShortcuts(
                 bindings: {
@@ -1753,7 +1758,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
     return a.length.compareTo(b.length);
   }
 
-  Widget _profileGridCard(Map<String, dynamic> profile) {
+  Widget _profileGridCard(Map<String, dynamic> profile, {int index = 0}) {
     final id = (profile['profileId'] ?? '').toString();
     final name = (profile['profileName'] ?? '未命名实例').toString();
     final running = profile['running'] == true;
@@ -1762,9 +1767,10 @@ class _BrowserListPageState extends State<BrowserListPage> {
         .where((tag) => tag.isNotEmpty)
         .toList();
     final busy = _busyProfile == id;
-    return prism.Card(
+    return PrismHoverCard(
+      staggerIndex: index.clamp(0, 6),
+      staggerDelay: const Duration(milliseconds: 35),
       radius: prism.AppCorner.xl,
-      inert: true,
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -4868,44 +4874,58 @@ class _BrowserListPageState extends State<BrowserListPage> {
                 ? _ErrorPanel(message: _error!, onRetry: _reload)
                 : visible.isEmpty
                 ? _EmptyProfiles(hasProfiles: _profiles.isNotEmpty)
-                : _viewMode == 'card'
-                ? GridView.builder(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    gridDelegate:
-                        const SliverGridDelegateWithMaxCrossAxisExtent(
-                          maxCrossAxisExtent: 480,
-                          mainAxisExtent: 280,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                        ),
-                    itemCount: visible.length,
-                    itemBuilder: (context, index) =>
-                        _profileGridCard(visible[index]),
-                  )
-                : ListView.separated(
-                    itemCount: visible.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final profile = visible[index];
-                      final running = profile['running'] == true;
-                      final id = profile['profileId']?.toString() ?? '';
-                      final name = profile['profileName']?.toString().trim();
-                      final busy = _busyProfile == id;
-                      final tags =
-                          (profile['tags'] as List?)
-                              ?.map((tag) => tag.toString())
-                              .where((tag) => tag.isNotEmpty)
-                              .toList() ??
-                          const <String>[];
-                      return prism.Card(
-                        radius: prism.AppCorner.xl,
-                        inert: true,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 18,
-                          vertical: 15,
-                        ),
-                        child: Row(
+                : prism.PageTransitionSwitcher(
+                    duration: PrismMotionSpec.current.pageDuration,
+                    transitionBuilder: PrismSlideThroughTransition.builder,
+                    child: KeyedSubtree(
+                      key: ValueKey(_viewMode),
+                      child: _viewMode == 'card'
+                          ? GridView.builder(
+                              padding: kPrismListPadding,
+                              gridDelegate:
+                                  const SliverGridDelegateWithMaxCrossAxisExtent(
+                                    maxCrossAxisExtent: 480,
+                                    mainAxisExtent: 280,
+                                    crossAxisSpacing: 12,
+                                    mainAxisSpacing: 12,
+                                  ),
+                              itemCount: visible.length,
+                              itemBuilder: (context, index) => _profileGridCard(
+                                visible[index],
+                                index: index,
+                              ),
+                            )
+                          : ListView.separated(
+                              padding: kPrismListPadding,
+                              itemCount: visible.length,
+                              separatorBuilder: (context, index) =>
+                                  const SizedBox(height: 10),
+                              itemBuilder: (context, index) {
+                                final profile = visible[index];
+                                final running = profile['running'] == true;
+                                final id =
+                                    profile['profileId']?.toString() ?? '';
+                                final name = profile['profileName']
+                                    ?.toString()
+                                    .trim();
+                                final busy = _busyProfile == id;
+                                final tags =
+                                    (profile['tags'] as List?)
+                                        ?.map((tag) => tag.toString())
+                                        .where((tag) => tag.isNotEmpty)
+                                        .toList() ??
+                                    const <String>[];
+                                return PrismHoverCard(
+                                  staggerIndex: index.clamp(0, 6),
+                                  staggerDelay: const Duration(
+                                    milliseconds: 35,
+                                  ),
+                                  radius: prism.AppCorner.xl,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 18,
+                                    vertical: 15,
+                                  ),
+                                  child: Row(
                           children: [
                             prism.Checkbox(
                               value: _selectedProfileIds.contains(id),
@@ -5127,6 +5147,8 @@ class _BrowserListPageState extends State<BrowserListPage> {
                       );
                     },
                   ),
+                ),
+              ),
           ),
         ],
       ),

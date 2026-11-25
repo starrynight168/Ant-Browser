@@ -1776,6 +1776,7 @@ class _BackupPageState extends State<BackupPage>
         );
       }
       return ListView.separated(
+        padding: kPrismListPadding,
         itemCount: _localBackups.length,
         separatorBuilder: (_, __) => const SizedBox(height: 8),
         itemBuilder: (context, index) => _buildBackupHistoryItem(
@@ -1804,6 +1805,7 @@ class _BackupPageState extends State<BackupPage>
         );
       }
       return ListView.separated(
+        padding: kPrismListPadding,
         itemCount: _openListBackups.length,
         separatorBuilder: (_, __) => const SizedBox(height: 8),
         itemBuilder: (context, index) => _buildBackupHistoryItem(
@@ -1831,6 +1833,7 @@ class _BackupPageState extends State<BackupPage>
       );
     }
     return ListView.separated(
+      padding: kPrismListPadding,
       itemCount: _s3Backups.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) => _buildBackupHistoryItem(
@@ -1894,6 +1897,8 @@ class _BackupPageState extends State<BackupPage>
           PrismSectionCard(
             title: '本地备份目录',
             glyph: AntGlyphs.folder,
+            staggerIndex: 0,
+            staggerDelay: const Duration(milliseconds: 55),
             actions: [
               prism.OutlinedButton(
                 onPressed: _busy.isEmpty ? _chooseDirectory : null,
@@ -2278,6 +2283,8 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
         PrismSectionCard(
           title: '连接与认证',
           glyph: AntGlyphs.cloud,
+          staggerIndex: 0,
+          staggerDelay: const Duration(milliseconds: 55),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -2783,6 +2790,8 @@ class _S3ConfigPageState extends State<S3ConfigPage>
         PrismSectionCard(
           title: '存储桶与凭据',
           glyph: AntGlyphs.cloudUpload,
+          staggerIndex: 0,
+          staggerDelay: const Duration(milliseconds: 55),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

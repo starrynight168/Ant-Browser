@@ -1119,6 +1119,8 @@ class _CoresPageState extends State<CoresPage> {
     return PrismSectionCard(
       title: '全局浏览器设置',
       glyph: AntGlyphs.tune,
+      staggerIndex: 0,
+      staggerDelay: const Duration(milliseconds: 55),
       actions: [
         prism.OutlinedButton.icon(
           onPressed: _busy ? null : _editSettings,
@@ -1240,6 +1242,7 @@ class _CoresPageState extends State<CoresPage> {
                     ),
                   )
                 : ListView.separated(
+                    padding: kPrismListPadding,
                     itemCount: _cores.length,
                     separatorBuilder: (context, index) =>
                         const SizedBox(height: 9),
