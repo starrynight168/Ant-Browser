@@ -4484,132 +4484,435 @@ class _BrowserListPageState extends State<BrowserListPage> {
         .toSet();
     final allVisibleSelected =
         visibleIds.isNotEmpty && visibleIds.every(_selectedProfileIds.contains);
+    final proxyBoundCount = _profiles
+        .where(
+          (p) =>
+              '${p['proxyId'] ?? ''}'.trim().isNotEmpty ||
+              '${p['proxyConfig'] ?? ''}'.trim().isNotEmpty,
+        )
+        .length;
+    final activeFilterCount =
+        (_statusFilter != 'all' ? 1 : 0) +
+        (_coreFilter.isNotEmpty ? 1 : 0) +
+        (_proxyFilter.isNotEmpty ? 1 : 0) +
+        (_groupFilter.isNotEmpty ? 1 : 0) +
+        _tagFilters.length;
+    final hasActiveFilters = _query.isNotEmpty || activeFilterCount > 0;
+
+    final kpiTiles = [
+      PrismMetricTile(
+        label: '全部实例',
+        value: '${_profiles.length}',
+        subtitle: '分组 ${_groups.length} · 标签 ${tagOptions.length}',
+        glyph: AntGlyphs.browser,
+        tone: PrismTone.primary,
+        onPressed: () {
+          setState(() => _statusFilter = 'all');
+          _persistFilters();
+        },
+        staggerIndex: 0,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+      PrismMetricTile(
+        label: '运行中',
+        value: '$runningCount',
+        subtitle: _statusFilter == 'running' ? '已筛选 · 点击恢复全部' : '点击仅看运行中',
+        glyph: AntGlyphs.play,
+        tone: PrismTone.success,
+        onPressed: () {
+          setState(
+            () => _statusFilter =
+                _statusFilter == 'running' ? 'all' : 'running',
+          );
+          _persistFilters();
+        },
+        staggerIndex: 1,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+      PrismMetricTile(
+        label: '已停止',
+        value: '${_profiles.length - runningCount}',
+        subtitle: _statusFilter == 'stopped' ? '已筛选 · 点击恢复全部' : '点击仅看已停止',
+        glyph: AntGlyphs.stop,
+        tone: PrismTone.neutral,
+        onPressed: () {
+          setState(
+            () => _statusFilter =
+                _statusFilter == 'stopped' ? 'all' : 'stopped',
+          );
+          _persistFilters();
+        },
+        staggerIndex: 2,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+      PrismMetricTile(
+        label: '当前显示',
+        value: '${visible.length}',
+        subtitle: _selectedProfileIds.isNotEmpty
+            ? '已选 ${_selectedProfileIds.length} 项'
+            : hasActiveFilters
+            ? '共 ${_profiles.length} 个实例'
+            : '已绑定代理 $proxyBoundCount 个',
+        glyph: hasActiveFilters ? AntGlyphs.search : AntGlyphs.globe,
+        tone: PrismTone.info,
+        staggerIndex: 3,
+        staggerDelay: const Duration(milliseconds: 45),
+      ),
+    ];
+
+    final dropdownFields = [
+      PrismDropdownField<String>(
+        initialValue: _statusFilter,
+        decoration: const PrismInputDecoration(labelText: '状态'),
+        items: const [
+          PrismDropdownItem(value: 'all', child: Text('全部状态')),
+          PrismDropdownItem(value: 'running', child: Text('运行中')),
+          PrismDropdownItem(value: 'stopped', child: Text('已停止')),
+        ],
+        onChanged: (value) {
+          setState(() => _statusFilter = value ?? 'all');
+          _persistFilters();
+        },
+      ),
+      PrismDropdownField<String>(
+        initialValue: coreOptions.contains(_coreFilter) ? _coreFilter : '',
+        decoration: const PrismInputDecoration(labelText: '内核'),
+        items: [
+          const PrismDropdownItem(value: '', child: Text('全部内核')),
+          for (final coreId in coreOptions)
+            PrismDropdownItem(
+              value: coreId,
+              child: Text(
+                (_cores.firstWhere(
+                          (core) => core['coreId']?.toString() == coreId,
+                          orElse: () => <String, dynamic>{},
+                        )['coreName'] ??
+                        coreId)
+                    .toString(),
+              ),
+            ),
+        ],
+        onChanged: (value) {
+          setState(() => _coreFilter = value ?? '');
+          _persistFilters();
+        },
+      ),
+      PrismDropdownField<String>(
+        initialValue:
+            _proxyFilter == '__none__' || proxyOptions.contains(_proxyFilter)
+            ? _proxyFilter
+            : '',
+        decoration: const PrismInputDecoration(labelText: '代理'),
+        items: [
+          const PrismDropdownItem(value: '', child: Text('全部代理')),
+          const PrismDropdownItem(value: '__none__', child: Text('无代理 / 直连')),
+          for (final proxyId in proxyOptions)
+            PrismDropdownItem(
+              value: proxyId,
+              child: Text(
+                (_proxies.firstWhere(
+                          (proxy) => proxy['proxyId']?.toString() == proxyId,
+                          orElse: () => <String, dynamic>{},
+                        )['proxyName'] ??
+                        proxyId)
+                    .toString(),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+        ],
+        onChanged: (value) {
+          setState(() => _proxyFilter = value ?? '');
+          _persistFilters();
+        },
+      ),
+      PrismDropdownField<String>(
+        initialValue:
+            _groupFilter == '__ungrouped__' ||
+                _groups.any((group) => group['groupId'] == _groupFilter)
+            ? _groupFilter
+            : '',
+        decoration: const PrismInputDecoration(labelText: '分组'),
+        items: [
+          const PrismDropdownItem(value: '', child: Text('全部分组')),
+          const PrismDropdownItem(value: '__ungrouped__', child: Text('未分组')),
+          for (final group in _groups)
+            PrismDropdownItem(
+              value: group['groupId']?.toString(),
+              child: Text((group['groupName'] ?? '').toString()),
+            ),
+        ],
+        onChanged: (value) {
+          setState(() => _groupFilter = value ?? '');
+          _persistFilters();
+        },
+      ),
+    ];
+
+    final toolbarActions = <Widget>[
+      SizedBox(
+        width: 120,
+        child: prism.SegmentedControl<String>(
+          segments: const [('list', '列表'), ('card', '卡片')],
+          value: _viewMode,
+          onChanged: (mode) {
+            if (mode != _viewMode) _toggleViewMode();
+          },
+        ),
+      ),
+      PrismTonalButton.icon(
+        onPressed: _toggleFiltersCollapsed,
+        icon: PrismGlyph(
+          _filtersCollapsed ? AntGlyphs.chevronDown : AntGlyphs.chevronUp,
+          size: 15,
+        ),
+        child: Text(activeFilterCount > 0 ? '筛选 ($activeFilterCount)' : '筛选'),
+      ),
+      PrismHoverMotion(
+        child: prism.FilledButton.icon(
+          onPressed: () => _editProfile(),
+          icon: const PrismGlyph(AntGlyphs.add, size: 15),
+          label: const Text('新建配置'),
+        ),
+      ),
+      prism.IconButton(
+        tooltip: '刷新列表',
+        onPressed: _loading ? null : _reload,
+        icon: const PrismGlyph(AntGlyphs.refresh, size: 17),
+      ),
+      PrismPopupMenuButton<String>(
+        tooltip: '更多工具',
+        onSelected: (action) async {
+          if (action == 'backup') {
+            widget.onOpenBackup?.call();
+          } else if (action == 'import') {
+            _importProfiles();
+          } else if (action == 'export') {
+            _exportProfiles();
+          } else if (action == 'groups') {
+            _manageGroups();
+          } else if (action == 'trash') {
+            _showTrash();
+          } else if (action == 'data-root') {
+            try {
+              await AppBridge.call('OpenUserDataRoot');
+            } catch (error) {
+              if (mounted) {
+                showPrismNotice(context, '打开用户数据根目录失败：$error');
+              }
+            }
+          }
+        },
+        itemBuilder: (_) => [
+          if (widget.onOpenBackup != null)
+            const PrismMenuItem(value: 'backup', child: Text('全局备份')),
+          const PrismMenuItem(value: 'import', child: Text('导入实例')),
+          if (_profiles.isNotEmpty)
+            const PrismMenuItem(value: 'export', child: Text('导出实例')),
+          const PrismMenuItem(value: 'groups', child: Text('实例分组管理')),
+          const PrismMenuItem(value: 'trash', child: Text('回收站')),
+          const PrismMenuItem(value: 'data-root', child: Text('打开用户数据目录')),
+        ],
+      ),
+    ];
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 6, 24, 24),
+      padding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              SizedBox(
-                width: 144,
-                child: prism.SegmentedControl<String>(
-                  segments: const [('list', '列表'), ('card', '卡片')],
-                  value: _viewMode,
-                  onChanged: (mode) {
-                    if (mode != _viewMode) _toggleViewMode();
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth >= 760) {
+                return Row(
+                  children: [
+                    for (var i = 0; i < kpiTiles.length; i++) ...[
+                      if (i > 0) const SizedBox(width: 12),
+                      Expanded(child: kpiTiles[i]),
+                    ],
+                  ],
+                );
+              }
+              return Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(child: kpiTiles[0]),
+                      const SizedBox(width: 10),
+                      Expanded(child: kpiTiles[1]),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(child: kpiTiles[2]),
+                      const SizedBox(width: 10),
+                      Expanded(child: kpiTiles[3]),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          PrismHoverCard(
+            staggerIndex: 4,
+            staggerDelay: const Duration(milliseconds: 45),
+            radius: prism.AppCorner.xl,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final wide = constraints.maxWidth >= 860;
+                    if (wide) {
+                      return Row(
+                        children: [
+                          Expanded(
+                            child: PrismSearchBar(
+                              controller: _searchController,
+                              hintText: '搜索名称、启动码、关键字或数据目录…',
+                              height: 36,
+                              onChanged: (value) {
+                                setState(() => _query = value);
+                                _persistFilters();
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: toolbarActions,
+                          ),
+                        ],
+                      );
+                    }
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        PrismSearchBar(
+                          controller: _searchController,
+                          hintText: '搜索名称、启动码、关键字或数据目录…',
+                          height: 36,
+                          onChanged: (value) {
+                            setState(() => _query = value);
+                            _persistFilters();
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          alignment: WrapAlignment.end,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: toolbarActions,
+                        ),
+                      ],
+                    );
                   },
                 ),
-              ),
-              const SizedBox(width: 12),
-              prism.TonalButtonGroup(
-                size: prism.TonalButtonSize.section,
-                children: [
-                  prism.IconButton(
-                    tooltip: '刷新列表',
-                    onPressed: _loading ? null : _reload,
-                    icon: const PrismGlyph(AntGlyphs.refresh, size: 17),
+                PrismCollapsible(
+                  expanded: !_filtersCollapsed,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 10),
+                      const prism.Divider(height: 1),
+                      const SizedBox(height: 10),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          if (constraints.maxWidth >= 760) {
+                            return Row(
+                              children: [
+                                for (
+                                  var i = 0;
+                                  i < dropdownFields.length;
+                                  i++
+                                ) ...[
+                                  if (i > 0) const SizedBox(width: 10),
+                                  Expanded(child: dropdownFields[i]),
+                                ],
+                              ],
+                            );
+                          }
+                          return Wrap(
+                            spacing: 10,
+                            runSpacing: 8,
+                            children: [
+                              for (final field in dropdownFields)
+                                SizedBox(width: 180, child: field),
+                            ],
+                          );
+                        },
+                      ),
+                      if (tagOptions.isNotEmpty || hasActiveFilters) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  if (tagOptions.isNotEmpty) ...[
+                                    Text(
+                                      '标签：',
+                                      style: prism.AppTextStyle.footnote
+                                          .of(context)
+                                          .copyWith(
+                                            color: prism.Theme.of(
+                                              context,
+                                            ).colorScheme.onSurfaceVariant,
+                                          ),
+                                    ),
+                                    PrismChip(
+                                      label: const Text('全部'),
+                                      selected: _tagFilters.isEmpty,
+                                      onPressed: () {
+                                        setState(_tagFilters.clear);
+                                        _persistFilters();
+                                      },
+                                    ),
+                                    for (final tag in tagOptions)
+                                      PrismChip(
+                                        label: Text(tag),
+                                        selected: _tagFilters.contains(tag),
+                                        onPressed: () {
+                                          setState(() {
+                                            if (!_tagFilters.add(tag)) {
+                                              _tagFilters.remove(tag);
+                                            }
+                                          });
+                                          _persistFilters();
+                                        },
+                                      ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            if (hasActiveFilters)
+                              prism.TextButton.icon(
+                                onPressed: _clearFilters,
+                                icon: const PrismGlyph(
+                                  AntGlyphs.clearAll,
+                                  size: 16,
+                                ),
+                                label: const Text('清除筛选'),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ],
                   ),
-                  prism.IconButton(
-                    tooltip: _filtersCollapsed ? '展开筛选' : '收起筛选',
-                    onPressed: _toggleFiltersCollapsed,
-                    icon: PrismGlyph(
-                      _filtersCollapsed
-                          ? AntGlyphs.chevronDown
-                          : AntGlyphs.chevronUp,
-                      size: 17,
-                    ),
-                  ),
-                  prism.IconButton(
-                    tooltip: '实例分组',
-                    onPressed: _manageGroups,
-                    icon: const PrismGlyph(AntGlyphs.folder, size: 17),
-                  ),
-                  prism.IconButton(
-                    tooltip: '回收站',
-                    onPressed: _showTrash,
-                    icon: const PrismGlyph(AntGlyphs.delete, size: 17),
-                  ),
-                  prism.IconButton(
-                    tooltip: '打开用户数据根目录',
-                    onPressed: () async {
-                      try {
-                        await AppBridge.call('OpenUserDataRoot');
-                      } catch (error) {
-                        if (mounted) {
-                          showPrismNotice(context, '打开用户数据根目录失败：$error');
-                        }
-                      }
-                    },
-                    icon: const PrismGlyph(AntGlyphs.folderSpecial, size: 17),
-                  ),
-                ],
-              ),
-              const Spacer(),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  if (widget.onOpenBackup != null)
-                    prism.OutlinedButton.icon(
-                      onPressed: widget.onOpenBackup,
-                      icon: const PrismGlyph(AntGlyphs.archive, size: 15),
-                      label: const Text('全局备份'),
-                    ),
-                  prism.OutlinedButton.icon(
-                    onPressed: _importProfiles,
-                    icon: const PrismGlyph(AntGlyphs.upload, size: 15),
-                    label: const Text('导入'),
-                  ),
-                  prism.OutlinedButton.icon(
-                    onPressed: _profiles.isEmpty ? null : _exportProfiles,
-                    icon: const PrismGlyph(AntGlyphs.download, size: 15),
-                    label: const Text('导出'),
-                  ),
-                  prism.FilledButton.icon(
-                    onPressed: () => _editProfile(),
-                    icon: const PrismGlyph(AntGlyphs.add, size: 16),
-                    label: const Text('新建配置'),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 10,
-            runSpacing: 8,
-            children: [
-              _BrowserCountPill(
-                label: '全部实例',
-                value: _profiles.length,
-                glyph: AntGlyphs.browser,
-                tone: PrismTone.primary,
-              ),
-              _BrowserCountPill(
-                label: '运行中',
-                value: runningCount,
-                glyph: AntGlyphs.play,
-                tone: PrismTone.success,
-              ),
-              _BrowserCountPill(
-                label: '已停止',
-                value: _profiles.length - runningCount,
-                glyph: AntGlyphs.stop,
-                tone: PrismTone.neutral,
-              ),
-              if (visible.length != _profiles.length)
-                _BrowserCountPill(
-                  label: '筛选结果',
-                  value: visible.length,
-                  glyph: AntGlyphs.search,
-                  tone: PrismTone.info,
                 ),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 8),
           Row(
             children: [
               prism.TextButton.icon(
@@ -4637,236 +4940,63 @@ class _BrowserListPageState extends State<BrowserListPage> {
               ),
             ],
           ),
-          if (_selectedProfileIds.isNotEmpty) ...[
-            prism.Surface(
-              color: prism.Theme.of(context).colorScheme.surfaceContainerLow,
-              shape: prism.AppShape.lg,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    PrismBadge(
-                      label: '已选 ${_selectedProfileIds.length} 个实例',
-                      tone: PrismTone.primary,
-                    ),
-                    prism.OutlinedButton.icon(
-                      onPressed: _busyProfile == null
-                          ? () => _batchToggleProfiles(true)
-                          : null,
-                      icon: const PrismGlyph(AntGlyphs.play, size: 16),
-                      label: const Text('批量启动'),
-                    ),
-                    prism.OutlinedButton.icon(
-                      onPressed: _busyProfile == null
-                          ? () => _batchToggleProfiles(false)
-                          : null,
-                      icon: const PrismGlyph(AntGlyphs.stop, size: 16),
-                      label: const Text('批量关闭'),
-                    ),
-                    prism.OutlinedButton.icon(
-                      onPressed: _busyProfile == null
-                          ? () => _exportProfiles(_selectedProfileIds.toList())
-                          : null,
-                      icon: const PrismGlyph(AntGlyphs.download, size: 16),
-                      label: const Text('导出'),
-                    ),
-                    prism.TextButton.icon(
-                      onPressed: _busyProfile == null
-                          ? _batchDeleteProfiles
-                          : null,
-                      icon: const PrismGlyph(AntGlyphs.delete, size: 16),
-                      label: const Text('移入回收站'),
-                    ),
-                  ],
+          PrismCollapsible(
+            expanded: _selectedProfileIds.isNotEmpty,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 6, bottom: 6),
+              child: prism.Surface(
+                color: prism.Theme.of(context).colorScheme.surfaceContainerLow,
+                shape: prism.AppShape.lg,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      PrismBadge(
+                        label: '已选 ${_selectedProfileIds.length} 个实例',
+                        tone: PrismTone.primary,
+                      ),
+                      prism.OutlinedButton.icon(
+                        onPressed: _busyProfile == null
+                            ? () => _batchToggleProfiles(true)
+                            : null,
+                        icon: const PrismGlyph(AntGlyphs.play, size: 16),
+                        label: const Text('批量启动'),
+                      ),
+                      prism.OutlinedButton.icon(
+                        onPressed: _busyProfile == null
+                            ? () => _batchToggleProfiles(false)
+                            : null,
+                        icon: const PrismGlyph(AntGlyphs.stop, size: 16),
+                        label: const Text('批量关闭'),
+                      ),
+                      prism.OutlinedButton.icon(
+                        onPressed: _busyProfile == null
+                            ? () => _exportProfiles(
+                                _selectedProfileIds.toList(),
+                              )
+                            : null,
+                        icon: const PrismGlyph(AntGlyphs.download, size: 16),
+                        label: const Text('导出'),
+                      ),
+                      prism.TextButton.icon(
+                        onPressed: _busyProfile == null
+                            ? _batchDeleteProfiles
+                            : null,
+                        icon: const PrismGlyph(AntGlyphs.delete, size: 16),
+                        label: const Text('移入回收站'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-            const SizedBox(height: 10),
-          ],
-          if (!_filtersCollapsed) ...[
-            PrismSearchBar(
-              controller: _searchController,
-              hintText: '搜索名称、启动码、关键字或数据目录',
-              onChanged: (value) {
-                setState(() => _query = value);
-                _persistFilters();
-              },
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 10,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.end,
-              children: [
-                SizedBox(
-                  width: 150,
-                  child: PrismDropdownField<String>(
-                    initialValue: _statusFilter,
-                    decoration: const PrismInputDecoration(labelText: '状态'),
-                    items: const [
-                      PrismDropdownItem(value: 'all', child: Text('全部状态')),
-                      PrismDropdownItem(value: 'running', child: Text('运行中')),
-                      PrismDropdownItem(value: 'stopped', child: Text('已停止')),
-                    ],
-                    onChanged: (value) {
-                      setState(() => _statusFilter = value ?? 'all');
-                      _persistFilters();
-                    },
-                  ),
-                ),
-                SizedBox(
-                  width: 170,
-                  child: PrismDropdownField<String>(
-                    initialValue: coreOptions.contains(_coreFilter)
-                        ? _coreFilter
-                        : '',
-                    decoration: const PrismInputDecoration(labelText: '内核'),
-                    items: [
-                      const PrismDropdownItem(value: '', child: Text('全部内核')),
-                      for (final coreId in coreOptions)
-                        PrismDropdownItem(
-                          value: coreId,
-                          child: Text(
-                            (_cores.firstWhere(
-                                      (core) =>
-                                          core['coreId']?.toString() == coreId,
-                                      orElse: () => <String, dynamic>{},
-                                    )['coreName'] ??
-                                    coreId)
-                                .toString(),
-                          ),
-                        ),
-                    ],
-                    onChanged: (value) {
-                      setState(() => _coreFilter = value ?? '');
-                      _persistFilters();
-                    },
-                  ),
-                ),
-                SizedBox(
-                  width: 190,
-                  child: PrismDropdownField<String>(
-                    initialValue:
-                        _proxyFilter == '__none__' ||
-                            proxyOptions.contains(_proxyFilter)
-                        ? _proxyFilter
-                        : '',
-                    decoration: const PrismInputDecoration(labelText: '代理'),
-                    items: [
-                      const PrismDropdownItem(value: '', child: Text('全部代理')),
-                      const PrismDropdownItem(
-                        value: '__none__',
-                        child: Text('无代理 / 直连'),
-                      ),
-                      for (final proxyId in proxyOptions)
-                        PrismDropdownItem(
-                          value: proxyId,
-                          child: Text(
-                            (_proxies.firstWhere(
-                                      (proxy) =>
-                                          proxy['proxyId']?.toString() ==
-                                          proxyId,
-                                      orElse: () => <String, dynamic>{},
-                                    )['proxyName'] ??
-                                    proxyId)
-                                .toString(),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                    ],
-                    onChanged: (value) {
-                      setState(() => _proxyFilter = value ?? '');
-                      _persistFilters();
-                    },
-                  ),
-                ),
-                SizedBox(
-                  width: 190,
-                  child: PrismDropdownField<String>(
-                    initialValue:
-                        _groupFilter == '__ungrouped__' ||
-                            _groups.any(
-                              (group) => group['groupId'] == _groupFilter,
-                            )
-                        ? _groupFilter
-                        : '',
-                    decoration: const PrismInputDecoration(labelText: '分组'),
-                    items: [
-                      const PrismDropdownItem(value: '', child: Text('全部分组')),
-                      const PrismDropdownItem(
-                        value: '__ungrouped__',
-                        child: Text('未分组'),
-                      ),
-                      for (final group in _groups)
-                        PrismDropdownItem(
-                          value: group['groupId']?.toString(),
-                          child: Text((group['groupName'] ?? '').toString()),
-                        ),
-                    ],
-                    onChanged: (value) {
-                      setState(() => _groupFilter = value ?? '');
-                      _persistFilters();
-                    },
-                  ),
-                ),
-                if (_query.isNotEmpty ||
-                    _statusFilter != 'all' ||
-                    _tagFilters.isNotEmpty ||
-                    _coreFilter.isNotEmpty ||
-                    _proxyFilter.isNotEmpty ||
-                    _groupFilter.isNotEmpty)
-                  prism.TextButton.icon(
-                    onPressed: _clearFilters,
-                    icon: const PrismGlyph(AntGlyphs.clearAll, size: 16),
-                    label: const Text('清除筛选'),
-                  ),
-              ],
-            ),
-            if (tagOptions.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Text(
-                    '标签：',
-                    style: prism.AppTextStyle.footnote.of(context).copyWith(
-                      color: prism.Theme.of(
-                        context,
-                      ).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  PrismChip(
-                    label: const Text('全部'),
-                    selected: _tagFilters.isEmpty,
-                    onPressed: () {
-                      setState(_tagFilters.clear);
-                      _persistFilters();
-                    },
-                  ),
-                  for (final tag in tagOptions)
-                    PrismChip(
-                      label: Text(tag),
-                      selected: _tagFilters.contains(tag),
-                      onPressed: () {
-                        setState(() {
-                          if (!_tagFilters.add(tag)) _tagFilters.remove(tag);
-                        });
-                        _persistFilters();
-                      },
-                    ),
-                ],
-              ),
-            ],
-            const SizedBox(height: 12),
-          ],
+          ),
           Expanded(
             child: _loading && _profiles.isEmpty
                 ? const Center(child: PrismProgressIndicator())
@@ -5196,28 +5326,6 @@ class _RunningStatus extends StatelessWidget {
       ],
     );
   }
-}
-
-class _BrowserCountPill extends StatelessWidget {
-  const _BrowserCountPill({
-    required this.label,
-    required this.value,
-    required this.glyph,
-    required this.tone,
-  });
-
-  final String label;
-  final int value;
-  final prism_icons.Glyph glyph;
-  final PrismTone tone;
-
-  @override
-  Widget build(BuildContext context) => PrismMetricTile(
-    label: label,
-    value: '$value',
-    glyph: glyph,
-    tone: tone,
-  );
 }
 
 class _EmptyProfiles extends StatelessWidget {
