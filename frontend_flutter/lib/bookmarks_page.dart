@@ -456,7 +456,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
       staggerIndex: 4,
       staggerDelay: const Duration(milliseconds: 45),
       radius: prism.AppCorner.xl,
-      lift: false,
+      lift: true,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -565,7 +565,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
                           radius: prism.AppCorner.xl,
                           padding: EdgeInsets.zero,
                           hoverGlow: true,
-                          lift: false,
+                          lift: true,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [

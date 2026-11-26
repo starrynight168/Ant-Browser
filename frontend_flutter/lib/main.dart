@@ -4988,7 +4988,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
             staggerIndex: 4,
             staggerDelay: const Duration(milliseconds: 45),
             radius: prism.AppCorner.xl,
-            lift: false,
+            lift: true,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,

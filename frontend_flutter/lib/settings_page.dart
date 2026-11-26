@@ -687,7 +687,7 @@ class _SettingsPageState extends State<SettingsPage> {
             width: 244,
             child: PrismHoverCard(
               radius: prism.AppCorner.xl,
-              lift: false,
+              lift: true,
               padding: const EdgeInsets.all(10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,

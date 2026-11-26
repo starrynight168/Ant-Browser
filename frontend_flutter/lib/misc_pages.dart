@@ -262,7 +262,7 @@ class _DocsPageState extends State<DocsPage> {
                     radius: prism.AppCorner.xl,
                     padding: EdgeInsets.zero,
                     hoverGlow: true,
-                    lift: false,
+                    lift: true,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -343,7 +343,7 @@ class _DocsPageState extends State<DocsPage> {
                     radius: prism.AppCorner.xl,
                     padding: EdgeInsets.zero,
                     hoverGlow: true,
-                    lift: false,
+                    lift: true,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -1313,7 +1313,7 @@ class _LaunchApiDemoPanelState extends State<_LaunchApiDemoPanel> {
       radius: prism.AppCorner.xl,
       padding: EdgeInsets.zero,
       hoverGlow: true,
-      lift: false,
+      lift: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,

@@ -2300,7 +2300,7 @@ class _AutomationPageState extends State<AutomationPage> {
       staggerIndex: 5,
       staggerDelay: const Duration(milliseconds: 45),
       radius: prism.AppCorner.xl,
-      lift: false,
+      lift: true,
       padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2404,7 +2404,7 @@ class _AutomationPageState extends State<AutomationPage> {
       staggerIndex: 6,
       staggerDelay: const Duration(milliseconds: 45),
       radius: prism.AppCorner.xl,
-      lift: false,
+      lift: true,
       padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

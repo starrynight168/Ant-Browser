@@ -1689,7 +1689,7 @@ class _CoresPageState extends State<CoresPage> {
       staggerIndex: 6,
       staggerDelay: const Duration(milliseconds: 45),
       radius: prism.AppCorner.xl,
-      lift: false,
+      lift: true,
       padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
