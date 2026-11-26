@@ -1,4 +1,4 @@
-param(
+﻿param(
     [ValidateSet('debug', 'release')]
     [string]$Mode = 'release',
     [string]$Version = ''
@@ -60,10 +60,32 @@ $releaseDirectory = Get-ChildItem -LiteralPath (Join-Path $repoRoot 'frontend_fl
 if (-not $releaseDirectory) { throw "找不到 Flutter Windows $configuration 输出目录。" }
 
 $outputDirectory = Join-Path $repoRoot "build\native\$Mode"
+$uiOutputDirectory = Join-Path $outputDirectory 'ui'
 New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
-Copy-Item -Path (Join-Path $releaseDirectory '*') -Destination $outputDirectory -Recurse -Force
-if (-not (Test-Path -LiteralPath (Join-Path $outputDirectory 'data\flutter_assets') -PathType Container)) {
-    throw 'Flutter Windows 构建产物缺少 data\flutter_assets。'
+if (Test-Path -LiteralPath $uiOutputDirectory) {
+    Remove-Item -LiteralPath $uiOutputDirectory -Recurse -Force
+}
+New-Item -ItemType Directory -Path $uiOutputDirectory -Force | Out-Null
+Copy-Item -Path (Join-Path $releaseDirectory '*') -Destination $uiOutputDirectory -Recurse -Force
+if (-not (Test-Path -LiteralPath (Join-Path $uiOutputDirectory 'ant-browser-ui.exe') -PathType Leaf)) {
+    throw 'Flutter Windows 构建产物缺少 ui\ant-browser-ui.exe。'
+}
+if (-not (Test-Path -LiteralPath (Join-Path $uiOutputDirectory 'flutter_windows.dll') -PathType Leaf)) {
+    throw 'Flutter Windows 构建产物缺少 ui\flutter_windows.dll。'
+}
+if (-not (Test-Path -LiteralPath (Join-Path $uiOutputDirectory 'data\flutter_assets') -PathType Container)) {
+    throw 'Flutter Windows 构建产物缺少 ui\data\flutter_assets。'
+}
+# 清理旧版残留在根目录的 Flutter 外壳文件，保留用户运行数据（config.yaml / data\app.db 等）
+foreach ($legacyFile in @('ant-browser-ui.exe', 'flutter_windows.dll', 'data\app.so', 'data\icudtl.dat')) {
+    $legacyPath = Join-Path $outputDirectory $legacyFile
+    if (Test-Path -LiteralPath $legacyPath -PathType Leaf) {
+        Remove-Item -LiteralPath $legacyPath -Force
+    }
+}
+$legacyAssets = Join-Path $outputDirectory 'data\flutter_assets'
+if (Test-Path -LiteralPath $legacyAssets -PathType Container) {
+    Remove-Item -LiteralPath $legacyAssets -Recurse -Force
 }
 
 Push-Location $repoRoot

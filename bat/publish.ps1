@@ -291,7 +291,7 @@ function Build-WindowsBinary {
     Write-Host "[Windows] 执行 Flutter 原生桌面版构建..."
     $nativeOutput = Join-Path $repoRoot "build/native/release"
     $binaryPath = Join-Path $nativeOutput "ant-chrome.exe"
-    $uiPath = Join-Path $nativeOutput "ant-browser-ui.exe"
+    $uiPath = Join-Path $nativeOutput "ui\ant-browser-ui.exe"
     Assert-RequiredSourceFiles -Action "Windows packaging" -Paths @(
         "go.mod",
         "go.sum",
@@ -304,12 +304,12 @@ function Build-WindowsBinary {
     & (Join-Path $repoRoot "bat\build-native.ps1") -Mode release -Version $script:ResolvedVersion
     if ($LASTEXITCODE -ne 0) { throw "Flutter 原生桌面版构建失败" }
 
-    foreach ($requiredOutput in @($binaryPath, $uiPath, (Join-Path $nativeOutput "flutter_windows.dll"))) {
+    foreach ($requiredOutput in @($binaryPath, $uiPath, (Join-Path $nativeOutput "ui\flutter_windows.dll"))) {
         if (-not (Test-Path -LiteralPath $requiredOutput -PathType Leaf)) {
             throw "构建产物不存在: $requiredOutput"
         }
     }
-    $flutterAssetsPath = Join-Path $nativeOutput "data\flutter_assets"
+    $flutterAssetsPath = Join-Path $nativeOutput "ui\data\flutter_assets"
     if (-not (Test-Path -LiteralPath $flutterAssetsPath -PathType Container)) {
         throw "构建产物不存在: $flutterAssetsPath"
     }
@@ -551,12 +551,14 @@ function New-WindowsStaging {
     }
     New-Item -ItemType Directory -Path $stagingDir -Force | Out-Null
 
-    Copy-Item -Path (Join-Path $flutterRelease "*") -Destination $stagingDir -Recurse -Force
+    $stagingUiDir = Join-Path $stagingDir "ui"
+    New-Item -ItemType Directory -Path $stagingUiDir -Force | Out-Null
+    Copy-Item -Path (Join-Path $flutterRelease "*") -Destination $stagingUiDir -Recurse -Force
     Copy-Item -LiteralPath $binaryPath -Destination (Join-Path $stagingDir "ant-chrome.exe") -Force
     if (-not (Test-Path -LiteralPath (Join-Path $stagingDir "ant-chrome.exe") -PathType Leaf)) {
         throw "staging 中缺少 ant-chrome.exe"
     }
-    foreach ($requiredUiFile in @("ant-browser-ui.exe", "flutter_windows.dll")) {
+    foreach ($requiredUiFile in @("ui\ant-browser-ui.exe", "ui\flutter_windows.dll")) {
         if (-not (Test-Path -LiteralPath (Join-Path $stagingDir $requiredUiFile) -PathType Leaf)) {
             throw "staging 中缺少 Flutter 文件: $requiredUiFile"
         }

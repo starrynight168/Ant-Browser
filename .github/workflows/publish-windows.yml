@@ -88,9 +88,9 @@ jobs:
           Copy-Item "tools\install-ant-chrome-diagnostics-watcher.ps1" (Join-Path $stage "data\diagnostics") -Force
           $required = @(
             "ant-chrome.exe",
-            "ant-browser-ui.exe",
-            "flutter_windows.dll",
-            "data\flutter_assets",
+            "ui\ant-browser-ui.exe",
+            "ui\flutter_windows.dll",
+            "ui\data\flutter_assets",
             "bin\xray.exe",
             "bin\sing-box.exe"
           )

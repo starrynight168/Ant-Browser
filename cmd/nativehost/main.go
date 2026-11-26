@@ -220,7 +220,12 @@ func resolveUIPath() string {
 	}
 	executable, err := os.Executable()
 	if err != nil {
-		return "ant-browser-ui.exe"
+		return filepath.Join("ui", "ant-browser-ui.exe")
 	}
-	return filepath.Join(filepath.Dir(executable), "ant-browser-ui.exe")
+	exeDir := filepath.Dir(executable)
+	nestedUI := filepath.Join(exeDir, "ui", "ant-browser-ui.exe")
+	if _, err := os.Stat(nestedUI); err == nil {
+		return nestedUI
+	}
+	return filepath.Join(exeDir, "ant-browser-ui.exe")
 }

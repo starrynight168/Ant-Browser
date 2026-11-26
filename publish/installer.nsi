@@ -345,9 +345,17 @@ Section "Ant Browser (required)" SecMain
   Call PreserveLegacyBackupLocalConfig
   SetOutPath "$INSTDIR"
   File "${STAGINGDIR}\${PRODUCT_EXE}"
-  File "${STAGINGDIR}\ant-browser-ui.exe"
-  File "${STAGINGDIR}\*.dll"
   File "${STAGINGDIR}\${PRODUCT_ICON}"
+  ; 覆盖升级时清理旧版残留在根目录的 Flutter 外壳文件，不影响用户数据
+  Delete /REBOOTOK "$INSTDIR\ant-browser-ui.exe"
+  Delete /REBOOTOK "$INSTDIR\flutter_windows.dll"
+  Delete /REBOOTOK "$INSTDIR\data\app.so"
+  Delete /REBOOTOK "$INSTDIR\data\icudtl.dat"
+  RMDir /r /REBOOTOK "$INSTDIR\data\flutter_assets"
+  RMDir /r /REBOOTOK "$INSTDIR\ui"
+  SetOutPath "$INSTDIR\ui"
+  File /r "${STAGINGDIR}\ui\*"
+  SetOutPath "$INSTDIR"
 !if /FileExists "${STAGINGDIR}\config.yaml"
   IfFileExists "$INSTDIR\config.yaml" +2 0
     File "${STAGINGDIR}\config.yaml"
@@ -449,6 +457,7 @@ Section "Uninstall"
   Delete /REBOOTOK "$INSTDIR\${PRODUCT_ICON}"
   Delete /REBOOTOK "$INSTDIR\proxies.yaml"
   Delete /REBOOTOK "$INSTDIR\Uninstall.exe"
+  RMDir /r /REBOOTOK "$INSTDIR\ui"
   RMDir /r /REBOOTOK "$INSTDIR\bin"
   RMDir /r /REBOOTOK "$INSTDIR\chrome"
   ; 快捷方式可能建在当前用户（新装）或所有用户（旧装），两边都清一遍。

@@ -266,9 +266,193 @@ class AntBrowserApp extends StatelessWidget {
               ),
             );
           },
-          home: const AntBrowserShell(),
+          home: const _AntBrowserBootHost(),
         );
       },
+    );
+  }
+}
+
+class _AntBrowserBootHost extends StatefulWidget {
+  const _AntBrowserBootHost();
+
+  @override
+  State<_AntBrowserBootHost> createState() => _AntBrowserBootHostState();
+}
+
+class _AntBrowserBootHostState extends State<_AntBrowserBootHost>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  bool _dismissed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final spec = PrismMotionSpec.current;
+    final motionOn = spec.enabled;
+    _controller = AnimationController(
+      vsync: this,
+      duration: motionOn ? const Duration(milliseconds: 980) : Duration.zero,
+    );
+    if (!motionOn) {
+      _dismissed = true;
+    } else {
+      _controller.addStatusListener((status) {
+        if (status == AnimationStatus.completed && mounted) {
+          setState(() => _dismissed = true);
+        }
+      });
+      _controller.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_dismissed) {
+      return const AntBrowserShell();
+    }
+    final colors = prism.Theme.of(context).colorScheme;
+    final isDark = prism.Theme.of(context).brightness == Brightness.dark;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            final reveal = Curves.easeOutCubic.transform(
+              ((_controller.value - 0.62) / 0.38).clamp(0.0, 1.0),
+            );
+            final scale = 0.985 + 0.015 * reveal;
+            return Transform.scale(scale: scale, child: child);
+          },
+          child: const AntBrowserShell(),
+        ),
+        AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) {
+            final t = _controller.value;
+            final enter = Curves.easeOutBack.transform(
+              (t / 0.36).clamp(0.0, 1.0),
+            );
+            final progress = Curves.easeInOutCubic.transform(
+              ((t - 0.08) / 0.56).clamp(0.0, 1.0),
+            );
+            final exit = Curves.easeInCubic.transform(
+              ((t - 0.66) / 0.34).clamp(0.0, 1.0),
+            );
+            final opacity = (1.0 - exit).clamp(0.0, 1.0);
+            final exitScale = 1.0 + 0.03 * exit;
+            return IgnorePointer(
+              ignoring: exit > 0.35,
+              child: Opacity(
+                opacity: opacity,
+                child: ColoredBox(
+                  color: colors.surface,
+                  child: Center(
+                    child: Transform.scale(
+                      scale: exitScale,
+                      child: DecoratedBox(
+                        decoration: ShapeDecoration(
+                          color: colors.surfaceContainerLow,
+                          shape: RoundedSuperellipseBorder(
+                            borderRadius: prism.AppRadius.all(
+                              prism.AppCorner.xxl,
+                            ),
+                            side: BorderSide(
+                              color: colors.outlineVariant.withValues(
+                                alpha: isDark ? 0.28 : 0.35,
+                              ),
+                              width: 1,
+                            ),
+                          ),
+                          shadows: [
+                            BoxShadow(
+                              color: colors.shadow.withValues(
+                                alpha: isDark ? 0.32 : 0.08,
+                              ),
+                              blurRadius: 28,
+                              offset: const Offset(0, 12),
+                            ),
+                          ],
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 40,
+                            vertical: 34,
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Transform.scale(
+                                scale: 0.78 + 0.22 * enter,
+                                child: SizedBox.square(
+                                  dimension: 72,
+                                  child: DecoratedBox(
+                                    decoration: ShapeDecoration(
+                                      color: colors.primaryContainer,
+                                      shape: RoundedSuperellipseBorder(
+                                        borderRadius: prism.AppRadius.all(
+                                          prism.AppCorner.xl,
+                                        ),
+                                        side: BorderSide(
+                                          color: colors.primary.withValues(
+                                            alpha: isDark ? 0.38 : 0.24,
+                                          ),
+                                          width: 1,
+                                        ),
+                                      ),
+                                    ),
+                                    child: Center(
+                                      child: PrismGlyph(
+                                        AntGlyphs.browser,
+                                        size: 34,
+                                        color: colors.onPrimaryContainer,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              Text(
+                                'Ant Browser',
+                                style: prism.AppTextStyle.title2.of(
+                                  context,
+                                  emphasized: true,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                '正在准备指纹浏览器工作区…',
+                                style: prism.AppTextStyle.footnote
+                                    .of(context)
+                                    .copyWith(color: colors.onSurfaceVariant),
+                              ),
+                              const SizedBox(height: 22),
+                              SizedBox(
+                                width: 220,
+                                child: prism.LinearProgressIndicator(
+                                  value: progress,
+                                  minHeight: 5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 }
