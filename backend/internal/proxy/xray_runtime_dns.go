@@ -17,82 +17,76 @@ type DnsDiagnosticSummary struct {
 	Unsupported                []string `json:"unsupported"`
 }
 
-// parseDnsConfig 解析 DNS 配置，支持两种格式：
-// 1. Clash dns: YAML 块（含 nameserver/fallback 等字段）
-// 2. 逗号分隔的 IP 列表（兼容旧格式）
-// 返回 xray dns 配置 map，若无有效配置则返回 nil
+// parseDnsConfig 解析 DNS 配置，支持 Clash dns: YAML 块及逗号/换行分隔的列表。
+// 复用 parseClashBridgeDNS，统一遵守 dns.enable: false 与多行解析规则。
+// 返回 xray dns 配置 map，若无有效配置则返回 nil。
 //
-// 注意：xray dns.servers 只支持纯 IP 或 DoH（https://）地址，
-// 不支持 Clash 的 tls:// 格式（DoT），会被自动过滤。
+// 注意：xray dns.servers 支持 IP / IP:port / DoH（https://）/ localhost，
+// 不支持 Clash 的 tls:// 格式（DoT），会被过滤并在配置构建时记录告警。
 func parseDnsConfig(raw string) map[string]interface{} {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
+	cfg := parseClashBridgeDNS(raw)
+	if !cfg.hasServers() {
 		return nil
 	}
 
-	type clashDns struct {
-		Enable                bool     `yaml:"enable"`
-		Nameserver            []string `yaml:"nameserver"`
-		Fallback              []string `yaml:"fallback"`
-		ProxyServerNameserver []string `yaml:"proxy-server-nameserver"`
-	}
-	type clashDnsWrapper struct {
-		Dns clashDns `yaml:"dns"`
-	}
-
-	var wrapper clashDnsWrapper
-	if err := yaml.Unmarshal([]byte(raw), &wrapper); err == nil &&
-		(len(wrapper.Dns.Nameserver) > 0 || len(wrapper.Dns.ProxyServerNameserver) > 0 || len(wrapper.Dns.Fallback) > 0) {
-		servers := make([]interface{}, 0)
-		for _, s := range wrapper.Dns.Nameserver {
-			if s = strings.TrimSpace(s); s != "" && isXrayDnsAddr(s) {
-				servers = append(servers, s)
+	seen := make(map[string]struct{})
+	servers := make([]interface{}, 0)
+	appendList := func(items []string) {
+		for _, item := range items {
+			addr, ok := normalizeXrayDnsAddr(item)
+			if !ok {
+				continue
 			}
-		}
-		// xray 没有"仅用于解析代理服务器域名"的独立配置，proxy-server-nameserver
-		// 只能并入全局 servers；桥接只跑单节点，不会影响目标域名分流策略。
-		for _, s := range wrapper.Dns.ProxyServerNameserver {
-			if s = strings.TrimSpace(s); s != "" && isXrayDnsAddr(s) {
-				servers = append(servers, s)
+			if _, exists := seen[addr]; exists {
+				continue
 			}
-		}
-		for _, s := range wrapper.Dns.Fallback {
-			if s = strings.TrimSpace(s); s != "" && isXrayDnsAddr(s) {
-				servers = append(servers, s)
-			}
-		}
-		if len(servers) > 0 {
-			return map[string]interface{}{"servers": servers}
+			seen[addr] = struct{}{}
+			servers = append(servers, addr)
 		}
 	}
 
-	var result []string
-	for _, s := range strings.Split(raw, ",") {
-		if s = strings.TrimSpace(s); s != "" && isXrayDnsAddr(s) {
-			result = append(result, s)
-		}
-	}
-	if len(result) == 0 {
+	appendList(cfg.Nameserver)
+	// xray 没有"仅用于解析代理服务器域名"的独立配置，proxy-server-nameserver
+	// 只能并入全局 servers；桥接只跑单节点，不会影响目标域名分流策略。
+	appendList(cfg.ProxyServerNameserver)
+	appendList(cfg.Fallback)
+	appendList(cfg.DefaultNameserver)
+
+	if len(servers) == 0 {
 		return nil
-	}
-
-	servers := make([]interface{}, len(result))
-	for i, s := range result {
-		servers[i] = s
 	}
 	return map[string]interface{}{"servers": servers}
 }
 
-// isXrayDnsAddr 判断 DNS 地址是否为 xray 支持的格式。
-// xray 支持：纯 IP（如 8.8.8.8）、IP:port（如 8.8.8.8:53）、
-// DoH（https://...）、localhost。
-// 不支持：Clash 的 tls:// 格式（DoT）。
-func isXrayDnsAddr(s string) bool {
-	l := strings.ToLower(s)
-	if strings.HasPrefix(l, "tls://") {
-		return false
+// normalizeXrayDnsAddr 校验并归一化 xray dns.servers 地址。
+// 支持 IP、IP:port、DoH（https://...）、localhost（可带 udp:// 前缀或 # 后缀），
+// 过滤 xray 不支持的 tls://（DoT）与明显无效地址。
+func normalizeXrayDnsAddr(s string) (string, bool) {
+	value := strings.TrimSpace(s)
+	if value == "" {
+		return "", false
 	}
-	return true
+	if strings.HasPrefix(strings.ToLower(value), "tls://") {
+		return "", false
+	}
+	if idx := strings.IndexByte(value, '#'); idx >= 0 {
+		value = strings.TrimSpace(value[:idx])
+	}
+	if strings.HasPrefix(strings.ToLower(value), "udp://") {
+		value = strings.TrimSpace(value[len("udp://"):])
+	}
+	if strings.EqualFold(value, "localhost") {
+		return "localhost", true
+	}
+	if convertSingBoxDNSServer(value, "check", "") == nil {
+		return "", false
+	}
+	return value, true
+}
+
+func isXrayDnsAddr(s string) bool {
+	_, ok := normalizeXrayDnsAddr(s)
+	return ok
 }
 
 func buildDnsDiagnosticSummary(raw string) DnsDiagnosticSummary {
@@ -102,7 +96,7 @@ func buildDnsDiagnosticSummary(raw string) DnsDiagnosticSummary {
 	}
 	summary := DnsDiagnosticSummary{HasConfig: true, SourceFormat: "list"}
 	type clashDns struct {
-		Enable                bool     `yaml:"enable"`
+		Enable                *bool    `yaml:"enable"`
 		EnhancedMode          string   `yaml:"enhanced-mode"`
 		Nameserver            []string `yaml:"nameserver"`
 		Fallback              []string `yaml:"fallback"`
@@ -112,7 +106,11 @@ func buildDnsDiagnosticSummary(raw string) DnsDiagnosticSummary {
 		Dns clashDns `yaml:"dns"`
 	}
 	var wrapper clashDnsWrapper
-	if err := yaml.Unmarshal([]byte(raw), &wrapper); err == nil && (len(wrapper.Dns.Nameserver) > 0 || len(wrapper.Dns.Fallback) > 0 || len(wrapper.Dns.ProxyServerNameserver) > 0 || wrapper.Dns.EnhancedMode != "") {
+	if err := yaml.Unmarshal([]byte(raw), &wrapper); err == nil &&
+		(wrapper.Dns.Enable != nil || len(wrapper.Dns.Nameserver) > 0 || len(wrapper.Dns.Fallback) > 0 || len(wrapper.Dns.ProxyServerNameserver) > 0 || wrapper.Dns.EnhancedMode != "") {
+		if wrapper.Dns.Enable != nil && !*wrapper.Dns.Enable {
+			return DnsDiagnosticSummary{}
+		}
 		summary.SourceFormat = "clash"
 		summary.EnhancedMode = strings.TrimSpace(wrapper.Dns.EnhancedMode)
 		summary.NameserverCount = len(wrapper.Dns.Nameserver)
@@ -132,11 +130,7 @@ func buildDnsDiagnosticSummary(raw string) DnsDiagnosticSummary {
 		}
 		return summary
 	}
-	for _, server := range strings.Split(raw, ",") {
-		server = strings.TrimSpace(server)
-		if server == "" {
-			continue
-		}
+	for _, server := range splitDNSList(raw) {
 		summary.NameserverCount++
 		if isXrayDnsAddr(server) {
 			summary.XrayServerCount++

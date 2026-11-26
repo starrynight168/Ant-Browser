@@ -135,7 +135,7 @@ func TestBridgeCustomDNSYAMLRoundTrip(t *testing.T) {
 func TestNormalizeConfigUpdateDefaults(t *testing.T) {
 	config := &Config{}
 	normalizeConfig(config)
-	if config.Update.Repo != "black-ant/Ant-Browser" {
+	if config.Update.Repo != "starrynight168/Ant-Browser" {
 		t.Fatalf("update repo = %q", config.Update.Repo)
 	}
 	if config.Update.CheckIntervalHours != 24 {

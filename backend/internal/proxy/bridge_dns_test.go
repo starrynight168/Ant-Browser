@@ -294,3 +294,32 @@ func TestBuildProxyDiagnosticNodeKeyMatchesBridgeKey(t *testing.T) {
 		t.Fatalf("诊断 NodeKey 未使用自定义 DNS: %q", diagCustom.NodeKey)
 	}
 }
+
+func TestParseXrayDnsConfigHandlesMultilineEnableFalseAndDoT(t *testing.T) {
+	// 多行文本：应拆分并保留 IP 与 DoH，过滤 DoT (tls://)
+	cfg := parseDnsConfig("1.1.1.1\nhttps://doh.example.com/dns-query\ntls://dns.quad9.net\n1.1.1.1")
+	if cfg == nil {
+		t.Fatal("multiline xray dns config returned nil")
+	}
+	servers, ok := cfg["servers"].([]interface{})
+	if !ok || len(servers) != 2 || servers[0] != "1.1.1.1" || servers[1] != "https://doh.example.com/dns-query" {
+		t.Fatalf("multiline servers = %#v, want [1.1.1.1 https://doh.example.com/dns-query]", cfg["servers"])
+	}
+
+	// dns.enable: false 时不得注入任何服务器
+	disabled := "dns:\n  enable: false\n  nameserver:\n    - 1.1.1.1\n  proxy-server-nameserver:\n    - https://doh.example.com/dns-query"
+	if got := parseDnsConfig(disabled); got != nil {
+		t.Fatalf("enable:false 不应注入 xray dns: %#v", got)
+	}
+	disabledSummary := buildDnsDiagnosticSummary(disabled)
+	if disabledSummary.HasConfig || disabledSummary.XrayServerCount != 0 {
+		t.Fatalf("enable:false diagnostic summary = %+v, want empty", disabledSummary)
+	}
+
+	// 诊断摘要同样应支持多行并标记 DoT 为不支持
+	multiSummary := buildDnsDiagnosticSummary("1.1.1.1\ntls://dns.quad9.net\nhttps://doh.example.com/dns-query")
+	if multiSummary.NameserverCount != 3 || multiSummary.XrayServerCount != 2 ||
+		len(multiSummary.Unsupported) != 1 || multiSummary.Unsupported[0] != "tls://dns.quad9.net" {
+		t.Fatalf("multiline diagnostic summary = %+v", multiSummary)
+	}
+}

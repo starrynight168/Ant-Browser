@@ -239,7 +239,8 @@ class _CoresPageState extends State<CoresPage> {
                     maxLines: 4,
                     decoration: const PrismInputDecoration(
                       labelText: '自定义桥接 DNS（优先于节点/订阅 DNS，留空跟随订阅）',
-                      hintText: '每行一个 IP / DoH / DoT，或完整 dns: YAML',
+                      hintText:
+                          '每行一个 IP / DoH（https://）/ DoT（tls://），或完整 dns: YAML；Xray 将忽略 tls://',
                     ),
                   ),
                   const SizedBox(height: 14),

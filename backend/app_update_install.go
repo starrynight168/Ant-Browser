@@ -97,13 +97,16 @@ func (a *App) GetDownloadedAppUpdate() *AppDownloadedUpdate {
 	if comparison, err := compareUpdateVersions(a.appVersion(), downloaded.Version); err != nil || comparison >= 0 {
 		return nil
 	}
-	installerPath := a.updateDataPath("updates", downloaded.Version, downloaded.AssetName)
+	installerPath, err := a.safeUpdatePackagePath(downloaded.Version, downloaded.AssetName)
+	if err != nil {
+		return nil
+	}
 	if _, err := os.Stat(installerPath); err != nil {
 		return nil
 	}
 	return &AppDownloadedUpdate{
-		Version:       downloaded.Version,
-		AssetName:     downloaded.AssetName,
+		Version:       strings.TrimSpace(downloaded.Version),
+		AssetName:     strings.TrimSpace(downloaded.AssetName),
 		InstallerPath: installerPath,
 	}
 }
@@ -117,10 +120,59 @@ func (a *App) ClearDownloadedAppUpdate() error {
 	if downloaded == nil {
 		return nil
 	}
-	installerPath := a.updateDataPath("updates", downloaded.Version, downloaded.AssetName)
+	installerPath, err := a.safeUpdatePackagePath(downloaded.Version, downloaded.AssetName)
+	if err != nil {
+		return nil
+	}
 	_ = os.Remove(installerPath)
 	_ = os.Remove(filepath.Dir(installerPath))
 	return nil
+}
+
+func validateUpdatePathSegment(label string, value string) error {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" || trimmed != value {
+		return fmt.Errorf("%s 不能为空或包含首尾空白", label)
+	}
+	if trimmed == "." || trimmed == ".." ||
+		strings.Contains(trimmed, "..") ||
+		strings.ContainsAny(trimmed, `/\:`+"\x00") ||
+		filepath.VolumeName(trimmed) != "" ||
+		filepath.Base(trimmed) != trimmed ||
+		filepath.Clean(trimmed) != trimmed {
+		return fmt.Errorf("%s 包含非法路径字符", label)
+	}
+	return nil
+}
+
+// safeUpdatePackagePath 校验版本号与资源文件名，并将目标路径严格限制在 updates 数据目录内。
+func (a *App) safeUpdatePackagePath(version string, assetName string) (string, error) {
+	version = strings.TrimSpace(version)
+	assetName = strings.TrimSpace(assetName)
+	if _, err := parseUpdateVersion(version); err != nil {
+		return "", err
+	}
+	if err := validateUpdatePathSegment("更新版本号", version); err != nil {
+		return "", err
+	}
+	if err := validateUpdatePathSegment("更新包文件名", assetName); err != nil {
+		return "", err
+	}
+	updatesRoot, err := filepath.Abs(a.updateDataPath("updates"))
+	if err != nil {
+		return "", fmt.Errorf("解析更新目录失败: %w", err)
+	}
+	targetPath, err := filepath.Abs(filepath.Join(updatesRoot, version, assetName))
+	if err != nil {
+		return "", fmt.Errorf("解析更新包路径失败: %w", err)
+	}
+	rel, err := filepath.Rel(updatesRoot, targetPath)
+	if err != nil || rel == "." || rel == ".." ||
+		strings.HasPrefix(rel, ".."+string(filepath.Separator)) ||
+		filepath.IsAbs(rel) {
+		return "", fmt.Errorf("更新包路径越出更新目录")
+	}
+	return targetPath, nil
 }
 
 func updateAssetKey() string {
@@ -191,6 +243,10 @@ func (a *App) downloadAppUpdate(version string, assetKey string, proxyConfig str
 	if err != nil {
 		return err
 	}
+	targetPath, err := a.safeUpdatePackagePath(version, asset.Name)
+	if err != nil {
+		return err
+	}
 	client, err := a.updateDownloadHTTPClientFor(proxyConfig, proxyID)
 	if err != nil {
 		return fmt.Errorf("更新代理配置错误: %w", err)
@@ -205,7 +261,7 @@ func (a *App) downloadAppUpdate(version string, assetKey string, proxyConfig str
 			emit("error", 0, err.Error())
 			return
 		}
-		log.Info("应用更新包已下载", logger.F("version", version), logger.F("path", a.updateDataPath("updates", version, asset.Name)))
+		log.Info("应用更新包已下载", logger.F("version", version), logger.F("path", targetPath))
 	})
 }
 
@@ -213,11 +269,14 @@ func (a *App) downloadAppUpdate(version string, assetKey string, proxyConfig str
 func (a *App) downloadUpdatePackage(ctx context.Context, version string, asset AppUpdateAsset, client *http.Client, emit func(phase string, progress int, message string)) error {
 	emit("resolving", 5, "准备下载更新包")
 
-	targetDir := a.updateDataPath("updates", version)
+	targetPath, err := a.safeUpdatePackagePath(version, asset.Name)
+	if err != nil {
+		return err
+	}
+	targetDir := filepath.Dir(targetPath)
 	if err := os.MkdirAll(targetDir, 0o755); err != nil {
 		return fmt.Errorf("创建更新目录失败: %s", err.Error())
 	}
-	targetPath := filepath.Join(targetDir, asset.Name)
 	tempPath := targetPath + ".part"
 	// 下载或校验中途失败时不留下半成品；成功 rename 后该路径已不存在，删除是空操作。
 	defer func() { _ = os.Remove(tempPath) }()
@@ -401,7 +460,10 @@ func (a *App) ApplyAppUpdate(version string, assetKey string) error {
 		normalizeUpdateVersion(requested) != normalizeUpdateVersion(downloaded.Version) {
 		return fmt.Errorf("更新包版本与待安装版本不一致")
 	}
-	installerPath := a.updateDataPath("updates", downloaded.Version, downloaded.AssetName)
+	installerPath, err := a.safeUpdatePackagePath(downloaded.Version, downloaded.AssetName)
+	if err != nil {
+		return err
+	}
 	if _, err := os.Stat(installerPath); err != nil {
 		return fmt.Errorf("更新包不存在，请先下载: %s", installerPath)
 	}

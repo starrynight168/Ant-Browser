@@ -617,3 +617,45 @@ func TestDownloadUpdatePackageReportsHTTPError(t *testing.T) {
 		t.Fatalf("下载失败仍写入已下载记录: %+v", saved)
 	}
 }
+
+func TestSafeUpdatePackagePathRejectsTraversalAndAcceptsValid(t *testing.T) {
+	app := newUpdateTestApp(t, "")
+	validPath, err := app.safeUpdatePackagePath("v1.9.7", "ant-browser-setup.exe")
+	if err != nil {
+		t.Fatalf("expected valid update path, got %v", err)
+	}
+	wantRoot, _ := filepath.Abs(app.updateDataPath("updates"))
+	rel, err := filepath.Rel(wantRoot, validPath)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		t.Fatalf("validPath = %q escaped root %q", validPath, wantRoot)
+	}
+
+	invalidCases := []struct {
+		version string
+		asset   string
+	}{
+		{version: "../evil", asset: "setup.exe"},
+		{version: "1.9.7-../../evil", asset: "setup.exe"},
+		{version: "1.9.7/../../evil", asset: "setup.exe"},
+		{version: "1.9.7", asset: "../evil.exe"},
+		{version: "1.9.7", asset: `..\evil.exe`},
+		{version: "1.9.7", asset: "sub/setup.exe"},
+		{version: "1.9.7", asset: ".."},
+		{version: "1.9.7", asset: "C:setup.exe"},
+	}
+	for _, tc := range invalidCases {
+		if got, err := app.safeUpdatePackagePath(tc.version, tc.asset); err == nil {
+			t.Fatalf("safeUpdatePackagePath(%q, %q) = %q, want error", tc.version, tc.asset, got)
+		}
+		err := app.downloadUpdatePackage(
+			context.Background(),
+			tc.version,
+			AppUpdateAsset{Name: tc.asset, URL: "https://example.invalid/setup.exe"},
+			&http.Client{},
+			func(string, int, string) {},
+		)
+		if err == nil {
+			t.Fatalf("downloadUpdatePackage(%q, %q) succeeded, want error", tc.version, tc.asset)
+		}
+	}
+}

@@ -52,7 +52,7 @@ update:
   enabled: true
   auto_check: true
   check_interval_hours: 24
-  repo: black-ant/Ant-Browser
+  repo: starrynight168/Ant-Browser
   verify_checksum: true
 launch_server:
   port: 19876

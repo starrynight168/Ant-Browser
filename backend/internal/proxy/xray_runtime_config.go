@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"ant-chrome/backend/internal/apppath"
+	"ant-chrome/backend/internal/logger"
 	"context"
 	"crypto/sha256"
 	"crypto/tls"
@@ -74,6 +75,13 @@ func (m *XrayManager) buildRuntimeConfigWithRoute(key string, outbounds []interf
 		"routing": map[string]interface{}{
 			"rules": rules,
 		},
+	}
+	if summary := buildDnsDiagnosticSummary(dnsServers); len(summary.Unsupported) > 0 {
+		logger.New("Xray").Warn(
+			"xray 桥接忽略不支持的 DNS 地址（例如 DoT tls://）",
+			logger.F("key", key),
+			logger.F("unsupported", strings.Join(summary.Unsupported, ", ")),
+		)
 	}
 	if dnsCfg := parseDnsConfig(dnsServers); dnsCfg != nil {
 		cfg["dns"] = dnsCfg

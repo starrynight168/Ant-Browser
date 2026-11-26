@@ -419,7 +419,7 @@ func DefaultConfig() *Config {
 			Enabled:            boolPtr(true),
 			AutoCheck:          boolPtr(true),
 			CheckIntervalHours: 24,
-			Repo:               "black-ant/Ant-Browser",
+			Repo:               "starrynight168/Ant-Browser",
 			VerifyChecksum:     boolPtr(true),
 		},
 		ProxyCheck: ProxyCheckConfig{
