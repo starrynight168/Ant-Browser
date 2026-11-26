@@ -2040,15 +2040,20 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
       ),
     );
     final actionWidgets = <Widget>[
-      prism.IconButton(
-        tooltip: '历史记录',
-        onPressed: _showHistory,
-        icon: const PrismGlyph(AntGlyphs.history, size: 17),
-      ),
-      prism.IconButton(
-        tooltip: '刷新',
-        onPressed: _loading ? null : _refresh,
-        icon: const PrismGlyph(AntGlyphs.refresh, size: 17),
+      prism.TonalButtonGroup(
+        size: prism.TonalButtonSize.section,
+        children: [
+          prism.IconButton(
+            tooltip: '历史记录',
+            onPressed: _showHistory,
+            icon: const PrismGlyph(AntGlyphs.history, size: 17),
+          ),
+          prism.IconButton(
+            tooltip: '刷新',
+            onPressed: _loading ? null : _refresh,
+            icon: const PrismGlyph(AntGlyphs.refresh, size: 17),
+          ),
+        ],
       ),
       PrismTonalButton.icon(
         onPressed: _busy.isEmpty ? _openDownloadDirectoryInstallModal : null,
@@ -2454,7 +2459,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
               const SizedBox(width: 14),
               Wrap(
                 spacing: 12,
-                runSpacing: 6,
+                runSpacing: 8,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   if (storeUrl.isNotEmpty)
@@ -2463,61 +2468,68 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                       icon: const PrismGlyph(AntGlyphs.openInNew, size: 14),
                       label: const Text('商店'),
                     ),
-                  prism.IconButton(
-                    tooltip: '重新安装 / 更新',
-                    onPressed: busy
-                        ? null
-                        : () => _run(
-                            id,
-                            () async {
-                              await AppBridge.call(
-                                'BrowserExtensionInstallWithProxy',
-                                [
-                                  {
-                                    'query': id,
-                                    'useProxy': _useProxy,
-                                    'proxyConfig': _selectedProxyConfig,
-                                  },
-                                ],
-                              );
-                            },
-                            history: {
-                              'action': 'install',
-                              'query': id,
-                              'extensionId': id,
-                              'name': item['name'] ?? '',
-                              'version': item['version'] ?? '',
-                              'storeUrl': storeUrl,
-                              'proxyLabel': _selectedProxyLabel,
-                            },
-                          ),
-                    icon: const PrismGlyph(AntGlyphs.download, size: 18),
-                  ),
-                  prism.IconButton(
-                    tooltip: defaultInstall ? '取消默认安装' : '设为默认安装',
-                    onPressed: busy
-                        ? null
-                        : () => _run(id, () async {
-                            await AppBridge.call(
-                              'BrowserExtensionSetDefaultInstall',
-                              [id, !defaultInstall],
-                            );
-                          }),
-                    icon: PrismGlyph(
-                      AntGlyphs.pin,
-                      size: 18,
-                      color: defaultInstall ? colors.primary : null,
-                    ),
-                  ),
-                  prism.IconButton(
-                    tooltip: '指定安装实例',
-                    onPressed: busy ? null : () => _configureProfiles(item),
-                    icon: const PrismGlyph(AntGlyphs.tune, size: 18),
-                  ),
-                  prism.IconButton(
-                    tooltip: '查看使用此插件的实例',
-                    onPressed: busy ? null : () => _showInstalledProfiles(item),
-                    icon: const PrismGlyph(AntGlyphs.browser, size: 18),
+                  prism.TonalButtonGroup(
+                    size: prism.TonalButtonSize.section,
+                    children: [
+                      prism.IconButton(
+                        tooltip: '重新安装 / 更新',
+                        onPressed: busy
+                            ? null
+                            : () => _run(
+                                id,
+                                () async {
+                                  await AppBridge.call(
+                                    'BrowserExtensionInstallWithProxy',
+                                    [
+                                      {
+                                        'query': id,
+                                        'useProxy': _useProxy,
+                                        'proxyConfig': _selectedProxyConfig,
+                                      },
+                                    ],
+                                  );
+                                },
+                                history: {
+                                  'action': 'install',
+                                  'query': id,
+                                  'extensionId': id,
+                                  'name': item['name'] ?? '',
+                                  'version': item['version'] ?? '',
+                                  'storeUrl': storeUrl,
+                                  'proxyLabel': _selectedProxyLabel,
+                                },
+                              ),
+                        icon: const PrismGlyph(AntGlyphs.download, size: 18),
+                      ),
+                      prism.IconButton(
+                        tooltip: defaultInstall ? '取消默认安装' : '设为默认安装',
+                        onPressed: busy
+                            ? null
+                            : () => _run(id, () async {
+                                await AppBridge.call(
+                                  'BrowserExtensionSetDefaultInstall',
+                                  [id, !defaultInstall],
+                                );
+                              }),
+                        icon: PrismGlyph(
+                          AntGlyphs.pin,
+                          size: 18,
+                          color: defaultInstall ? colors.primary : null,
+                        ),
+                      ),
+                      prism.IconButton(
+                        tooltip: '指定安装实例',
+                        onPressed: busy ? null : () => _configureProfiles(item),
+                        icon: const PrismGlyph(AntGlyphs.tune, size: 18),
+                      ),
+                      prism.IconButton(
+                        tooltip: '查看使用此插件的实例',
+                        onPressed: busy
+                            ? null
+                            : () => _showInstalledProfiles(item),
+                        icon: const PrismGlyph(AntGlyphs.browser, size: 18),
+                      ),
+                    ],
                   ),
                   prism.Switch(
                     value: enabled,
@@ -2563,7 +2575,11 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                               });
                             }
                           },
-                    icon: const PrismGlyph(AntGlyphs.delete, size: 18),
+                    icon: PrismGlyph(
+                      AntGlyphs.delete,
+                      size: 18,
+                      color: busy ? null : colors.error,
+                    ),
                   ),
                 ],
               ),

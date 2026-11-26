@@ -730,16 +730,16 @@ class _StyledButtonState extends State<_StyledButton> {
     final scale = noMotion
         ? 1.0
         : pressed
-        ? 0.96
+        ? 0.93
         : hovered
-        ? 1.035
+        ? 1.045
         : 1.0;
     return AnimatedScale(
       scale: scale,
       duration: noMotion
           ? Duration.zero
-          : Duration(milliseconds: pressed ? 85 : 170),
-      curve: Curves.easeOutCubic,
+          : Duration(milliseconds: pressed ? 90 : 220),
+      curve: pressed ? Curves.easeOutCubic : Curves.easeOutBack,
       child: PressSurface(
         fill: fill,
         shape: _resolve((style) => style?.shape)!,

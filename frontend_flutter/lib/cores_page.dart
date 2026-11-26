@@ -1220,20 +1220,25 @@ class _CoresPageState extends State<CoresPage> {
       ),
     );
     final actionWidgets = <Widget>[
-      prism.IconButton(
-        tooltip: '扫描本地内核',
-        onPressed: _busy ? null : _scan,
-        icon: const PrismGlyph(AntGlyphs.locationSearch, size: 17),
-      ),
-      prism.IconButton(
-        tooltip: '导入本地内核',
-        onPressed: _busy ? null : _import,
-        icon: const PrismGlyph(AntGlyphs.folder, size: 17),
-      ),
-      prism.IconButton(
-        tooltip: '添加内核路径',
-        onPressed: _busy ? null : () => _edit(),
-        icon: const PrismGlyph(AntGlyphs.add, size: 17),
+      prism.TonalButtonGroup(
+        size: prism.TonalButtonSize.section,
+        children: [
+          prism.IconButton(
+            tooltip: '扫描本地内核',
+            onPressed: _busy ? null : _scan,
+            icon: const PrismGlyph(AntGlyphs.locationSearch, size: 17),
+          ),
+          prism.IconButton(
+            tooltip: '导入本地内核',
+            onPressed: _busy ? null : _import,
+            icon: const PrismGlyph(AntGlyphs.folder, size: 17),
+          ),
+          prism.IconButton(
+            tooltip: '添加内核路径',
+            onPressed: _busy ? null : () => _edit(),
+            icon: const PrismGlyph(AntGlyphs.add, size: 17),
+          ),
+        ],
       ),
       PrismTonalButton.icon(
         onPressed: _busy ? null : _editSettings,
@@ -1631,37 +1636,42 @@ class _CoresPageState extends State<CoresPage> {
               ),
               const SizedBox(width: 12),
             ],
-            prism.IconButton(
-              tooltip: '打开所在位置',
-              onPressed: () async {
-                try {
-                  await AppBridge.call('OpenCorePath', [
-                    '${core['corePath'] ?? ''}',
-                  ]);
-                } catch (error) {
-                  _message('$error');
-                }
-              },
-              icon: const PrismGlyph(AntGlyphs.folder, size: 18),
-            ),
-            prism.IconButton(
-              tooltip: '重新下载',
-              onPressed: _busy
-                  ? null
-                  : () => _openDownloadModal(redownloadCore: core),
-              icon: const PrismGlyph(AntGlyphs.download, size: 18),
-            ),
-            prism.IconButton(
-              tooltip: '编辑',
-              onPressed: _busy ? null : () => _edit(core),
-              icon: const PrismGlyph(AntGlyphs.edit, size: 18),
-            ),
-            prism.IconButton(
-              tooltip: _coreDeleteReason(core) ?? '删除',
-              onPressed: _busy || _coreDeleteReason(core) != null
-                  ? null
-                  : () => _delete(core),
-              icon: const PrismGlyph(AntGlyphs.delete, size: 18),
+            prism.TonalButtonGroup(
+              size: prism.TonalButtonSize.section,
+              children: [
+                prism.IconButton(
+                  tooltip: '打开所在位置',
+                  onPressed: () async {
+                    try {
+                      await AppBridge.call('OpenCorePath', [
+                        '${core['corePath'] ?? ''}',
+                      ]);
+                    } catch (error) {
+                      _message('$error');
+                    }
+                  },
+                  icon: const PrismGlyph(AntGlyphs.folder, size: 18),
+                ),
+                prism.IconButton(
+                  tooltip: '重新下载',
+                  onPressed: _busy
+                      ? null
+                      : () => _openDownloadModal(redownloadCore: core),
+                  icon: const PrismGlyph(AntGlyphs.download, size: 18),
+                ),
+                prism.IconButton(
+                  tooltip: '编辑',
+                  onPressed: _busy ? null : () => _edit(core),
+                  icon: const PrismGlyph(AntGlyphs.edit, size: 18),
+                ),
+                prism.IconButton(
+                  tooltip: _coreDeleteReason(core) ?? '删除',
+                  onPressed: _busy || _coreDeleteReason(core) != null
+                      ? null
+                      : () => _delete(core),
+                  icon: const PrismGlyph(AntGlyphs.delete, size: 18),
+                ),
+              ],
             ),
           ],
         ),

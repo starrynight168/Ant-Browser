@@ -222,15 +222,43 @@ class AntBrowserApp extends StatelessWidget {
                       ),
                     ),
                     icon: prism.ButtonStyle(
+                      backgroundColor: WidgetStateProperty.fromMap({
+                        WidgetState.disabled: const Color(0x00000000),
+                        WidgetState.hovered: neutralHover,
+                        WidgetState.any: textSoftFill,
+                      }),
+                      foregroundColor: WidgetStateProperty.fromMap({
+                        WidgetState.disabled: cs.onSurface.withValues(
+                          alpha: 0.36,
+                        ),
+                        WidgetState.selected: cs.primary,
+                        WidgetState.any: cs.onSurfaceVariant,
+                      }),
+                      side: WidgetStateProperty.fromMap({
+                        WidgetState.disabled: BorderSide.none,
+                        WidgetState.hovered: BorderSide(
+                          color: cs.primary.withValues(
+                            alpha: isDark ? 0.30 : 0.22,
+                          ),
+                          width: 1,
+                        ),
+                        WidgetState.any: BorderSide(
+                          color: cs.outlineVariant.withValues(
+                            alpha: isDark ? 0.22 : 0.28,
+                          ),
+                          width: 1,
+                        ),
+                      }),
                       overlayColor: WidgetStateProperty.fromMap({
                         WidgetState.hovered: cs.onSurface.withValues(
-                          alpha: 0.09,
+                          alpha: 0.06,
                         ),
                         WidgetState.pressed: cs.onSurface.withValues(
-                          alpha: 0.15,
+                          alpha: 0.14,
                         ),
                         WidgetState.any: const Color(0x00000000),
                       }),
+                      shape: prism.AppShape.full,
                     ),
                   ),
                   child: child!,
@@ -4297,9 +4325,8 @@ class _BrowserListPageState extends State<BrowserListPage> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                spacing: 4,
+                              trailing: prism.TonalButtonGroup(
+                                size: prism.TonalButtonSize.section,
                                 children: [
                                   prism.IconButton(
                                     tooltip: '恢复',

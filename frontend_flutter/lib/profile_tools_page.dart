@@ -933,24 +933,29 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                                       ),
                                     ),
                                     const SizedBox(width: 10),
-                                    prism.IconButton(
-                                      tooltip: '复制启动码',
-                                      onPressed: () => _copyLaunchCode(profile),
-                                      icon: const PrismGlyph(
-                                        AntGlyphs.copy,
-                                        size: 16,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    prism.IconButton(
-                                      tooltip: '重新生成启动码',
-                                      onPressed: _busy.isEmpty
-                                          ? _regenerateLaunchCode
-                                          : null,
-                                      icon: const PrismGlyph(
-                                        AntGlyphs.refresh,
-                                        size: 16,
-                                      ),
+                                    prism.TonalButtonGroup(
+                                      size: prism.TonalButtonSize.section,
+                                      children: [
+                                        prism.IconButton(
+                                          tooltip: '复制启动码',
+                                          onPressed: () =>
+                                              _copyLaunchCode(profile),
+                                          icon: const PrismGlyph(
+                                            AntGlyphs.copy,
+                                            size: 16,
+                                          ),
+                                        ),
+                                        prism.IconButton(
+                                          tooltip: '重新生成启动码',
+                                          onPressed: _busy.isEmpty
+                                              ? _regenerateLaunchCode
+                                              : null,
+                                          icon: const PrismGlyph(
+                                            AntGlyphs.refresh,
+                                            size: 16,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
@@ -1119,10 +1124,8 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
-                                        trailing: Wrap(
-                                          spacing: 10,
-                                          crossAxisAlignment:
-                                              WrapCrossAlignment.center,
+                                        trailing: prism.TonalButtonGroup(
+                                          size: prism.TonalButtonSize.section,
                                           children: [
                                             prism.IconButton(
                                               tooltip: '恢复快照',

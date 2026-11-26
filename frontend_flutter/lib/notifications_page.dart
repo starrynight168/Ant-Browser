@@ -392,6 +392,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
             prism.IconButton(
               tooltip: '标记为已读',
               onPressed: () => widget.store.markRead(id),
+              style: const prism.ButtonStyle(
+                fixedSize: Size.square(36),
+                minimumSize: Size.square(36),
+                padding: EdgeInsets.zero,
+              ),
               icon: const PrismGlyph(AntGlyphs.check, size: 18),
             ),
           ],

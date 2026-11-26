@@ -3589,32 +3589,37 @@ socks5://user:password@proxy.example.com:1080''',
           label: const Text('添加代理'),
         ),
       ),
-      prism.IconButton(
-        tooltip: '导入订阅',
-        onPressed: _busy.isEmpty ? _importSubscription : null,
-        icon: const PrismGlyph(AntGlyphs.upload, size: 17),
-      ),
-      prism.IconButton(
-        tooltip: _busy == 'batch-speed' ? '测速中…' : '批量测速',
-        onPressed: _busy.isEmpty ? () => _testAll(visible) : null,
-        icon: _busy == 'batch-speed'
-            ? const SizedBox(
-                width: 17,
-                height: 17,
-                child: PrismProgressIndicator(size: 17),
-              )
-            : const PrismGlyph(AntGlyphs.speed, size: 17),
-      ),
-      prism.IconButton(
-        tooltip: _refreshing ? '刷新中…' : '刷新列表',
-        onPressed: _refreshing ? null : _refresh,
-        icon: _refreshing
-            ? const SizedBox(
-                width: 17,
-                height: 17,
-                child: PrismProgressIndicator(size: 17),
-              )
-            : const PrismGlyph(AntGlyphs.refresh, size: 17),
+      prism.TonalButtonGroup(
+        size: prism.TonalButtonSize.section,
+        children: [
+          prism.IconButton(
+            tooltip: '导入订阅',
+            onPressed: _busy.isEmpty ? _importSubscription : null,
+            icon: const PrismGlyph(AntGlyphs.upload, size: 17),
+          ),
+          prism.IconButton(
+            tooltip: _busy == 'batch-speed' ? '测速中…' : '批量测速',
+            onPressed: _busy.isEmpty ? () => _testAll(visible) : null,
+            icon: _busy == 'batch-speed'
+                ? const SizedBox(
+                    width: 17,
+                    height: 17,
+                    child: PrismProgressIndicator(size: 17),
+                  )
+                : const PrismGlyph(AntGlyphs.speed, size: 17),
+          ),
+          prism.IconButton(
+            tooltip: _refreshing ? '刷新中…' : '刷新列表',
+            onPressed: _refreshing ? null : _refresh,
+            icon: _refreshing
+                ? const SizedBox(
+                    width: 17,
+                    height: 17,
+                    child: PrismProgressIndicator(size: 17),
+                  )
+                : const PrismGlyph(AntGlyphs.refresh, size: 17),
+          ),
+        ],
       ),
       PrismPopupMenuButton<String>(
         tooltip: '更多操作',
@@ -4013,36 +4018,41 @@ socks5://user:password@proxy.example.com:1080''',
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            prism.IconButton(
-              tooltip: '检查代理 IP',
-              onPressed: _busy.isEmpty ? () => _testIpHealth(item) : null,
-              icon: const PrismGlyph(AntGlyphs.globe, size: 18),
-            ),
-            const SizedBox(width: 4),
-            prism.IconButton(
-              tooltip: '测试连接',
-              onPressed: _busy.isEmpty && !isDirect ? () => _test(item) : null,
-              icon: _busy == id || _testingIds.contains(id)
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: PrismProgressIndicator(size: 18),
-                    )
-                  : const PrismGlyph(AntGlyphs.speed, size: 18),
-            ),
-            const SizedBox(width: 4),
-            prism.IconButton(
-              tooltip: '桥接预热',
-              onPressed: _busy.isEmpty && !isDirect
-                  ? () => _warmupBridge(item)
-                  : null,
-              icon: _busy == 'batch-warmup'
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: PrismProgressIndicator(size: 18),
-                    )
-                  : const PrismGlyph(AntGlyphs.fire, size: 18),
+            prism.TonalButtonGroup(
+              size: prism.TonalButtonSize.section,
+              children: [
+                prism.IconButton(
+                  tooltip: '检查代理 IP',
+                  onPressed: _busy.isEmpty ? () => _testIpHealth(item) : null,
+                  icon: const PrismGlyph(AntGlyphs.globe, size: 18),
+                ),
+                prism.IconButton(
+                  tooltip: '测试连接',
+                  onPressed: _busy.isEmpty && !isDirect
+                      ? () => _test(item)
+                      : null,
+                  icon: _busy == id || _testingIds.contains(id)
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: PrismProgressIndicator(size: 18),
+                        )
+                      : const PrismGlyph(AntGlyphs.speed, size: 18),
+                ),
+                prism.IconButton(
+                  tooltip: '桥接预热',
+                  onPressed: _busy.isEmpty && !isDirect
+                      ? () => _warmupBridge(item)
+                      : null,
+                  icon: _busy == 'batch-warmup'
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: PrismProgressIndicator(size: 18),
+                        )
+                      : const PrismGlyph(AntGlyphs.fire, size: 18),
+                ),
+              ],
             ),
             const SizedBox(width: 8),
             PrismPopupMenuButton<String>(
@@ -7137,9 +7147,8 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
           ],
         ),
         subtitle: Text('$members 个成员'),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
+        trailing: prism.TonalButtonGroup(
+          size: prism.TonalButtonSize.section,
           children: [
             prism.IconButton(
               tooltip: '探测',
@@ -7152,19 +7161,16 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
                     )
                   : const PrismGlyph(AntGlyphs.health, size: 18),
             ),
-            const SizedBox(width: 4),
             prism.IconButton(
               tooltip: '重置健康',
               onPressed: _busy.isEmpty ? () => _resetHealth(group) : null,
               icon: const PrismGlyph(AntGlyphs.restart, size: 18),
             ),
-            const SizedBox(width: 4),
             prism.IconButton(
               tooltip: '编辑',
               onPressed: () => _edit(group),
               icon: const PrismGlyph(AntGlyphs.edit, size: 18),
             ),
-            const SizedBox(width: 4),
             prism.IconButton(
               tooltip: '删除',
               onPressed: () => _delete(group),

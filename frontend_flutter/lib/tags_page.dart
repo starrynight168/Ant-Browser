@@ -499,13 +499,31 @@ class _TagsPageState extends State<TagsPage> {
                                           const SizedBox(width: 6),
                                           prism.IconButton(
                                             tooltip: '重命名',
-                                            style: const prism.ButtonStyle(
-                                              minimumSize: Size.square(28),
-                                              maximumSize: Size.square(28),
+                                            style: prism.ButtonStyle(
+                                              minimumSize: const Size.square(
+                                                28,
+                                              ),
+                                              maximumSize: const Size.square(
+                                                28,
+                                              ),
                                               padding: EdgeInsets.zero,
                                               tapTargetSize: prism
                                                   .TapTargetSize
                                                   .shrinkWrap,
+                                              side:
+                                                  const WidgetStatePropertyAll(
+                                                    BorderSide.none,
+                                                  ),
+                                              backgroundColor:
+                                                  WidgetStateProperty.fromMap({
+                                                    WidgetState.hovered: colors
+                                                        .onSurface
+                                                        .withValues(
+                                                          alpha: 0.08,
+                                                        ),
+                                                    WidgetState.any:
+                                                        const Color(0x00000000),
+                                                  }),
                                             ),
                                             onPressed: () =>
                                                 _renameTag(tags[i]),

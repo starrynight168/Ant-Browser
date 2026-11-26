@@ -1423,6 +1423,11 @@ class _LaunchApiDemoPanelState extends State<_LaunchApiDemoPanel> {
                               Clipboard.setData(ClipboardData(text: _cdpUrl));
                               showPrismNotice(context, '已复制 CDP URL');
                             },
+                            style: const prism.ButtonStyle(
+                              fixedSize: Size.square(36),
+                              minimumSize: Size.square(36),
+                              padding: EdgeInsets.zero,
+                            ),
                             icon: const PrismGlyph(AntGlyphs.copy, size: 15),
                           ),
                         ],
