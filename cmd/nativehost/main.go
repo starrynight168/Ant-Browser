@@ -73,27 +73,40 @@ func main() {
 		lifecycle.Log(appRoot, "native_rpc.start.error", map[string]interface{}{"error": err.Error()})
 		return
 	}
+	rpc.SetStartupDeferred()
+
 	ctx := context.Background()
-	if err := backend.Start(app, ctx); err != nil {
-		log.Printf("应用启动失败: %v", err)
-		lifecycle.Log(appRoot, "backend.start.error", map[string]interface{}{"error": err.Error()})
-		backend.Stop(app, ctx)
-		_ = rpc.Close(context.Background())
-		return
-	}
-	lifecycle.Log(appRoot, "backend.start.complete", nil)
-	windowConfig := app.GetAppConfig()
+	startupDone := make(chan error, 1)
+	go func() {
+		startErr := backend.Start(app, ctx)
+		rpc.MarkReady(startErr)
+		if startErr != nil {
+			log.Printf("应用启动失败: %v", startErr)
+			lifecycle.Log(appRoot, "backend.start.error", map[string]interface{}{"error": startErr.Error()})
+			rpc.QuitApplication()
+		} else {
+			lifecycle.Log(appRoot, "backend.start.complete", nil)
+		}
+		startupDone <- startErr
+	}()
+
+	cfg, _ := backend.LoadConfig(backend.ResolveRuntimePath(appRoot, "config.yaml"))
 	windowBounds := windowsizing.ResolveStartupWindowBounds(windowsizing.StartupWindowBounds{
-		Width:     intConfigValue(windowConfig, "windowWidth"),
-		Height:    intConfigValue(windowConfig, "windowHeight"),
-		MinWidth:  intConfigValue(windowConfig, "windowMinWidth"),
-		MinHeight: intConfigValue(windowConfig, "windowMinHeight"),
+		Width:     cfg.App.Window.Width,
+		Height:    cfg.App.Window.Height,
+		MinWidth:  cfg.App.Window.MinWidth,
+		MinHeight: cfg.App.Window.MinHeight,
 	})
+	windowTitle := strings.TrimSpace(cfg.App.Name)
+	if windowTitle == "" {
+		windowTitle = "Ant Browser"
+	}
 
 	uiPath := resolveUIPath()
 	if _, err := os.Stat(uiPath); err != nil {
 		log.Printf("找不到 Flutter 界面程序 %q: %v", uiPath, err)
 		lifecycle.Log(appRoot, "flutter_ui.missing", map[string]interface{}{"path": uiPath, "error": err.Error()})
+		<-startupDone
 		backend.Stop(app, ctx)
 		_ = rpc.Close(context.Background())
 		return
@@ -103,7 +116,7 @@ func main() {
 	ui.Env = append(os.Environ(),
 		"ANT_BROWSER_NATIVE_RPC_URL="+rpc.Address(),
 		"ANT_BROWSER_NATIVE_RPC_TOKEN="+rpc.Token(),
-		"ANT_BROWSER_WINDOW_TITLE="+stringConfigValue(windowConfig, "name"),
+		"ANT_BROWSER_WINDOW_TITLE="+windowTitle,
 		"ANT_BROWSER_WINDOW_WIDTH="+strconv.Itoa(windowBounds.Width),
 		"ANT_BROWSER_WINDOW_HEIGHT="+strconv.Itoa(windowBounds.Height),
 		"ANT_BROWSER_WINDOW_MIN_WIDTH="+strconv.Itoa(windowBounds.MinWidth),
@@ -112,6 +125,7 @@ func main() {
 	if err := ui.Start(); err != nil {
 		log.Printf("启动 Flutter 界面失败: %v", err)
 		lifecycle.Log(appRoot, "flutter_ui.start.error", map[string]interface{}{"path": uiPath, "error": err.Error()})
+		<-startupDone
 		backend.Stop(app, ctx)
 		_ = rpc.Close(context.Background())
 		return
@@ -159,6 +173,7 @@ func main() {
 	}
 
 	backend.QuitTray()
+	<-startupDone
 	lifecycle.Log(appRoot, "backend.stop.begin", nil)
 	backend.Stop(app, ctx)
 	lifecycle.Log(appRoot, "backend.stop.complete", nil)
@@ -168,16 +183,6 @@ func main() {
 		log.Printf("关闭本地界面接口失败: %v", err)
 		lifecycle.Log(appRoot, "native_rpc.stop.error", map[string]interface{}{"error": err.Error()})
 	}
-}
-
-func intConfigValue(config map[string]interface{}, key string) int {
-	value, _ := config[key].(int)
-	return value
-}
-
-func stringConfigValue(config map[string]interface{}, key string) string {
-	value, _ := config[key].(string)
-	return value
 }
 
 func resolveAppRoot() string {

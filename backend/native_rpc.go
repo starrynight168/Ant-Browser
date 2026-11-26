@@ -23,6 +23,9 @@ type NativeRPCServer struct {
 	token        string
 	quit         chan struct{}
 	quitOnce     sync.Once
+	readyMu      sync.Mutex
+	readyCh      chan struct{}
+	startupErr   error
 	eventMu      sync.Mutex
 	nextEventID  uint64
 	eventClients map[uint64]chan nativeRuntimeEvent
@@ -58,11 +61,14 @@ func NewNativeRPCServer(app *App) (*NativeRPCServer, error) {
 		_ = listener.Close()
 		return nil, err
 	}
+	readyCh := make(chan struct{})
+	close(readyCh)
 	server := &NativeRPCServer{
 		app:          app,
 		listener:     listener,
 		token:        hex.EncodeToString(secret),
 		quit:         make(chan struct{}),
+		readyCh:      readyCh,
 		eventClients: make(map[uint64]chan nativeRuntimeEvent),
 		dialogs:      make(map[string]chan nativeDialogResult),
 	}
@@ -100,6 +106,47 @@ func (s *NativeRPCServer) Close(ctx context.Context) error {
 		ctx = context.Background()
 	}
 	return s.httpServer.Shutdown(ctx)
+}
+
+// SetStartupDeferred marks backend initialization as in-progress until MarkReady is called.
+func (s *NativeRPCServer) SetStartupDeferred() {
+	s.readyMu.Lock()
+	defer s.readyMu.Unlock()
+	s.readyCh = make(chan struct{})
+	s.startupErr = nil
+}
+
+// MarkReady unblocks any pending RPC invocations once backend startup completes.
+func (s *NativeRPCServer) MarkReady(err error) {
+	s.readyMu.Lock()
+	ch := s.readyCh
+	if err != nil && s.startupErr == nil {
+		s.startupErr = err
+	}
+	s.readyCh = nil
+	s.readyMu.Unlock()
+	if ch != nil {
+		close(ch)
+	}
+}
+
+func (s *NativeRPCServer) waitReady(ctx context.Context) error {
+	s.readyMu.Lock()
+	ch := s.readyCh
+	err := s.startupErr
+	s.readyMu.Unlock()
+	if ch == nil {
+		return err
+	}
+	select {
+	case <-ch:
+		s.readyMu.Lock()
+		readyErr := s.startupErr
+		s.readyMu.Unlock()
+		return readyErr
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func (s *NativeRPCServer) EmitRuntimeEvent(name string, args ...interface{}) {
@@ -198,6 +245,10 @@ func (s *NativeRPCServer) handleInvoke(w http.ResponseWriter, r *http.Request) {
 	var request nativeInvokeRequest
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 32<<20)).Decode(&request); err != nil {
 		s.writeInvokeResult(w, nil, fmt.Errorf("请求格式错误: %w", err))
+		return
+	}
+	if err := s.waitReady(r.Context()); err != nil {
+		s.writeInvokeResult(w, nil, fmt.Errorf("后端初始化失败: %w", err))
 		return
 	}
 	value, err := invokeBackendMethod(s.app, request.Method, request.Args)
