@@ -320,7 +320,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                   controller: _query,
                   focusNode: _focusNode,
                   autofocus: true,
-                  hintText: '搜索名称、启动码或标签…',
+                  hintText: '搜索名称、启动码、标签或关键词…',
                   onChanged: (_) => setState(() => _selectedIndex = 0),
                   onSubmitted: () => _onSubmit(filtered),
                 ),

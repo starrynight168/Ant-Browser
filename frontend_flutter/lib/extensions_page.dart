@@ -38,11 +38,17 @@ class _ParsedManifestInfo {
   const _ParsedManifestInfo({
     this.manifestVersion,
     this.permissions = const [],
+    this.hostPermissions = const [],
+    this.optionalPermissions = const [],
+    this.optionalHostPermissions = const [],
     this.hostPermissionCount = 0,
   });
 
   final int? manifestVersion;
   final List<String> permissions;
+  final List<String> hostPermissions;
+  final List<String> optionalPermissions;
+  final List<String> optionalHostPermissions;
   final int hostPermissionCount;
 }
 
@@ -70,6 +76,21 @@ _ParsedManifestInfo _parseManifestJson(dynamic raw) {
       final value = host.toString().trim();
       if (value.isNotEmpty) hostPatterns.add(value);
     }
+    final optionalApiPerms = <String>[];
+    final optionalHostPatterns = <String>{};
+    for (final raw in (decoded['optional_permissions'] as List? ?? [])) {
+      final perm = raw.toString().trim();
+      if (perm.isEmpty) continue;
+      if (perm.contains('://') || perm == '<all_urls>') {
+        optionalHostPatterns.add(perm);
+      } else {
+        optionalApiPerms.add(perm);
+      }
+    }
+    for (final host in (decoded['optional_host_permissions'] as List? ?? [])) {
+      final value = host.toString().trim();
+      if (value.isNotEmpty) optionalHostPatterns.add(value);
+    }
     for (final script in (decoded['content_scripts'] as List? ?? [])) {
       if (script is Map) {
         for (final match in (script['matches'] as List? ?? [])) {
@@ -78,10 +99,15 @@ _ParsedManifestInfo _parseManifestJson(dynamic raw) {
         }
       }
     }
+    final hostPermissionList = hostPatterns.toList()..sort();
+    final optionalHostPermissionList = optionalHostPatterns.toList()..sort();
     return _ParsedManifestInfo(
       manifestVersion: mv,
       permissions: apiPerms,
-      hostPermissionCount: hostPatterns.length,
+      hostPermissions: hostPermissionList,
+      optionalPermissions: optionalApiPerms,
+      optionalHostPermissions: optionalHostPermissionList,
+      hostPermissionCount: hostPermissionList.length,
     );
   } catch (_) {
     return const _ParsedManifestInfo();
@@ -1950,7 +1976,9 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                         if (msg.isNotEmpty) ...[
                           const SizedBox(height: 10),
                           PrismBanner(
-                            tone: installable ? PrismTone.info : PrismTone.danger,
+                            tone: installable
+                                ? PrismTone.info
+                                : PrismTone.danger,
                             message: msg,
                           ),
                         ],
@@ -2307,16 +2335,25 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
     final description = (item['description'] ?? '').toString().trim();
     final manifest = _parseManifestJson(item['manifestJson']);
     final permissionLabel = [
-      if (manifest.permissions.isNotEmpty)
-        'API ${manifest.permissions.length}',
+      if (manifest.permissions.isNotEmpty) 'API ${manifest.permissions.length}',
       if (manifest.hostPermissionCount > 0)
         '网站 ${manifest.hostPermissionCount}',
+      if (manifest.optionalPermissions.isNotEmpty)
+        '可选 API ${manifest.optionalPermissions.length}',
+      if (manifest.optionalHostPermissions.isNotEmpty)
+        '可选网站 ${manifest.optionalHostPermissions.length}',
     ].join(' · ');
     final permissionDetails = [
       if (manifest.permissions.isNotEmpty)
         'API 权限：${manifest.permissions.join('、')}',
       if (manifest.hostPermissionCount > 0)
-        '网站匹配规则：${manifest.hostPermissionCount} 项',
+        '网站匹配规则：\n${manifest.hostPermissions.take(5).join('\n')}'
+            '${manifest.hostPermissions.length > 5 ? '\n等 ${manifest.hostPermissions.length - 5} 项' : ''}',
+      if (manifest.optionalPermissions.isNotEmpty)
+        '可选 API 权限：${manifest.optionalPermissions.join('、')}',
+      if (manifest.optionalHostPermissions.isNotEmpty)
+        '可选网站匹配规则：\n${manifest.optionalHostPermissions.take(5).join('\n')}'
+            '${manifest.optionalHostPermissions.length > 5 ? '\n等 ${manifest.optionalHostPermissions.length - 5} 项' : ''}',
     ].join('\n');
 
     return PrismCard(

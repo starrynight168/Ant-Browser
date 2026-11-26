@@ -13,6 +13,7 @@ type DnsDiagnosticSummary struct {
 	NameserverCount            int      `json:"nameserverCount"`
 	FallbackCount              int      `json:"fallbackCount"`
 	ProxyServerNameserverCount int      `json:"proxyServerNameserverCount"`
+	DefaultNameserverCount     int      `json:"defaultNameserverCount"`
 	XrayServerCount            int      `json:"xrayServerCount"`
 	Unsupported                []string `json:"unsupported"`
 }
@@ -101,13 +102,19 @@ func buildDnsDiagnosticSummary(raw string) DnsDiagnosticSummary {
 		Nameserver            []string `yaml:"nameserver"`
 		Fallback              []string `yaml:"fallback"`
 		ProxyServerNameserver []string `yaml:"proxy-server-nameserver"`
+		DefaultNameserver     []string `yaml:"default-nameserver"`
 	}
 	type clashDnsWrapper struct {
 		Dns clashDns `yaml:"dns"`
 	}
 	var wrapper clashDnsWrapper
 	if err := yaml.Unmarshal([]byte(raw), &wrapper); err == nil &&
-		(wrapper.Dns.Enable != nil || len(wrapper.Dns.Nameserver) > 0 || len(wrapper.Dns.Fallback) > 0 || len(wrapper.Dns.ProxyServerNameserver) > 0 || wrapper.Dns.EnhancedMode != "") {
+		(wrapper.Dns.Enable != nil ||
+			len(wrapper.Dns.Nameserver) > 0 ||
+			len(wrapper.Dns.Fallback) > 0 ||
+			len(wrapper.Dns.ProxyServerNameserver) > 0 ||
+			len(wrapper.Dns.DefaultNameserver) > 0 ||
+			wrapper.Dns.EnhancedMode != "") {
 		if wrapper.Dns.Enable != nil && !*wrapper.Dns.Enable {
 			return DnsDiagnosticSummary{}
 		}
@@ -116,7 +123,11 @@ func buildDnsDiagnosticSummary(raw string) DnsDiagnosticSummary {
 		summary.NameserverCount = len(wrapper.Dns.Nameserver)
 		summary.FallbackCount = len(wrapper.Dns.Fallback)
 		summary.ProxyServerNameserverCount = len(wrapper.Dns.ProxyServerNameserver)
-		allServers := append(append(append([]string{}, wrapper.Dns.Nameserver...), wrapper.Dns.Fallback...), wrapper.Dns.ProxyServerNameserver...)
+		summary.DefaultNameserverCount = len(wrapper.Dns.DefaultNameserver)
+		allServers := append([]string{}, wrapper.Dns.Nameserver...)
+		allServers = append(allServers, wrapper.Dns.Fallback...)
+		allServers = append(allServers, wrapper.Dns.ProxyServerNameserver...)
+		allServers = append(allServers, wrapper.Dns.DefaultNameserver...)
 		for _, server := range allServers {
 			server = strings.TrimSpace(server)
 			if server == "" {

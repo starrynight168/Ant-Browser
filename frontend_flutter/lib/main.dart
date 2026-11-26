@@ -532,7 +532,9 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
     _removeCloseListener = AppBridge.onEvent('app:request-close', (_) {
       _showCloseDialog();
     });
-    _removeUpdateListener = AppBridge.onEvent('app:update:available', (payload) {
+    _removeUpdateListener = AppBridge.onEvent('app:update:available', (
+      payload,
+    ) {
       if (!mounted) return;
       final available = payload is! Map || payload['updateAvailable'] != false;
       if (available) setState(() => _updateAvailable = true);
@@ -3576,9 +3578,11 @@ class _BrowserListPageState extends State<BrowserListPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        for (var i = 0;
-                            i < (group['items'] as List? ?? []).length;
-                            i++) ...[
+                        for (
+                          var i = 0;
+                          i < (group['items'] as List? ?? []).length;
+                          i++
+                        ) ...[
                           if (i > 0) ...[
                             const SizedBox(height: 10),
                             const prism.Divider(height: 1),
@@ -4685,8 +4689,18 @@ class _BrowserListPageState extends State<BrowserListPage> {
             start ? 'BrowserInstanceStart' : 'BrowserInstanceStop',
             [id],
           );
-          if (start && res is Map && res['debugReady'] == false) {
+          if (res is! Map) {
+            errors.add('$name：未返回实例状态');
+          } else if (start && res['running'] != true) {
+            errors.add('$name：实例未进入运行状态');
+          } else if (start && res['debugReady'] == false) {
             pending++;
+          } else if (start &&
+              (res['debugPort'] is! num ||
+                  (res['debugPort'] as num).toInt() <= 0)) {
+            errors.add('$name：调试端口无效');
+          } else if (!start && res['running'] != false) {
+            errors.add('$name：实例仍在运行');
           } else {
             success++;
           }

@@ -92,7 +92,9 @@ class _AboutPageState extends State<AboutPage> {
     _loadVersion();
     _loadAuthor();
     _loadLocalUpdateState();
-    _removeProgressListener = AppBridge.onEvent('app:update:progress', (payload) {
+    _removeProgressListener = AppBridge.onEvent('app:update:progress', (
+      payload,
+    ) {
       if (!mounted || payload is! Map) return;
       final progress = Map<String, dynamic>.from(payload);
       final phase = '${progress['phase'] ?? ''}';
@@ -248,12 +250,7 @@ class _AboutPageState extends State<AboutPage> {
     if (_checking) return;
     setState(() => _checking = true);
     try {
-      dynamic result;
-      try {
-        result = await AppBridge.call('CheckAppUpdate');
-      } catch (_) {
-        result = await AppBridge.call('CheckForUpdates');
-      }
+      final result = await AppBridge.call('CheckAppUpdate');
       if (mounted) {
         final map = result is Map ? Map<String, dynamic>.from(result) : null;
         setState(() => _updateResult = map);
@@ -284,9 +281,11 @@ class _AboutPageState extends State<AboutPage> {
         proxyOptions = list
             .whereType<Map>()
             .map((e) => Map<String, dynamic>.from(e))
-            .where((e) =>
-                (e['proxyId'] ?? '').toString().trim().isNotEmpty &&
-                e['proxyId'] != '__direct__')
+            .where(
+              (e) =>
+                  (e['proxyId'] ?? '').toString().trim().isNotEmpty &&
+                  e['proxyId'] != '__direct__',
+            )
             .toList();
       }
     } catch (_) {}
@@ -436,9 +435,7 @@ class _AboutPageState extends State<AboutPage> {
       useRootNavigator: false,
       builder: (dialogContext) => PrismDialog(
         title: const Text('退出并安装更新'),
-        content: const Text(
-          '应用将立即退出，随后自动打开已下载的安装包。系统可能弹出权限确认，请按提示完成安装。',
-        ),
+        content: const Text('应用将立即退出，随后自动打开已下载的安装包。系统可能弹出权限确认，请按提示完成安装。'),
         actions: [
           prism.TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),

@@ -85,8 +85,13 @@ class _TagsPageState extends State<TagsPage> {
         (profile) => _selectedIds.contains('${profile['profileId'] ?? ''}'),
       );
 
-  bool? get _selectAllCheckboxValue =>
-      _allVisibleSelected ? true : (_selectedIds.isEmpty ? false : null);
+  bool? get _selectAllCheckboxValue {
+    if (_allVisibleSelected) return true;
+    final hasVisibleSelection = _visibleProfiles.any(
+      (profile) => _selectedIds.contains('${profile['profileId'] ?? ''}'),
+    );
+    return hasVisibleSelection ? null : false;
+  }
 
   void _message(String message) {
     if (mounted) showPrismNotice(context, message);
@@ -278,6 +283,10 @@ class _TagsPageState extends State<TagsPage> {
       await AppBridge.call(method, args);
       _message('$success（${_selectedIds.length} 个实例）');
       await _load();
+      final visibleIds = _visibleProfiles
+          .map((profile) => '${profile['profileId'] ?? ''}')
+          .toSet();
+      if (mounted) setState(() => _selectedIds.retainAll(visibleIds));
     } catch (error) {
       _message('操作失败：$error');
     } finally {

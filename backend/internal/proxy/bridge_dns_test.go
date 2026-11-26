@@ -260,6 +260,20 @@ func TestBuildDnsDiagnosticSummaryCountsProxyServerNameserver(t *testing.T) {
 	}
 }
 
+func TestBuildDnsDiagnosticSummaryCountsDefaultNameserver(t *testing.T) {
+	raw := "dns:\n  default-nameserver:\n    - 223.5.5.5"
+	summary := buildDnsDiagnosticSummary(raw)
+	if summary.SourceFormat != "clash" {
+		t.Fatalf("source format = %q, want clash", summary.SourceFormat)
+	}
+	if summary.DefaultNameserverCount != 1 {
+		t.Fatalf("default-nameserver count = %d, want 1", summary.DefaultNameserverCount)
+	}
+	if summary.XrayServerCount != 1 || len(summary.Unsupported) != 0 {
+		t.Fatalf("xray servers = %d, unsupported = %#v; want 1 valid server", summary.XrayServerCount, summary.Unsupported)
+	}
+}
+
 func TestComputeBridgeKeyFallsBackToLegacyKeyWithoutDNS(t *testing.T) {
 	src := "anytls://pw@node.example.com:443"
 	if got, want := ComputeBridgeKey(src, "", ProxyKernelMihomo), computeNodeKey(src+"\x00mihomo"); got != want {

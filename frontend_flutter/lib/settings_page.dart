@@ -8,39 +8,20 @@ import 'app_bridge.dart';
 import 'prism_widgets.dart';
 
 const _defaultAppSettings = <String, dynamic>{
-  'appName': 'Ant Browser',
-  'appDescription': '基于 Flutter 与 Go 的桌面应用',
   'theme': 'light',
   'themeColor': 'forest',
   'themeStyle': 'tinted',
   'motionIntensity': 100,
-  'primaryColor': '#3B82F6',
-  'language': 'zh-CN',
   'enableNotifications': true,
-  'enableAutoSave': true,
-  'autoSaveInterval': 30,
-  'maxUploadSize': 10,
-  'sessionTimeout': 30,
-  'cacheEnabled': true,
   'logLevel': 'info',
-  'maxMemoryMB': 1024,
-  'gcPercent': 100,
-};
-
-const _numberBounds = <String, (int min, int max)>{
-  'autoSaveInterval': (5, 300),
-  'maxUploadSize': (1, 1024),
-  'sessionTimeout': (1, 1440),
-  'maxMemoryMB': (128, 32768),
-  'gcPercent': (10, 1000),
 };
 
 enum _SettingsSection {
   appearance('外观与主题', AntGlyphs.sparkles),
-  general('通用与应用', AntGlyphs.settings),
+  notifications('通知设置', AntGlyphs.bell),
   automation('自动化运行时', AntGlyphs.robot),
   launchApi('本地启动接口', AntGlyphs.api),
-  performance('性能与日志', AntGlyphs.speed);
+  logging('日志设置', AntGlyphs.logs);
 
   const _SettingsSection(this.title, this.glyph);
 
@@ -58,10 +39,6 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   final _launchPortController = TextEditingController(text: '19876');
   final _systemNodePathController = TextEditingController();
-  final _appNameController = TextEditingController();
-  final _appDescriptionController = TextEditingController();
-  final Map<String, TextEditingController> _numberControllers = {};
-  final Map<String, FocusNode> _numberFocusNodes = {};
 
   _SettingsSection _activeSection = _SettingsSection.appearance;
 
@@ -86,13 +63,18 @@ class _SettingsPageState extends State<SettingsPage> {
   void Function()? _unsubscribeRuntimeProgress;
 
   Map<String, dynamic> _normalizeStoredSettings(Map<String, dynamic> raw) {
+    final supported = <String, dynamic>{
+      ..._defaultAppSettings,
+      for (final key in _defaultAppSettings.keys)
+        if (raw.containsKey(key)) key: raw[key],
+    };
     final storedMotion =
-        (raw['motionIntensity'] as num?)?.round().clamp(
+        (supported['motionIntensity'] as num?)?.round().clamp(
           kMinMotionIntensity,
           kMaxMotionIntensity,
         ) ??
         kDefaultMotionIntensity;
-    return <String, dynamic>{...raw, 'motionIntensity': storedMotion};
+    return <String, dynamic>{...supported, 'motionIntensity': storedMotion};
   }
 
   Map<String, dynamic> _overlayLiveAppearance(Map<String, dynamic> base) {
@@ -122,21 +104,6 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     } catch (_) {}
     _settings = _overlayLiveAppearance(_savedSettings);
-    for (final entry in _numberBounds.entries) {
-      final key = entry.key;
-      final (min, max) = entry.value;
-      _numberControllers[key] = TextEditingController(
-        text: '${_int(key, min)}',
-      );
-      final node = FocusNode();
-      node.addListener(() {
-        if (!node.hasFocus) {
-          _commitNumberField(key, min: min, max: max);
-        }
-      });
-      _numberFocusNodes[key] = node;
-    }
-    _syncControllersFromSettings();
     _systemNodePathController.addListener(_onRuntimeInputChanged);
     _unsubscribeRuntimeProgress = AppBridge.onEvent(
       'automation:runtime:progress',
@@ -151,14 +118,6 @@ class _SettingsPageState extends State<SettingsPage> {
     _systemNodePathController.removeListener(_onRuntimeInputChanged);
     _launchPortController.dispose();
     _systemNodePathController.dispose();
-    _appNameController.dispose();
-    _appDescriptionController.dispose();
-    for (final controller in _numberControllers.values) {
-      controller.dispose();
-    }
-    for (final node in _numberFocusNodes.values) {
-      node.dispose();
-    }
     super.dispose();
   }
 
@@ -203,46 +162,6 @@ class _SettingsPageState extends State<SettingsPage> {
       _nodeSource != _savedNodeSource ||
       _systemNodePathController.text.trim() != _savedSystemNodePath.trim();
 
-  void _syncControllersFromSettings() {
-    _appNameController.text = '${_settings['appName'] ?? ''}';
-    _appDescriptionController.text = '${_settings['appDescription'] ?? ''}';
-    for (final entry in _numberBounds.entries) {
-      final key = entry.key;
-      final (min, _) = entry.value;
-      _numberControllers[key]?.text = '${_int(key, min)}';
-    }
-  }
-
-  void _commitNumberField(String key, {required int min, required int max}) {
-    final controller = _numberControllers[key];
-    if (controller == null) return;
-    final parsed = int.tryParse(controller.text.trim());
-    final clamped = (parsed ?? _int(key, min)).clamp(min, max).toInt();
-    if (controller.text != '$clamped') {
-      controller.text = '$clamped';
-    }
-    if (_settings[key] != clamped) {
-      setState(() => _settings = {..._settings, key: clamped});
-    }
-  }
-
-  void _setNumberValue(String key, int value) {
-    final bounds = _numberBounds[key]!;
-    final clamped = value.clamp(bounds.$1, bounds.$2).toInt();
-    final controller = _numberControllers[key];
-    if (controller != null && controller.text != '$clamped') {
-      controller.text = '$clamped';
-    }
-    _change(key, clamped);
-  }
-
-  void _commitAllNumberFields() {
-    for (final entry in _numberBounds.entries) {
-      final (min, max) = entry.value;
-      _commitNumberField(entry.key, min: min, max: max);
-    }
-  }
-
   Future<void> _load({
     bool forceReloadStored = false,
     bool notify = false,
@@ -284,7 +203,6 @@ class _SettingsPageState extends State<SettingsPage> {
         _systemNodePathController.text = sysNodePath;
         _launchPortController.text =
             '${launchServer['preferredPort'] ?? launchServer['port'] ?? 19876}';
-        _syncControllersFromSettings();
       });
       if (forceReloadStored) {
         setAppThemeMode('${settings['theme'] ?? 'light'}');
@@ -314,16 +232,8 @@ class _SettingsPageState extends State<SettingsPage> {
 
   bool _bool(String key) => _settings[key] == true;
 
-  int _int(String key, int fallback) =>
-      int.tryParse('${_settings[key] ?? ''}') ?? fallback;
-
   Future<void> _save() async {
-    _commitAllNumberFields();
-    final updated = <String, dynamic>{
-      ..._settings,
-      'appName': _appNameController.text,
-      'appDescription': _appDescriptionController.text,
-    };
+    final updated = Map<String, dynamic>.from(_settings);
     setState(() {
       _settings = updated;
       _saving = true;
@@ -374,7 +284,6 @@ class _SettingsPageState extends State<SettingsPage> {
       setState(() {
         _settings = Map<String, dynamic>.from(_defaultAppSettings);
         _savedSettings = Map<String, dynamic>.from(_defaultAppSettings);
-        _syncControllersFromSettings();
       });
       setAppThemeMode('light');
       setAppThemeColor('forest');
@@ -599,57 +508,6 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _sliderSettingRow({
-    required String title,
-    required String subtitle,
-    required String fieldKey,
-    required String unit,
-    int? divisions,
-  }) {
-    final (min, max) = _numberBounds[fieldKey]!;
-    final current = _int(fieldKey, min).clamp(min, max).toInt();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: prism.Tooltip(
-                  message: subtitle,
-                  child: Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: prism.AppTextStyle.subheadline.of(
-                      context,
-                      emphasized: true,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              // 值变化时弹簧弹跳（对标 Web PoC 的 badge bump）
-              PrismValueBadge(value: current, unit: unit),
-              const SizedBox(width: 12),
-              SizedBox(width: 96, child: _numberField(fieldKey)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          prism.Slider(
-            value: current.toDouble(),
-            min: min.toDouble(),
-            max: max.toDouble(),
-            divisions: divisions,
-            label: '$current $unit',
-            onChanged: (value) => _setNumberValue(fieldKey, value.round()),
-          ),
-        ],
       ),
     );
   }
@@ -939,16 +797,16 @@ class _SettingsPageState extends State<SettingsPage> {
                         child: switch (_activeSection) {
                           _SettingsSection.appearance =>
                             _buildAppearanceSection(context),
-                          _SettingsSection.general => _buildGeneralSection(
-                            context,
-                          ),
+                          _SettingsSection.notifications =>
+                            _buildNotificationsSection(context),
                           _SettingsSection.automation =>
                             _buildAutomationSection(context),
                           _SettingsSection.launchApi => _buildLaunchApiSection(
                             context,
                           ),
-                          _SettingsSection.performance =>
-                            _buildPerformanceSection(context),
+                          _SettingsSection.logging => _buildLoggingSection(
+                            context,
+                          ),
                         },
                       ),
                     ),
@@ -966,7 +824,6 @@ class _SettingsPageState extends State<SettingsPage> {
     final currentColorId = '${_settings['themeColor'] ?? 'forest'}';
     final currentTheme = '${_settings['theme'] ?? 'light'}';
     final currentStyle = '${_settings['themeStyle'] ?? 'tinted'}';
-    final currentLang = '${_settings['language'] ?? 'zh-CN'}';
     final currentMotion =
         (_settings['motionIntensity'] is num
                 ? (_settings['motionIntensity'] as num).round()
@@ -1106,20 +963,6 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ),
           ),
-          prism.ListRow(
-            title: prism.Tooltip(
-              message: '应用界面默认展示语言',
-              child: const Text('界面语言'),
-            ),
-            trailing: SizedBox(
-              width: 210,
-              child: prism.SegmentedControl<String>(
-                segments: const [('zh-CN', '简体中文'), ('en-US', 'English')],
-                value: currentLang,
-                onChanged: (lang) => _change('language', lang),
-              ),
-            ),
-          ),
         ]),
         const SizedBox(height: 16),
         PrismSectionCard(
@@ -1218,8 +1061,7 @@ class _SettingsPageState extends State<SettingsPage> {
     ]);
   }
 
-  Widget _buildGeneralSection(BuildContext context) {
-    final autoSaveEnabled = _bool('enableAutoSave');
+  Widget _buildNotificationsSection(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1232,71 +1074,7 @@ class _SettingsPageState extends State<SettingsPage> {
             value: _bool('enableNotifications'),
             onChanged: (value) => _change('enableNotifications', value),
           ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              PrismSwitchTile(
-                title: prism.Tooltip(
-                  message: '定期自动持久化配置改动',
-                  child: const Text('自动保存'),
-                ),
-                value: autoSaveEnabled,
-                onChanged: (value) => _change('enableAutoSave', value),
-              ),
-              PrismCollapsible(
-                expanded: autoSaveEnabled,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 18),
-                      child: prism.Divider(height: 1),
-                    ),
-                    _sliderSettingRow(
-                      title: '自动保存间隔',
-                      subtitle: '每次自动保存配置的时间间隔（5 – 300 秒）',
-                      fieldKey: 'autoSaveInterval',
-                      unit: '秒',
-                      divisions: 59,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          _sliderSettingRow(
-            title: '最大上传大小',
-            subtitle: '单次上传或导入文件允许的最大体积（1 – 1024 MB）',
-            fieldKey: 'maxUploadSize',
-            unit: 'MB',
-          ),
         ]),
-        const SizedBox(height: 16),
-        PrismSectionCard(
-          title: '应用标识信息',
-          glyph: AntGlyphs.info,
-          staggerIndex: _staggerSeq++,
-          staggerDelay: const Duration(milliseconds: 55),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _textField('应用名称', 'appName', _appNameController),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                flex: 2,
-                child: _textField(
-                  '应用说明',
-                  'appDescription',
-                  _appDescriptionController,
-                ),
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }
@@ -1658,20 +1436,12 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildPerformanceSection(BuildContext context) {
+  Widget _buildLoggingSection(BuildContext context) {
     final currentLogLevel = '${_settings['logLevel'] ?? 'info'}'.toLowerCase();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _groupedCard([
-          PrismSwitchTile(
-            title: prism.Tooltip(
-              message: '缓存高频读取的配置与运行时元数据以提升响应速度',
-              child: const Text('启用本地缓存'),
-            ),
-            value: _bool('cacheEnabled'),
-            onChanged: (value) => _change('cacheEnabled', value),
-          ),
           prism.ListRow(
             title: prism.Tooltip(
               message: '控制后端记录的最低日志严重程度',
@@ -1698,24 +1468,6 @@ class _SettingsPageState extends State<SettingsPage> {
                 onChanged: (value) => _change('logLevel', value),
               ),
             ),
-          ),
-          _sliderSettingRow(
-            title: '会话超时',
-            subtitle: '空闲会话保持时长（1 – 1440 分钟）',
-            fieldKey: 'sessionTimeout',
-            unit: '分钟',
-          ),
-          _sliderSettingRow(
-            title: '最大内存上限',
-            subtitle: '进程建议内存上限（128 – 32768 MB）',
-            fieldKey: 'maxMemoryMB',
-            unit: 'MB',
-          ),
-          _sliderSettingRow(
-            title: '垃圾回收阈值',
-            subtitle: 'Go 运行时 GOGC 触发百分比（10 – 1000%）',
-            fieldKey: 'gcPercent',
-            unit: '%',
           ),
         ]),
       ],
@@ -1749,36 +1501,6 @@ class _SettingsPageState extends State<SettingsPage> {
       subtitle: message.isNotEmpty ? message : null,
       progress: progress,
       trailing: PrismBadge(label: phase.isEmpty ? '进行中' : phase, tone: tone),
-    );
-  }
-
-  Widget _textField(
-    String label,
-    String key,
-    TextEditingController controller, {
-    int maxLines = 1,
-  }) => PrismTextField(
-    controller: controller,
-    maxLines: maxLines,
-    decoration: PrismInputDecoration(labelText: label, isDense: true),
-    onChanged: (value) => _change(key, value),
-  );
-
-  Widget _numberField(String key) {
-    final (min, max) = _numberBounds[key]!;
-    return PrismTextField(
-      controller: _numberControllers[key],
-      focusNode: _numberFocusNodes[key],
-      keyboardType: TextInputType.number,
-      textAlign: TextAlign.end,
-      decoration: const PrismInputDecoration(isDense: true),
-      onChanged: (value) {
-        final parsed = int.tryParse(value.trim());
-        if (parsed != null) {
-          _change(key, parsed);
-        }
-      },
-      onSubmitted: (_) => _commitNumberField(key, min: min, max: max),
     );
   }
 }

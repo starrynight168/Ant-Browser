@@ -25,6 +25,13 @@ const Map<String, String> _kernelLabels = {
   'mieru': 'mieru',
 };
 
+bool _isProxyResultFresh(dynamic rawTimestamp, Duration maxAge) {
+  final timestamp = DateTime.tryParse((rawTimestamp ?? '').toString().trim());
+  if (timestamp == null) return false;
+  final age = DateTime.now().difference(timestamp);
+  return age >= const Duration(minutes: -1) && age <= maxAge;
+}
+
 const Map<String, dynamic> _builtinDirectProxy = {
   'proxyId': '__direct__',
   'proxyName': '直连（不使用代理）',
@@ -895,7 +902,9 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
       final settingsMap = values[4] is Map
           ? Map<String, dynamic>.from(values[4] as Map)
           : const <String, dynamic>{};
-      _globalCustomDns = (settingsMap['bridgeCustomDns'] ?? '').toString().trim();
+      _globalCustomDns = (settingsMap['bridgeCustomDns'] ?? '')
+          .toString()
+          .trim();
       final fetchedProxies = (values[0] as List? ?? [])
           .whereType<Map>()
           .map((row) => Map<String, dynamic>.from(row))
@@ -940,7 +949,8 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
       for (final proxy in _proxies) {
         final id = (proxy['proxyId'] ?? '').toString();
         final testedAt = (proxy['lastTestedAt'] ?? '').toString();
-        if (id.isNotEmpty && testedAt.isNotEmpty) {
+        if (id.isNotEmpty &&
+            _isProxyResultFresh(testedAt, const Duration(hours: 72))) {
           _speedResults[id] = {
             'proxyId': id,
             'ok': proxy['lastTestOk'] == true,
@@ -949,15 +959,29 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
             'error': proxy['lastTestError'] ?? '',
             'testedAt': testedAt,
           };
+        } else if (id.isNotEmpty) {
+          _speedResults.remove(id);
         }
         final rawHealth = (proxy['lastIPHealthJson'] ?? '').toString();
         if (id.isNotEmpty && rawHealth.isNotEmpty) {
           try {
             final health = jsonDecode(rawHealth);
             if (health is Map) {
-              _ipHealthResults[id] = Map<String, dynamic>.from(health);
+              final result = Map<String, dynamic>.from(health);
+              if (_isProxyResultFresh(
+                result['updatedAt'],
+                const Duration(hours: 12),
+              )) {
+                _ipHealthResults[id] = result;
+              } else {
+                _ipHealthResults.remove(id);
+              }
             }
-          } catch (_) {}
+          } catch (_) {
+            _ipHealthResults.remove(id);
+          }
+        } else if (id.isNotEmpty) {
+          _ipHealthResults.remove(id);
         }
       }
       _selectedIds.removeWhere(
@@ -2528,6 +2552,10 @@ socks5://user:password@proxy.example.com:1080''',
   }
 
   Future<void> _testIpHealth(Map<String, dynamic> proxy) async {
+    if (proxy['proxyConfig'] == 'direct://') {
+      showPrismNotice(context, '直连模式无需检测');
+      return;
+    }
     final id = (proxy['proxyId'] ?? '').toString();
     setState(() => _busy = id);
     try {
@@ -2601,6 +2629,7 @@ socks5://user:password@proxy.example.com:1080''',
 
   Future<void> _checkAllIPHealth(List<Map<String, dynamic>> proxies) async {
     final ids = proxies
+        .where((proxy) => proxy['proxyConfig'] != 'direct://')
         .map((proxy) => (proxy['proxyId'] ?? '').toString())
         .where((id) => id.isNotEmpty)
         .toList();
@@ -3897,10 +3926,14 @@ socks5://user:password@proxy.example.com:1080''',
     final id = (item['proxyId'] ?? '').toString();
     final isSelectable = id.isNotEmpty && id != '__direct__';
     final isDirect = item['proxyConfig'] == 'direct://';
+    final speed = _speedResults[id];
     final health = _ipHealthResults[id];
     final sourceId = (item['sourceId'] ?? '').toString();
     final sourceHost = _subscriptionHost((item['sourceUrl'] ?? '').toString());
     final (latencyLabel, latencyTone) = _latencyBadgeInfo(item);
+    final engine = (speed?['engine'] ?? item['lastTestEngine'] ?? '')
+        .toString()
+        .trim();
     final ipSummary = _formatIpHealthSummary(health);
     final ipAddr = health != null && health['ok'] == true
         ? (health['ip'] ?? '').toString().trim()
@@ -3979,11 +4012,17 @@ socks5://user:password@proxy.example.com:1080''',
                           .onSurfaceVariant,
                     ),
               ),
-              PrismBadge(
-                label: latencyLabel,
-                tone: latencyTone,
-                dot: true,
-              ),
+              if (engine.isNotEmpty)
+                prism.Tooltip(
+                  message: '测速引擎：$engine',
+                  child: PrismBadge(
+                    label: latencyLabel,
+                    tone: latencyTone,
+                    dot: true,
+                  ),
+                )
+              else
+                PrismBadge(label: latencyLabel, tone: latencyTone, dot: true),
               if (ipAddr.isNotEmpty || ipSummary.isNotEmpty)
                 PrismBadge(
                   label: [
@@ -3998,7 +4037,7 @@ socks5://user:password@proxy.example.com:1080''',
               if (_globalCustomDns.isEmpty &&
                   (item['dnsServers'] ?? '').toString().trim().isNotEmpty)
                 prism.Tooltip(
-                  message: '节点 DNS 来自订阅或手动填写',
+                  message: '节点 DNS 来自订阅或手动填写；订阅刷新会同步',
                   child: const PrismBadge(
                     label: 'DNS: 节点',
                     tone: PrismTone.neutral,
@@ -4022,7 +4061,9 @@ socks5://user:password@proxy.example.com:1080''',
               children: [
                 prism.IconButton(
                   tooltip: '检查代理 IP',
-                  onPressed: _busy.isEmpty ? () => _testIpHealth(item) : null,
+                  onPressed: _busy.isEmpty && !isDirect
+                      ? () => _testIpHealth(item)
+                      : null,
                   icon: const PrismGlyph(AntGlyphs.globe, size: 18),
                 ),
                 prism.IconButton(
@@ -4071,7 +4112,11 @@ socks5://user:password@proxy.example.com:1080''',
                   child: const Text('编辑'),
                   enabled: isSelectable,
                 ),
-                const PrismMenuItem(value: 'ip-health', child: Text('IP 健康')),
+                PrismMenuItem(
+                  value: 'ip-health',
+                  child: const Text('IP 健康'),
+                  enabled: !isDirect,
+                ),
                 PrismMenuItem(
                   value: 'delete',
                   child: const Text('删除'),
@@ -4125,6 +4170,14 @@ socks5://user:password@proxy.example.com:1080''',
           prism.InfoHeader(
             info: const prism.Info(label: '代理节点', glyph: AntGlyphs.globe),
             actions: [
+              if (_globalCustomDns.isNotEmpty)
+                prism.Tooltip(
+                  message: '全局自定义桥接 DNS 覆盖所有节点',
+                  child: const PrismBadge(
+                    label: '全局 DNS：自定义',
+                    tone: PrismTone.info,
+                  ),
+                ),
               if (busyLabel.isNotEmpty)
                 PrismBadge(label: busyLabel, tone: PrismTone.info, dot: true),
               if (selectable.isNotEmpty)
@@ -5956,10 +6009,7 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
             child: _loading
                 ? const Center(child: PrismProgressIndicator())
                 : _sources.isEmpty
-                ? const PrismEmptyState(
-                    title: '还没有订阅来源',
-                    glyph: AntGlyphs.link,
-                  )
+                ? const PrismEmptyState(title: '还没有订阅来源', glyph: AntGlyphs.link)
                 : _records.isEmpty
                 ? const PrismEmptyState(
                     title: '还没有对齐记录',
@@ -6259,13 +6309,16 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
       for (final proxy in _proxies) {
         final id = (proxy['proxyId'] ?? '').toString();
         final testedAt = (proxy['lastTestedAt'] ?? '').toString();
-        if (id.isNotEmpty && testedAt.isNotEmpty) {
+        if (id.isNotEmpty &&
+            _isProxyResultFresh(testedAt, const Duration(hours: 72))) {
           _speedCache[id] = {
             'proxyId': id,
             'ok': proxy['lastTestOk'] == true,
             'latencyMs': proxy['lastLatencyMs'] ?? 0,
             'error': proxy['lastTestError'] ?? '',
           };
+        } else if (id.isNotEmpty) {
+          _speedCache.remove(id);
         }
       }
     } catch (error) {
