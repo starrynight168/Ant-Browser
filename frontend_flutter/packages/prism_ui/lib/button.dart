@@ -50,7 +50,7 @@ class MoreActionButton extends StatelessWidget {
 enum TonalButtonSize {
   bar(button: 44, icon: 24),
   docked(button: BottomInsetScope.dockedSearchHeight, icon: 24),
-  section(button: 36, icon: 20),
+  section(button: 40, icon: 20),
   compact(button: 32, icon: 20);
 
   const TonalButtonSize({required this.button, required this.icon});

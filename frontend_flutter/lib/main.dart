@@ -159,9 +159,9 @@ class AntBrowserApp extends StatelessWidget {
                       }),
                       side: const WidgetStatePropertyAll(BorderSide.none),
                       shape: prism.AppShape.full,
-                      minimumSize: const Size(0, 40),
+                      minimumSize: const Size(0, 44),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 18,
+                        horizontal: 20,
                         vertical: 0,
                       ),
                     ),
@@ -186,9 +186,9 @@ class AntBrowserApp extends StatelessWidget {
                       }),
                       side: const WidgetStatePropertyAll(BorderSide.none),
                       shape: prism.AppShape.full,
-                      minimumSize: const Size(0, 40),
+                      minimumSize: const Size(0, 44),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 18,
+                        horizontal: 20,
                         vertical: 0,
                       ),
                     ),
@@ -215,9 +215,9 @@ class AntBrowserApp extends StatelessWidget {
                       }),
                       side: const WidgetStatePropertyAll(BorderSide.none),
                       shape: prism.AppShape.full,
-                      minimumSize: const Size(0, 40),
+                      minimumSize: const Size(0, 44),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
+                        horizontal: 18,
                         vertical: 0,
                       ),
                     ),
@@ -5061,7 +5061,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
                               gridDelegate:
                                   const SliverGridDelegateWithMaxCrossAxisExtent(
                                     maxCrossAxisExtent: 480,
-                                    mainAxisExtent: 280,
+                                    mainAxisExtent: 316,
                                     crossAxisSpacing: 12,
                                     mainAxisSpacing: 12,
                                   ),

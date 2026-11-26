@@ -103,7 +103,7 @@ class PrismBadge extends StatelessWidget {
       color: palette.bg,
       shape: prism.AppShape.full,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           spacing: 8,
@@ -179,7 +179,7 @@ class PrismBanner extends StatelessWidget {
       color: palette.bg,
       shape: prism.AppShape.lg,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
@@ -1149,7 +1149,7 @@ class PrismSectionCard extends StatelessWidget {
     this.glyph,
     this.actions = const [],
     required this.child,
-    this.padding = const EdgeInsets.all(16),
+    this.padding = const EdgeInsets.all(20),
     this.margin = EdgeInsets.zero,
     this.radius = prism.AppCorner.xl,
     this.staggerIndex = 0,
@@ -1189,7 +1189,7 @@ class PrismSectionCard extends StatelessWidget {
                     prism.InfoHeader(
                       info: prism.Info(label: title!, glyph: glyph),
                       actions: actions,
-                      padding: const EdgeInsets.fromLTRB(16, 14, 14, 10),
+                      padding: const EdgeInsets.fromLTRB(20, 16, 18, 12),
                     ),
                     const prism.Divider(height: 1),
                   ],
@@ -1209,7 +1209,7 @@ class PrismHoverCard extends StatelessWidget {
   const PrismHoverCard({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(16),
+    this.padding = const EdgeInsets.all(20),
     this.margin = EdgeInsets.zero,
     this.radius = prism.AppCorner.xl,
     this.onPressed,
@@ -1598,7 +1598,7 @@ class PrismMetricTile extends StatelessWidget {
     final iconBadge = glyph == null
         ? null
         : SizedBox.square(
-            dimension: 44,
+            dimension: 48,
             child: DecoratedBox(
               decoration: ShapeDecoration(
                 color: palette.bg,
@@ -1610,7 +1610,7 @@ class PrismMetricTile extends StatelessWidget {
               child: Center(
                 child: prism_icons.GlyphIcon(
                   glyph!,
-                  size: 21,
+                  size: 22,
                   color: palette.fg,
                 ),
               ),
@@ -1623,9 +1623,9 @@ class PrismMetricTile extends StatelessWidget {
         radius: prism.AppCorner.xl,
         onPressed: onPressed,
         inert: onPressed == null,
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 44),
+          constraints: const BoxConstraints(minHeight: 52),
           child: LayoutBuilder(
             builder: (context, constraints) {
               final bounded = constraints.hasBoundedWidth;
@@ -1635,7 +1635,7 @@ class PrismMetricTile extends StatelessWidget {
                 children: [
                   if (iconBadge != null) ...[
                     iconBadge,
-                    const SizedBox(width: 14),
+                    const SizedBox(width: 16),
                   ],
                   if (bounded)
                     Expanded(child: textColumn)
@@ -1742,7 +1742,7 @@ class PrismSearchBar extends StatelessWidget {
     this.onChanged,
     this.onSubmitted,
     this.autofocus = false,
-    this.height = 40,
+    this.height = 44,
     this.trailing,
   });
 
@@ -1803,12 +1803,12 @@ class PrismCodeSurface extends StatelessWidget {
           final codeChild = bounded
               ? Flexible(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
                     child: body,
                   ),
                 )
               : Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
                   child: maxHeight == null
                       ? body
                       : ConstrainedBox(
@@ -1822,7 +1822,7 @@ class PrismCodeSurface extends StatelessWidget {
             children: [
               if (showCopy || (language != null && language!.isNotEmpty))
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 6, 6, 0),
+                  padding: const EdgeInsets.fromLTRB(16, 10, 10, 4),
                   child: Row(
                     children: [
                       if (language != null && language!.isNotEmpty)
@@ -1879,7 +1879,7 @@ class PrismProgressPanel extends StatelessWidget {
       child: prism.Card(
         radius: prism.AppCorner.lg,
         inert: true,
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
@@ -1964,7 +1964,9 @@ class PrismInputDecoration {
       suffixText: suffixText,
       prefixIcon: prefixIcon,
       suffixIcon: suffixIcon,
-      contentPadding: contentPadding,
+      contentPadding:
+          contentPadding ??
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       isDense: isDense,
       filled: filled ?? true,
       fillColor: fillColor ?? colors.surfaceContainerLow,
@@ -2308,7 +2310,7 @@ class _PrismDropdownFieldState<T> extends State<PrismDropdownField<T>> {
         radius: prism.AppCorner.md,
         onPressed: enabled ? open : null,
         inert: !enabled,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         child: Row(
           children: [
             Expanded(
@@ -2451,7 +2453,7 @@ class PrismDialog extends StatelessWidget {
                 children: [
                   if (_titleText.isNotEmpty) ...[
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 18, 16, 14),
+                      padding: const EdgeInsets.fromLTRB(28, 22, 20, 16),
                       child: Row(
                         children: [
                           Expanded(
@@ -2478,7 +2480,7 @@ class PrismDialog extends StatelessWidget {
                       child: Padding(
                         padding:
                             padding ??
-                            const EdgeInsets.fromLTRB(24, 18, 24, 18),
+                            const EdgeInsets.fromLTRB(28, 22, 28, 22),
                         child: requestedHeight != null
                             ? ConstrainedBox(
                                 constraints: BoxConstraints(
@@ -2492,7 +2494,7 @@ class PrismDialog extends StatelessWidget {
                   if (actions != null && actions!.isNotEmpty) ...[
                     const prism.Divider(height: 1),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                      padding: const EdgeInsets.fromLTRB(24, 14, 24, 20),
                       child: Wrap(
                         alignment: WrapAlignment.end,
                         spacing: 10,
@@ -2676,8 +2678,8 @@ class PrismTonalButton extends StatelessWidget {
         WidgetState.any: const Color(0x00000000),
       }),
       shape: prism.AppShape.full,
-      minimumSize: const Size(0, 40),
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 0),
+      minimumSize: const Size(0, 44),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
     ).merge(style);
     return icon == null
         ? prism.FilledButton(
@@ -2842,13 +2844,13 @@ class PrismListTile extends StatelessWidget {
       title: effectiveTitle,
       subtitle: subtitle,
       trailing: trailing,
-      padding: contentPadding ?? const EdgeInsets.symmetric(horizontal: 18),
+      padding: contentPadding ?? const EdgeInsets.symmetric(horizontal: 20),
       minHeight: isThreeLine
-          ? 72
+          ? 78
           : dense
-          ? 44
-          : 56,
-      minVerticalPadding: dense ? 6 : 10,
+          ? 50
+          : 64,
+      minVerticalPadding: dense ? 8 : 12,
     );
     final content = prism.Surface(
       color: selected
