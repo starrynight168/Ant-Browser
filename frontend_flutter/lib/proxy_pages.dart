@@ -4018,7 +4018,7 @@ socks5://user:password@proxy.example.com:1080''',
               onPressed: _busy.isEmpty ? () => _testIpHealth(item) : null,
               icon: const PrismGlyph(AntGlyphs.globe, size: 18),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 4),
             prism.IconButton(
               tooltip: '测试连接',
               onPressed: _busy.isEmpty && !isDirect ? () => _test(item) : null,
@@ -4030,7 +4030,7 @@ socks5://user:password@proxy.example.com:1080''',
                     )
                   : const PrismGlyph(AntGlyphs.speed, size: 18),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 4),
             prism.IconButton(
               tooltip: '桥接预热',
               onPressed: _busy.isEmpty && !isDirect
@@ -4044,7 +4044,7 @@ socks5://user:password@proxy.example.com:1080''',
                     )
                   : const PrismGlyph(AntGlyphs.fire, size: 18),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
             PrismPopupMenuButton<String>(
               tooltip: '更多操作',
               enabled: _busy.isEmpty,
@@ -7152,19 +7152,19 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
                     )
                   : const PrismGlyph(AntGlyphs.health, size: 18),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 4),
             prism.IconButton(
               tooltip: '重置健康',
               onPressed: _busy.isEmpty ? () => _resetHealth(group) : null,
               icon: const PrismGlyph(AntGlyphs.restart, size: 18),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 4),
             prism.IconButton(
               tooltip: '编辑',
               onPressed: () => _edit(group),
               icon: const PrismGlyph(AntGlyphs.edit, size: 18),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 4),
             prism.IconButton(
               tooltip: '删除',
               onPressed: () => _delete(group),

@@ -846,6 +846,7 @@ class _AutomationScriptRunModalState extends State<AutomationScriptRunModal> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: PrismSwitchTile(
+                        contentPadding: EdgeInsets.zero,
                         title: const Text('运行前按 Code 码启动'),
                         subtitle: const Text('若实例未运行则先自动拉起'),
                         value: _startByCodeBeforeRun,
@@ -3936,6 +3937,7 @@ class _AutomationScriptDetailPageState
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               PrismSwitchTile(
+                contentPadding: EdgeInsets.zero,
                 title: const Text('启用对外 API'),
                 subtitle: const Text('通过 Launch Server 的 HTTP 接口触发此脚本'),
                 value: _apiEnabled,

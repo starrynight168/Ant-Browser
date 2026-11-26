@@ -489,7 +489,7 @@ mixin _BackupProfileImportFlow<T extends StatefulWidget> on State<T> {
                       ),
                       const SizedBox(width: 6),
                       Padding(
-                        padding: const EdgeInsets.only(top: 21),
+                        padding: const EdgeInsets.only(top: 24),
                         child: prism.IconButton(
                           tooltip: obscure ? '显示密码' : '隐藏密码',
                           onPressed: submitting

@@ -496,7 +496,7 @@ class _TagsPageState extends State<TagsPage> {
                                                 ? PrismTone.primary
                                                 : PrismTone.neutral,
                                           ),
-                                          const SizedBox(width: 10),
+                                          const SizedBox(width: 6),
                                           prism.IconButton(
                                             tooltip: '重命名',
                                             style: const prism.ButtonStyle(
