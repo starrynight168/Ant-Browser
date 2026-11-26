@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:prism_ui/icons/icons.dart' as prism_icons;
 import 'package:prism_ui/prism_ui.dart' as prism;
 
@@ -6,7 +8,7 @@ import 'prism_widgets.dart';
 
 const _remoteAuthorUrl = '';
 const _remoteAuthorTimeoutMs = 1000;
-const _projectUrl = 'https://github.com/black-ant/Ant-Browser';
+const _projectUrl = 'https://github.com/starrynight168/Ant-Browser';
 const _defaultAuthor = <String, dynamic>{
   'name': '志字辈小蚂蚁',
   'initial': '志',
@@ -52,14 +54,16 @@ const _projectProfile = <String, dynamic>{
     {'label': '查看源码', 'href': _projectUrl, 'icon': 'github'},
     {
       'label': '下载发布版',
-      'href': 'https://github.com/black-ant/Ant-Browser/releases',
+      'href': 'https://github.com/starrynight168/Ant-Browser/releases',
       'icon': 'globe',
     },
   ],
 };
 
 class AboutPage extends StatefulWidget {
-  const AboutPage({super.key});
+  const AboutPage({super.key, this.onUpdateStatusChanged});
+
+  final ValueChanged<bool>? onUpdateStatusChanged;
 
   @override
   State<AboutPage> createState() => _AboutPageState();
@@ -68,6 +72,8 @@ class AboutPage extends StatefulWidget {
 class _AboutPageState extends State<AboutPage> {
   String _version = '读取中';
   bool _checking = false;
+  bool _downloading = false;
+  bool _installing = false;
   bool _loadingProfile = true;
   String? _profileLoadError;
   late Map<String, dynamic> _author;
@@ -75,6 +81,11 @@ class _AboutPageState extends State<AboutPage> {
     _projectProfile,
   );
   Map<String, dynamic>? _updateResult;
+  Map<String, dynamic>? _updateProgress;
+  Map<String, dynamic>? _downloadedUpdate;
+  Map<String, dynamic>? _pendingUpdate;
+  late final void Function() _removeProgressListener;
+  late final void Function() _removePendingListener;
 
   @override
   void initState() {
@@ -82,6 +93,62 @@ class _AboutPageState extends State<AboutPage> {
     _author = Map<String, dynamic>.from(_defaultAuthor);
     _loadVersion();
     _loadAuthor();
+    _loadLocalUpdateState();
+    _removeProgressListener = AppBridge.onEvent('app:update:progress', (payload) {
+      if (!mounted || payload is! Map) return;
+      final progress = Map<String, dynamic>.from(payload);
+      final phase = '${progress['phase'] ?? ''}';
+      setState(() {
+        _updateProgress = progress;
+        if (phase == 'done' || phase == 'error') {
+          _downloading = false;
+        }
+      });
+      if (phase == 'done') {
+        _refreshDownloadedUpdate();
+      }
+    });
+    _removePendingListener = AppBridge.onEvent('app:update:pending', (payload) {
+      if (!mounted || payload is! Map) return;
+      setState(() => _pendingUpdate = Map<String, dynamic>.from(payload));
+    });
+  }
+
+  @override
+  void dispose() {
+    _removeProgressListener();
+    _removePendingListener();
+    super.dispose();
+  }
+
+  Future<void> _loadLocalUpdateState() async {
+    await Future.wait([_refreshDownloadedUpdate(), _refreshPendingUpdate()]);
+  }
+
+  Future<void> _refreshDownloadedUpdate() async {
+    try {
+      final res = await AppBridge.call('GetDownloadedAppUpdate');
+      if (mounted) {
+        setState(
+          () => _downloadedUpdate = res is Map
+              ? Map<String, dynamic>.from(res)
+              : null,
+        );
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _refreshPendingUpdate() async {
+    try {
+      final res = await AppBridge.call('GetPendingAppUpdate');
+      if (mounted) {
+        setState(
+          () => _pendingUpdate = res is Map
+              ? Map<String, dynamic>.from(res)
+              : null,
+        );
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadAuthor() async {
@@ -187,18 +254,230 @@ class _AboutPageState extends State<AboutPage> {
     if (_checking) return;
     setState(() => _checking = true);
     try {
-      final result = await AppBridge.call('CheckForUpdates');
+      dynamic result;
+      try {
+        result = await AppBridge.call('CheckAppUpdate');
+      } catch (_) {
+        result = await AppBridge.call('CheckForUpdates');
+      }
       if (mounted) {
-        setState(
-          () => _updateResult = result is Map
-              ? Map<String, dynamic>.from(result)
-              : null,
+        final map = result is Map ? Map<String, dynamic>.from(result) : null;
+        setState(() => _updateResult = map);
+        widget.onUpdateStatusChanged?.call(
+          map?['ok'] == true && map?['updateAvailable'] == true,
         );
       }
+      await _loadLocalUpdateState();
     } catch (error) {
-      if (mounted) setState(() => _updateResult = {'error': error.toString()});
+      if (mounted) {
+        setState(() => _updateResult = {'error': error.toString()});
+        widget.onUpdateStatusChanged?.call(false);
+      }
     } finally {
       if (mounted) setState(() => _checking = false);
+    }
+  }
+
+  String _normalizeUpdateVersion(String v) =>
+      v.trim().replaceFirst(RegExp(r'^[vV]'), '');
+
+  Future<void> _openDownloadWithProxyDialog() async {
+    if (_downloading) return;
+    var proxyOptions = <Map<String, dynamic>>[];
+    try {
+      final list = await AppBridge.call('BrowserProxyList');
+      if (list is List) {
+        proxyOptions = list
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .where((e) =>
+                (e['proxyId'] ?? '').toString().trim().isNotEmpty &&
+                e['proxyId'] != '__direct__')
+            .toList();
+      }
+    } catch (_) {}
+    if (!mounted) return;
+    var proxyMode = 'direct';
+    var selectedProxyId = proxyOptions.isNotEmpty
+        ? (proxyOptions.first['proxyId'] ?? '').toString()
+        : '';
+    final customProxyController = TextEditingController();
+    final confirmed = await showPrismDialog<bool>(
+      context: context,
+      useRootNavigator: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialog) => PrismDialog(
+          title: const Text('下载更新 · 选择代理'),
+          content: SizedBox(
+            width: 480,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                PrismDropdownField<String>(
+                  initialValue: proxyMode,
+                  decoration: const PrismInputDecoration(labelText: '下载方式'),
+                  items: const [
+                    PrismDropdownItem(value: 'direct', child: Text('直连下载')),
+                    PrismDropdownItem(value: 'pool', child: Text('使用代理池节点')),
+                    PrismDropdownItem(value: 'custom', child: Text('自定义代理地址')),
+                  ],
+                  onChanged: (value) =>
+                      setDialog(() => proxyMode = value ?? 'direct'),
+                ),
+                if (proxyMode == 'pool') ...[
+                  const SizedBox(height: 14),
+                  if (proxyOptions.isEmpty)
+                    const PrismBanner(
+                      tone: PrismTone.warning,
+                      message: '代理池中暂无可用节点，请切换直连或自定义代理地址',
+                    )
+                  else
+                    PrismDropdownField<String>(
+                      initialValue: selectedProxyId,
+                      decoration: const PrismInputDecoration(labelText: '代理节点'),
+                      items: [
+                        for (final item in proxyOptions)
+                          PrismDropdownItem(
+                            value: (item['proxyId'] ?? '').toString(),
+                            child: Text(
+                              (item['proxyName'] ?? item['proxyId'] ?? '')
+                                  .toString(),
+                            ),
+                          ),
+                      ],
+                      onChanged: (value) =>
+                          setDialog(() => selectedProxyId = value ?? ''),
+                    ),
+                ],
+                if (proxyMode == 'custom') ...[
+                  const SizedBox(height: 14),
+                  PrismTextField(
+                    controller: customProxyController,
+                    decoration: const PrismInputDecoration(
+                      labelText: '代理地址（http:// 或 socks5://）',
+                      hintText: 'socks5://127.0.0.1:7890',
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            prism.TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('取消'),
+            ),
+            prism.FilledButton(
+              onPressed: () {
+                if (proxyMode == 'pool' && selectedProxyId.isEmpty) {
+                  showPrismNotice(dialogContext, '请先选择代理节点');
+                  return;
+                }
+                if (proxyMode == 'custom' &&
+                    customProxyController.text.trim().isEmpty) {
+                  showPrismNotice(dialogContext, '请填写代理地址');
+                  return;
+                }
+                Navigator.pop(dialogContext, true);
+              },
+              child: const Text('开始下载'),
+            ),
+          ],
+        ),
+      ),
+    );
+    final customProxy = customProxyController.text.trim();
+    customProxyController.dispose();
+    if (confirmed != true || !mounted) return;
+
+    var proxyConfig = '';
+    var proxyId = '';
+    if (proxyMode == 'pool') {
+      final selected = proxyOptions
+          .where((e) => (e['proxyId'] ?? '').toString() == selectedProxyId)
+          .firstOrNull;
+      proxyConfig = (selected?['proxyConfig'] ?? '').toString().trim();
+      proxyId = (selected?['proxyId'] ?? selectedProxyId).toString();
+    } else if (proxyMode == 'custom') {
+      proxyConfig = customProxy;
+    }
+
+    setState(() {
+      _downloading = true;
+      _updateProgress = {
+        'phase': 'resolving',
+        'progress': 0,
+        'message': proxyConfig.isNotEmpty || proxyId.isNotEmpty
+            ? '准备下载（使用指定代理）'
+            : '准备下载（直连）',
+      };
+    });
+    try {
+      await AppBridge.call('DownloadAppUpdateWithProxySelection', [
+        '',
+        '',
+        proxyConfig,
+        proxyId,
+      ]);
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _downloading = false;
+          _updateProgress = {
+            'phase': 'error',
+            'progress': 0,
+            'message': error.toString(),
+          };
+        });
+        showPrismNotice(context, '启动下载失败：$error');
+      }
+    }
+  }
+
+  Future<void> _confirmAndApplyUpdate({bool fromPending = false}) async {
+    if (_installing) return;
+    final confirmed = await showPrismDialog<bool>(
+      context: context,
+      useRootNavigator: false,
+      builder: (dialogContext) => PrismDialog(
+        title: const Text('退出并安装更新'),
+        content: const Text(
+          '应用将立即退出，随后自动打开已下载的安装包。系统可能弹出权限确认，请按提示完成安装。',
+        ),
+        actions: [
+          prism.TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('取消'),
+          ),
+          prism.FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('退出并安装'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _installing = true);
+    try {
+      if (fromPending) {
+        await AppBridge.call('ApplyPendingAppUpdate');
+      } else {
+        final targetVersion =
+            '${_downloadedUpdate?['version'] ?? _updateResult?['latestVersion'] ?? ''}';
+        await AppBridge.call('ApplyAppUpdate', [targetVersion, '']);
+      }
+      if (!mounted) return;
+      showPrismNotice(context, '即将退出并启动安装程序…');
+      await Future<void>.delayed(const Duration(milliseconds: 650));
+      await AppBridge.call('QuitAppOnly');
+    } catch (error) {
+      if (mounted) {
+        showPrismNotice(context, '准备安装失败：$error');
+        await _loadLocalUpdateState();
+      }
+    } finally {
+      if (mounted) setState(() => _installing = false);
     }
   }
 
@@ -513,10 +792,19 @@ class _AboutPageState extends State<AboutPage> {
         releaseUrl.isNotEmpty;
     final hasError = result?['error']?.toString().isNotEmpty == true;
     final updateAvailable = result?['updateAvailable'] == true;
+    final latestVersion = '${result?['latestVersion'] ?? ''}'.trim();
+    final notesUrl = '${result?['notesUrl'] ?? ''}'.trim();
+    final downloadedVersion = '${_downloadedUpdate?['version'] ?? ''}'.trim();
+    final downloadedMatchesLatest =
+        downloadedVersion.isNotEmpty &&
+        latestVersion.isNotEmpty &&
+        _normalizeUpdateVersion(downloadedVersion) ==
+            _normalizeUpdateVersion(latestVersion);
+    final updateDone = '${_updateProgress?['phase'] ?? ''}' == 'done';
     final updateText = result == null
         ? ''
         : updateAvailable
-        ? '发现新版本 ${result['latestVersion'] ?? ''}'
+        ? '发现新版本 v$latestVersion'
         : hasError
         ? result['error'].toString()
         : '当前已是最新版本';
@@ -602,6 +890,25 @@ class _AboutPageState extends State<AboutPage> {
                 ),
               ),
               const SizedBox(width: 12),
+              if (updateAvailable) ...[
+                if (updateDone || downloadedMatchesLatest)
+                  prism.FilledButton.icon(
+                    onPressed: _installing
+                        ? null
+                        : () => _confirmAndApplyUpdate(),
+                    icon: const PrismGlyph(AntGlyphs.download, size: 15),
+                    label: Text(_installing ? '准备安装…' : '退出并安装'),
+                  )
+                else
+                  prism.FilledButton.icon(
+                    onPressed: _downloading
+                        ? null
+                        : _openDownloadWithProxyDialog,
+                    icon: const PrismGlyph(AntGlyphs.download, size: 15),
+                    label: Text(_downloading ? '下载中…' : '下载更新'),
+                  ),
+                const SizedBox(width: 10),
+              ],
               PrismTonalButton(
                 onPressed: _checking ? null : _checkUpdate,
                 child: _checking
@@ -613,6 +920,52 @@ class _AboutPageState extends State<AboutPage> {
               ),
             ],
           ),
+          if (_pendingUpdate != null) ...[
+            const SizedBox(height: 16),
+            PrismBanner(
+              tone: _pendingUpdate!['missing'] == true
+                  ? PrismTone.danger
+                  : PrismTone.warning,
+              title: _pendingUpdate!['missing'] == true
+                  ? '待安装更新包已丢失'
+                  : '有已下载待安装的更新 v${_pendingUpdate!['version'] ?? ''}',
+              message: _pendingUpdate!['missing'] == true
+                  ? '请点击“检查更新”重新下载最新安装包。'
+                  : '上次已下载更新包，可点击右侧按钮立即退出并安装。',
+              trailing: _pendingUpdate!['missing'] == true
+                  ? prism.OutlinedButton(
+                      onPressed: () async {
+                        await AppBridge.call('ClearPendingAppUpdate');
+                        if (mounted) setState(() => _pendingUpdate = null);
+                      },
+                      child: const Text('忽略'),
+                    )
+                  : prism.FilledButton(
+                      onPressed: _installing
+                          ? null
+                          : () => _confirmAndApplyUpdate(fromPending: true),
+                      child: const Text('退出并安装'),
+                    ),
+            ),
+          ],
+          if (_updateProgress != null &&
+              (_downloading ||
+                  '${_updateProgress?['phase'] ?? ''}' == 'done' ||
+                  '${_updateProgress?['phase'] ?? ''}' == 'error')) ...[
+            const SizedBox(height: 16),
+            PrismProgressPanel(
+              title: '${_updateProgress?['phase'] ?? ''}' == 'done'
+                  ? '更新包已就绪'
+                  : '${_updateProgress?['phase'] ?? ''}' == 'error'
+                  ? '下载失败'
+                  : '正在下载更新',
+              subtitle: '${_updateProgress?['message'] ?? ''}',
+              progress:
+                  (((_updateProgress?['progress'] as num?) ?? 0).toDouble() /
+                          100.0)
+                      .clamp(0.0, 1.0),
+            ),
+          ],
           if (updateText.isNotEmpty) ...[
             const SizedBox(height: 16),
             PrismBanner(
@@ -622,13 +975,23 @@ class _AboutPageState extends State<AboutPage> {
                   ? PrismTone.info
                   : PrismTone.success,
               message: updateText,
-              trailing: canOpenDownload
-                  ? prism.OutlinedButton.icon(
+              trailing: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (updateAvailable && notesUrl.isNotEmpty)
+                    prism.OutlinedButton(
+                      onPressed: () => AppBridge.openExternal(notesUrl),
+                      child: const Text('更新说明'),
+                    ),
+                  if (canOpenDownload)
+                    prism.OutlinedButton.icon(
                       onPressed: () => AppBridge.openExternal(releaseUrl),
                       icon: const PrismGlyph(AntGlyphs.openInNew, size: 15),
                       label: const Text('打开下载页面'),
-                    )
-                  : null,
+                    ),
+                ],
+              ),
             ),
           ],
         ],

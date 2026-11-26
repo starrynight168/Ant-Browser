@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-var appVersion = "1.9.4"
+var appVersion = "1.9.7"
 
 func main() {
 	appRoot := resolveAppRoot()

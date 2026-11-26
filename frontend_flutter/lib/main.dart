@@ -520,7 +520,9 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
   bool _compactSidebar = false;
   bool _closeDialogOpen = false;
   bool _quickLaunchOpen = false;
+  bool _updateAvailable = false;
   late final void Function() _removeCloseListener;
+  late final void Function() _removeUpdateListener;
   late final NotificationStore _notificationStore;
 
   @override
@@ -530,11 +532,30 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
     _removeCloseListener = AppBridge.onEvent('app:request-close', (_) {
       _showCloseDialog();
     });
+    _removeUpdateListener = AppBridge.onEvent('app:update:available', (payload) {
+      if (!mounted) return;
+      final available = payload is! Map || payload['updateAvailable'] != false;
+      if (available) setState(() => _updateAvailable = true);
+    });
+    unawaited(_checkInitialUpdateBadge());
+  }
+
+  Future<void> _checkInitialUpdateBadge() async {
+    try {
+      final res = await AppBridge.call('CheckAppUpdate');
+      if (mounted && res is Map) {
+        setState(() {
+          _updateAvailable =
+              res['ok'] == true && res['updateAvailable'] == true;
+        });
+      }
+    } catch (_) {}
   }
 
   @override
   void dispose() {
     _removeCloseListener();
+    _removeUpdateListener();
     _notificationStore.dispose();
     super.dispose();
   }
@@ -671,6 +692,7 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
                   activePath: _activePath,
                   compact: _compactSidebar,
                   unreadCount: _notificationStore.unreadCount,
+                  updateAvailable: _updateAvailable,
                   onSelect: (path) => setState(() => _activePath = path),
                   onToggle: () =>
                       setState(() => _compactSidebar = !_compactSidebar),
@@ -739,7 +761,15 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
                                         : _activePath.split('/').last,
                                   )
                                 : _activePath == '/profile'
-                                ? const AboutPage()
+                                ? AboutPage(
+                                    onUpdateStatusChanged: (available) {
+                                      if (mounted) {
+                                        setState(
+                                          () => _updateAvailable = available,
+                                        );
+                                      }
+                                    },
+                                  )
                                 : _activePath == '/browser/logs'
                                 ? const LogsPage()
                                 : _activePath == '/browser/bookmarks'
@@ -866,6 +896,7 @@ class _Sidebar extends StatelessWidget {
     required this.activePath,
     required this.compact,
     required this.unreadCount,
+    this.updateAvailable = false,
     required this.onSelect,
     required this.onToggle,
   });
@@ -873,6 +904,7 @@ class _Sidebar extends StatelessWidget {
   final String activePath;
   final bool compact;
   final int unreadCount;
+  final bool updateAvailable;
   final ValueChanged<String> onSelect;
   final VoidCallback onToggle;
 
@@ -916,6 +948,8 @@ class _Sidebar extends StatelessWidget {
                   item.path == '/profile',
               label: item.path == '/notifications' && unreadCount > 0
                   ? '${item.title} (${unreadCount > 99 ? '99+' : unreadCount})'
+                  : item.path == '/profile' && updateAvailable
+                  ? '${item.title} · 新版本'
                   : item.title,
             ),
         ],
@@ -2840,20 +2874,20 @@ class _BrowserListPageState extends State<BrowserListPage> {
                   runSpacing: 10,
                   children: [
                     prism.TextButton.icon(
-                      onPressed: () => _showFingerprintReport(
-                        '指纹版本适配矩阵',
-                        AppBridge.call('BrowserProfileFingerprintMatrix', [
-                          profile?['profileId'] ?? '',
+                      onPressed: () {
+                        final args = fingerprintArgs.text
+                            .split('\n')
+                            .map((value) => value.trim())
+                            .where((value) => value.isNotEmpty)
+                            .toList();
+                        _showFingerprintCapabilityAndMatrix(
+                          profile?['profileId']?.toString() ?? '',
                           coreId ?? '',
-                          fingerprintArgs.text
-                              .split('\n')
-                              .map((value) => value.trim())
-                              .where((value) => value.isNotEmpty)
-                              .toList(),
-                        ]),
-                      ),
+                          args,
+                        );
+                      },
                       icon: const PrismGlyph(AntGlyphs.gridView, size: 16),
-                      label: const Text('查看适配矩阵'),
+                      label: const Text('查看内核能力表'),
                     ),
                     if (profile != null) ...[
                       prism.TextButton.icon(
@@ -3477,6 +3511,244 @@ class _BrowserListPageState extends State<BrowserListPage> {
     }
     if (result != null) source.text = result.join('\n');
   }
+
+  Future<void> _showFingerprintCapabilityAndMatrix(
+    String profileId,
+    String coreId,
+    List<String> args,
+  ) async {
+    try {
+      final results = await Future.wait<dynamic>([
+        AppBridge.call('BrowserProfileFingerprintCapabilityTable', [
+          profileId,
+          coreId,
+        ]),
+        AppBridge.call('BrowserProfileFingerprintMatrix', [
+          profileId,
+          coreId,
+          args,
+        ]),
+      ]);
+      if (!mounted) return;
+      final table = results[0] is Map
+          ? Map<String, dynamic>.from(results[0] as Map)
+          : <String, dynamic>{};
+      final matrix = results[1] is Map
+          ? Map<String, dynamic>.from(results[1] as Map)
+          : <String, dynamic>{};
+      final versions = (table['versions'] as List? ?? [])
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+      final groups = (table['groups'] as List? ?? [])
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+      final currentKey = (table['currentVersionKey'] ?? '').toString();
+      final notes = (table['notes'] as List? ?? [])
+          .map((e) => e.toString())
+          .where((e) => e.trim().isNotEmpty)
+          .toList();
+      final currentLabel = versions
+          .where((v) => v['key'] == currentKey)
+          .map((v) => (v['label'] ?? '').toString())
+          .firstOrNull;
+      final matrixItems =
+          ((matrix['items'] ?? matrix['rows'] ?? matrix['checks']) as List? ??
+                  const [])
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
+
+      await showPrismDialog<void>(
+        context: context,
+        useRootNavigator: false,
+        builder: (context) => PrismDialog(
+          title: const Text('内核能力表与参数适配矩阵'),
+          content: SizedBox(
+            width: 820,
+            height: 600,
+            child: ListView(
+              children: [
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 10,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    PrismBadge(
+                      label: currentLabel != null && currentLabel.isNotEmpty
+                          ? '当前内核：$currentLabel'
+                          : '当前内核：未识别',
+                      tone: currentLabel != null
+                          ? PrismTone.primary
+                          : PrismTone.neutral,
+                    ),
+                    PrismBadge(
+                      label: '能力表更新：${table['updatedAt'] ?? '-'}',
+                      tone: PrismTone.neutral,
+                    ),
+                  ],
+                ),
+                if (notes.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  PrismBanner(tone: PrismTone.info, message: notes.join(' ')),
+                ],
+                const SizedBox(height: 16),
+                for (final group in groups) ...[
+                  PrismSectionCard(
+                    title: (group['label'] ?? group['key'] ?? '').toString(),
+                    glyph: AntGlyphs.tune,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (var i = 0;
+                            i < (group['items'] as List? ?? []).length;
+                            i++) ...[
+                          if (i > 0) ...[
+                            const SizedBox(height: 10),
+                            const prism.Divider(height: 1),
+                            const SizedBox(height: 10),
+                          ],
+                          _buildCapabilityRow(
+                            context,
+                            Map<String, dynamic>.from(
+                              (group['items'] as List)[i] as Map,
+                            ),
+                            versions,
+                            currentKey,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                ],
+                if (matrixItems.isNotEmpty)
+                  PrismSectionCard(
+                    title: '当前配置参数检测结论',
+                    glyph: AntGlyphs.factCheck,
+                    child: Column(
+                      children: [
+                        for (var i = 0; i < matrixItems.length; i++) ...[
+                          if (i > 0) const prism.Divider(height: 1),
+                          Builder(
+                            builder: (context) {
+                              final row = matrixItems[i];
+                              final status = (row['status'] ?? '').toString();
+                              final tone = status == 'match' || status == 'ok'
+                                  ? PrismTone.success
+                                  : status == 'compatible' || status == 'warn'
+                                  ? PrismTone.warning
+                                  : PrismTone.danger;
+                              return PrismListTile(
+                                dense: true,
+                                title: Text(
+                                  (row['label'] ??
+                                          row['key'] ??
+                                          row['name'] ??
+                                          '')
+                                      .toString(),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                subtitle: Text(
+                                  '配置：${row['configured'] ?? row['expected'] ?? '—'}  →  实际：${row['actual'] ?? row['value'] ?? '—'}',
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                trailing: PrismBadge(
+                                  label: status.isEmpty ? '已检' : status,
+                                  tone: tone,
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            prism.TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('关闭'),
+            ),
+          ],
+        ),
+      );
+    } catch (error) {
+      if (mounted) showPrismNotice(context, error.toString());
+    }
+  }
+
+  Widget _buildCapabilityRow(
+    BuildContext context,
+    Map<String, dynamic> item,
+    List<Map<String, dynamic>> versions,
+    String currentKey,
+  ) {
+    final colors = prism.Theme.of(context).colorScheme;
+    final support = item['support'] is Map
+        ? Map<String, dynamic>.from(item['support'] as Map)
+        : const <String, dynamic>{};
+    final note = (item['note'] ?? '').toString().trim();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${item['label'] ?? ''} · ${item['arg'] ?? ''}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: prism.AppTextStyle.subheadline.of(context, emphasized: true),
+        ),
+        if (note.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            note,
+            style: prism.AppTextStyle.caption1
+                .of(context)
+                .copyWith(color: colors.onSurfaceVariant),
+          ),
+        ],
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final v in versions)
+              PrismBadge(
+                label:
+                    '${v['key'] == currentKey ? '★ ' : ''}${v['label'] ?? v['key'] ?? ''}: ${_capabilityMark((support[v['key']] ?? 'unknown').toString())}',
+                tone: _capabilityTone(
+                  (support[v['key']] ?? 'unknown').toString(),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  static String _capabilityMark(String status) => switch (status) {
+    'supported' || 'supported_measured' => '✓ 实测',
+    'supported_documented' => '✓ 文档',
+    'supported_policy' => '✓ 策略',
+    'unsupported' || 'unsupported_measured' => '✗ 实测',
+    'unsupported_documented' => '✗ 文档',
+    'unsupported_policy' => '✗ 策略',
+    'converted' => '转 兼容',
+    _ => '? 未验',
+  };
+
+  static PrismTone _capabilityTone(String status) => switch (status) {
+    'supported' || 'supported_measured' => PrismTone.success,
+    'supported_documented' => PrismTone.info,
+    'unsupported' || 'unsupported_measured' => PrismTone.danger,
+    'unsupported_documented' || 'converted' => PrismTone.warning,
+    _ => PrismTone.neutral,
+  };
 
   Future<void> _showFingerprintReport(
     String title,

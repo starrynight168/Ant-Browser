@@ -736,6 +736,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
   bool _loading = true;
   bool _refreshing = false;
   String _busy = '';
+  String _globalCustomDns = '';
   String _query = '';
   String _filterProtocol = 'all';
   String _filterGroup = 'all';
@@ -889,7 +890,12 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
         AppBridge.call('BrowserProxyListGroups').catchError((_) => const []),
         AppBridge.call('BrowserProxyVirtualGroupHealthList')
             .catchError((_) => const []),
+        AppBridge.call('GetBrowserSettings').catchError((_) => const {}),
       ]);
+      final settingsMap = values[4] is Map
+          ? Map<String, dynamic>.from(values[4] as Map)
+          : const <String, dynamic>{};
+      _globalCustomDns = (settingsMap['bridgeCustomDns'] ?? '').toString().trim();
       final fetchedProxies = (values[0] as List? ?? [])
           .whereType<Map>()
           .map((row) => Map<String, dynamic>.from(row))
@@ -2082,7 +2088,7 @@ socks5://user:password@proxy.example.com:1080''',
                       minLines: 2,
                       maxLines: 5,
                       decoration: const PrismInputDecoration(
-                        labelText: '批量 DNS 配置（可选）',
+                        labelText: '批量 DNS 配置（可选，订阅刷新会同步源 DNS；全局固定请用自定义桥接 DNS）',
                       ),
                     ),
                   ],
@@ -4003,6 +4009,22 @@ socks5://user:password@proxy.example.com:1080''',
                       ? PrismTone.info
                       : PrismTone.danger,
                   onPressed: () => _showIPHealthDetail(item),
+                ),
+              if (_globalCustomDns.isNotEmpty)
+                prism.Tooltip(
+                  message: '全局自定义桥接 DNS，覆盖所有节点',
+                  child: const PrismBadge(
+                    label: 'DNS: 自定义',
+                    tone: PrismTone.info,
+                  ),
+                )
+              else if ((item['dnsServers'] ?? '').toString().trim().isNotEmpty)
+                prism.Tooltip(
+                  message: '节点 DNS 来自订阅或手动填写；订阅刷新会同步',
+                  child: const PrismBadge(
+                    label: 'DNS: 节点',
+                    tone: PrismTone.neutral,
+                  ),
                 ),
               if (sourceHost.isNotEmpty)
                 PrismBadge(

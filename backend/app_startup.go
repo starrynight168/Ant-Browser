@@ -79,6 +79,8 @@ func (a *App) startup(ctx context.Context) error {
 	a.startupInitBackupScheduler()
 	a.startupInitProxySourceRefreshScheduler()
 	a.startupInitRuntimeCleanup()
+	a.NotifyPendingAppUpdate()
+	a.startupInitAutoUpdateCheck()
 	a.emitRuntimeEvent("app:ready")
 
 	log.Info("应用启动成功")

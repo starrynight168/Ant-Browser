@@ -12,8 +12,11 @@ import (
 )
 
 const (
-	latestReleaseAPIURL = "https://api.github.com/repos/black-ant/Ant-Browser/releases/latest"
-	updateCheckTimeout  = 5 * time.Second
+	defaultUpdateRepo     = "starrynight168/Ant-Browser"
+	latestReleaseAPIURL   = "https://api.github.com/repos/" + defaultUpdateRepo + "/releases/latest"
+	manifestAssetName     = "update-manifest.json"
+	updateCheckTimeout    = 5 * time.Second
+	updateDownloadTimeout = 30 * time.Minute
 )
 
 type updateCheckResult struct {
@@ -25,14 +28,100 @@ type updateCheckResult struct {
 	Error           string
 }
 
-type githubLatestRelease struct {
-	TagName     string `json:"tag_name"`
-	HTMLURL     string `json:"html_url"`
+// AppUpdateAsset 是某个平台可下载的安装包信息。
+type AppUpdateAsset struct {
+	Name   string `json:"name"`
+	URL    string `json:"url"`
+	SHA256 string `json:"sha256"`
 }
 
-// CheckForUpdates 检查 GitHub Releases 中的最新稳定版本。
+// AppUpdateInfo 是给前端使用的结构化更新信息。
+type AppUpdateInfo struct {
+	OK              bool                      `json:"ok"`
+	CurrentVersion  string                    `json:"currentVersion"`
+	LatestVersion   string                    `json:"latestVersion"`
+	UpdateAvailable bool                      `json:"updateAvailable"`
+	ReleaseURL      string                    `json:"releaseUrl"`
+	NotesURL        string                    `json:"notesUrl"`
+	Force           bool                      `json:"force"`
+	Assets          map[string]AppUpdateAsset `json:"assets"`
+	Error           string                    `json:"error"`
+}
+
+type appUpdateReleaseAsset struct {
+	Name               string `json:"name"`
+	BrowserDownloadURL string `json:"browser_download_url"`
+}
+
+type githubLatestRelease struct {
+	TagName string                  `json:"tag_name"`
+	HTMLURL string                  `json:"html_url"`
+	Assets  []appUpdateReleaseAsset `json:"assets"`
+}
+
+type appUpdateManifest struct {
+	Version  string `json:"version"`
+	NotesURL string `json:"notesUrl"`
+	Force    bool   `json:"force"`
+	Assets   map[string]struct {
+		Name   string `json:"name"`
+		SHA256 string `json:"sha256"`
+	} `json:"assets"`
+}
+
+func (a *App) updateReleaseAPIURL() string {
+	repo := defaultUpdateRepo
+	if a != nil && a.config != nil && strings.TrimSpace(a.config.Update.Repo) != "" {
+		repo = strings.TrimSpace(a.config.Update.Repo)
+	}
+	return fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", repo)
+}
+
+func (a *App) updateProxyConfig() string {
+	if a == nil || a.config == nil {
+		return ""
+	}
+	return strings.TrimSpace(a.config.Update.Proxy)
+}
+
+func (a *App) updateHTTPClient() (*http.Client, error) {
+	return a.updateHTTPClientFor(a.updateProxyConfig())
+}
+
+func (a *App) updateHTTPClientFor(proxyConfig string) (*http.Client, error) {
+	return a.updateHTTPClientForSelection(updateCheckTimeout, proxyConfig, "")
+}
+
+func (a *App) updateDownloadHTTPClientFor(proxyConfig string, proxyID string) (*http.Client, error) {
+	return a.updateHTTPClientForSelection(updateDownloadTimeout, proxyConfig, proxyID)
+}
+
+func (a *App) updateHTTPClientForSelection(timeout time.Duration, proxyConfig string, proxyID string) (*http.Client, error) {
+	client, _, err := a.unifiedProxyCoreHTTPClientForProxyID(timeout, strings.TrimSpace(proxyConfig), strings.TrimSpace(proxyID))
+	if err != nil {
+		return nil, err
+	}
+	if client == nil {
+		return nil, fmt.Errorf("更新代理不可用")
+	}
+	return client, nil
+}
+
+// CheckForUpdates 保持旧接口，兼容已生成的前端绑定。
 func (a *App) CheckForUpdates() map[string]interface{} {
-	result := checkForUpdates(context.Background(), a.appVersion(), latestReleaseAPIURL, &http.Client{Timeout: updateCheckTimeout})
+	currentVersion := normalizeUpdateVersion(a.appVersion())
+	client, err := a.updateHTTPClient()
+	if err != nil {
+		return map[string]interface{}{
+			"ok":              false,
+			"currentVersion":  currentVersion,
+			"latestVersion":   "",
+			"updateAvailable": false,
+			"releaseUrl":      "",
+			"error":           "更新代理配置错误: " + err.Error(),
+		}
+	}
+	result := checkForUpdates(context.Background(), a.appVersion(), a.updateReleaseAPIURL(), client)
 	return map[string]interface{}{
 		"ok":              result.OK,
 		"currentVersion":  result.CurrentVersion,
@@ -41,6 +130,26 @@ func (a *App) CheckForUpdates() map[string]interface{} {
 		"releaseUrl":      result.ReleaseURL,
 		"error":           result.Error,
 	}
+}
+
+// CheckAppUpdate 返回结构化的更新信息，包含各平台安装包与校验值。
+func (a *App) CheckAppUpdate() AppUpdateInfo {
+	if a == nil || a.config == nil || !a.config.Update.IsEnabled() {
+		currentVersion := ""
+		if a != nil {
+			currentVersion = normalizeUpdateVersion(a.appVersion())
+		}
+		return AppUpdateInfo{CurrentVersion: currentVersion, Error: "更新检查已关闭"}
+	}
+	client, err := a.updateHTTPClient()
+	if err != nil {
+		return AppUpdateInfo{
+			CurrentVersion: normalizeUpdateVersion(a.appVersion()),
+			Assets:         map[string]AppUpdateAsset{},
+			Error:          "更新代理配置错误: " + err.Error(),
+		}
+	}
+	return fetchAppUpdateInfo(context.Background(), a.appVersion(), a.updateReleaseAPIURL(), client)
 }
 
 func checkForUpdates(ctx context.Context, currentVersion string, endpoint string, client *http.Client) updateCheckResult {
@@ -95,6 +204,146 @@ func checkForUpdates(ctx context.Context, currentVersion string, endpoint string
 	result.OK = true
 	result.UpdateAvailable = comparison < 0
 	return result
+}
+
+func fetchAppUpdateInfo(ctx context.Context, currentVersion string, endpoint string, client *http.Client) AppUpdateInfo {
+	info := AppUpdateInfo{
+		CurrentVersion: normalizeUpdateVersion(currentVersion),
+		Assets:         map[string]AppUpdateAsset{},
+	}
+	if info.CurrentVersion == "" || strings.EqualFold(info.CurrentVersion, "unknown") {
+		info.Error = "当前应用版本未知"
+		return info
+	}
+	if client == nil {
+		client = &http.Client{Timeout: updateCheckTimeout}
+	}
+
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		info.Error = fmt.Sprintf("创建更新请求失败: %v", err)
+		return info
+	}
+	request.Header.Set("Accept", "application/vnd.github+json")
+	request.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+	request.Header.Set("User-Agent", "Ant-Browser/"+info.CurrentVersion)
+
+	response, err := client.Do(request)
+	if err != nil {
+		info.Error = fmt.Sprintf("更新检查请求失败: %v", err)
+		return info
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		info.Error = fmt.Sprintf("更新服务返回 HTTP %d", response.StatusCode)
+		return info
+	}
+
+	var release githubLatestRelease
+	if err := json.NewDecoder(io.LimitReader(response.Body, 2<<20)).Decode(&release); err != nil {
+		info.Error = fmt.Sprintf("更新信息解析失败: %v", err)
+		return info
+	}
+	info.LatestVersion = normalizeUpdateVersion(release.TagName)
+	info.ReleaseURL = strings.TrimSpace(release.HTMLURL)
+	info.NotesURL = info.ReleaseURL
+	if info.LatestVersion == "" {
+		info.Error = "最新 Release 缺少有效版本号"
+		return info
+	}
+	comparison, err := compareUpdateVersions(info.CurrentVersion, info.LatestVersion)
+	if err != nil {
+		info.Error = err.Error()
+		return info
+	}
+	info.OK = true
+	info.UpdateAvailable = comparison < 0
+
+	downloadURLs := make(map[string]string, len(release.Assets))
+	for _, asset := range release.Assets {
+		downloadURLs[asset.Name] = asset.BrowserDownloadURL
+	}
+	manifestFound := false
+	for _, asset := range release.Assets {
+		if !strings.EqualFold(asset.Name, manifestAssetName) {
+			continue
+		}
+		manifestFound = true
+		manifest, manifestErr := fetchUpdateManifest(ctx, asset.BrowserDownloadURL, client)
+		if manifestErr != nil || manifest == nil {
+			detail := "未知错误"
+			if manifestErr != nil {
+				detail = manifestErr.Error()
+			}
+			info.OK = false
+			info.UpdateAvailable = false
+			info.Error = "读取更新清单失败: " + detail
+			return info
+		}
+		if normalizeUpdateVersion(manifest.Version) != info.LatestVersion {
+			info.OK = false
+			info.UpdateAvailable = false
+			info.Error = "更新清单版本与 Release 不一致"
+			return info
+		}
+		info.Force = manifest.Force
+		if strings.TrimSpace(manifest.NotesURL) != "" {
+			info.NotesURL = strings.TrimSpace(manifest.NotesURL)
+		}
+		for key, item := range manifest.Assets {
+			downloadURL := downloadURLs[item.Name]
+			if downloadURL == "" {
+				continue
+			}
+			info.Assets[key] = AppUpdateAsset{
+				Name:   item.Name,
+				URL:    downloadURL,
+				SHA256: strings.TrimSpace(item.SHA256),
+			}
+		}
+		break
+	}
+	if info.UpdateAvailable {
+		if !manifestFound {
+			info.OK = false
+			info.UpdateAvailable = false
+			info.Error = "Release 缺少 update-manifest.json"
+			return info
+		}
+		if len(info.Assets) == 0 {
+			info.OK = false
+			info.UpdateAvailable = false
+			info.Error = "当前平台没有可用的更新包"
+			return info
+		}
+		if _, ok := info.Assets[updateAssetKey()]; !ok {
+			info.OK = false
+			info.UpdateAvailable = false
+			info.Error = "当前平台没有可用的更新包: " + updateAssetKey()
+			return info
+		}
+	}
+	return info
+}
+
+func fetchUpdateManifest(ctx context.Context, manifestURL string, client *http.Client) (*appUpdateManifest, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, manifestURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	response, err := client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP %d", response.StatusCode)
+	}
+	var manifest appUpdateManifest
+	if err := json.NewDecoder(io.LimitReader(response.Body, 2<<20)).Decode(&manifest); err != nil {
+		return nil, err
+	}
+	return &manifest, nil
 }
 
 func normalizeUpdateVersion(value string) string {

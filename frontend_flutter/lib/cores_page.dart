@@ -169,6 +169,9 @@ class _CoresPageState extends State<CoresPage> {
     final startUrls = TextEditingController(
       text: (_settings['defaultStartUrls'] as List? ?? []).join('\n'),
     );
+    final bridgeCustomDns = TextEditingController(
+      text: (_settings['bridgeCustomDns'] ?? '').toString(),
+    );
     final readyTimeout = TextEditingController(
       text: '${_settings['startReadyTimeoutMs'] ?? 3000}',
     );
@@ -227,6 +230,16 @@ class _CoresPageState extends State<CoresPage> {
                     maxLines: 4,
                     decoration: const PrismInputDecoration(
                       labelText: '默认启动页面（每行一个 URL）',
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  PrismTextField(
+                    controller: bridgeCustomDns,
+                    minLines: 2,
+                    maxLines: 4,
+                    decoration: const PrismInputDecoration(
+                      labelText: '自定义桥接 DNS（优先于节点/订阅 DNS，留空跟随订阅）',
+                      hintText: '每行一个 IP / DoH / DoT，或完整 dns: YAML',
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -314,6 +327,7 @@ class _CoresPageState extends State<CoresPage> {
                     .map((value) => value.trim())
                     .where((value) => value.isNotEmpty)
                     .toList(),
+                'bridgeCustomDns': bridgeCustomDns.text.trim(),
                 'defaultConnectorType': connectorType,
                 'lightStartEnabled': lightStart,
                 'restoreLastSession': restoreSession,
@@ -331,6 +345,7 @@ class _CoresPageState extends State<CoresPage> {
     fingerprint.dispose();
     launchArgs.dispose();
     startUrls.dispose();
+    bridgeCustomDns.dispose();
     readyTimeout.dispose();
     stableWindow.dispose();
     concurrent.dispose();
@@ -1356,9 +1371,201 @@ class _CoresPageState extends State<CoresPage> {
     );
   }
 
+  static String _capabilityMark(String status) => switch (status) {
+    'supported' || 'supported_measured' => '✓ 实测',
+    'supported_documented' => '✓ 文档',
+    'supported_policy' => '✓ 策略',
+    'unsupported' || 'unsupported_measured' => '✗ 实测',
+    'unsupported_documented' => '✗ 文档',
+    'unsupported_policy' => '✗ 策略',
+    'converted' => '转 兼容',
+    _ => '? 未验',
+  };
+
+  static PrismTone _capabilityTone(String status) => switch (status) {
+    'supported' || 'supported_measured' => PrismTone.success,
+    'supported_documented' => PrismTone.info,
+    'unsupported' || 'unsupported_measured' => PrismTone.danger,
+    'unsupported_documented' || 'converted' => PrismTone.warning,
+    _ => PrismTone.neutral,
+  };
+
+  Widget _buildCapabilityRow(
+    BuildContext context,
+    Map<String, dynamic> item,
+    List<Map<String, dynamic>> versions,
+    String currentKey,
+  ) {
+    final colors = prism.Theme.of(context).colorScheme;
+    final support = item['support'] is Map
+        ? Map<String, dynamic>.from(item['support'] as Map)
+        : const <String, dynamic>{};
+    final note = (item['note'] ?? '').toString().trim();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${item['label'] ?? ''} · ${item['arg'] ?? ''}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: prism.AppTextStyle.subheadline.of(context, emphasized: true),
+        ),
+        if (note.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            note,
+            style: prism.AppTextStyle.caption1
+                .of(context)
+                .copyWith(color: colors.onSurfaceVariant),
+          ),
+        ],
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final v in versions)
+              PrismBadge(
+                label:
+                    '${v['key'] == currentKey ? '★ ' : ''}${v['label'] ?? v['key'] ?? ''}: ${_capabilityMark((support[v['key']] ?? 'unknown').toString())}',
+                tone: _capabilityTone(
+                  (support[v['key']] ?? 'unknown').toString(),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showCapabilityTableModal() async {
+    final defaultCore = _cores.firstWhere(
+      (core) => core['isDefault'] == true,
+      orElse: () => _cores.isNotEmpty ? _cores.first : const <String, dynamic>{},
+    );
+    final coreId = (defaultCore['coreId'] ?? '').toString();
+    try {
+      final raw = await AppBridge.call('BrowserProfileFingerprintCapabilityTable', [
+        '',
+        coreId,
+      ]);
+      if (!mounted) return;
+      final table = raw is Map
+          ? Map<String, dynamic>.from(raw)
+          : const <String, dynamic>{};
+      final versions = (table['versions'] as List? ?? const [])
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+      final groups = (table['groups'] as List? ?? const [])
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+      final currentKey = (table['currentVersionKey'] ?? '').toString();
+      final notes = (table['notes'] as List? ?? const [])
+          .map((e) => e.toString())
+          .where((e) => e.trim().isNotEmpty)
+          .toList();
+      final warnings = (table['warnings'] as List? ?? const [])
+          .map((e) => e.toString())
+          .where((e) => e.trim().isNotEmpty)
+          .toList();
+      final currentLabel = versions
+          .where((v) => v['key'] == currentKey)
+          .map((v) => (v['label'] ?? '').toString())
+          .firstOrNull;
+
+      await showPrismDialog<void>(
+        context: context,
+        useRootNavigator: false,
+        builder: (context) => PrismDialog(
+          title: const Text('内核能力表'),
+          content: SizedBox(
+            width: 820,
+            height: 600,
+            child: ListView(
+              children: [
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 10,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    PrismBadge(
+                      label: currentLabel != null && currentLabel.isNotEmpty
+                          ? '默认内核：$currentLabel'
+                          : '默认内核：未识别',
+                      tone: currentLabel != null
+                          ? PrismTone.primary
+                          : PrismTone.neutral,
+                    ),
+                    PrismBadge(
+                      label: '能力表更新：${table['updatedAt'] ?? '-'}',
+                      tone: PrismTone.neutral,
+                    ),
+                  ],
+                ),
+                if (warnings.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  PrismBanner(
+                    tone: PrismTone.warning,
+                    message: warnings.join(' '),
+                  ),
+                ],
+                if (notes.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  PrismBanner(tone: PrismTone.info, message: notes.join(' ')),
+                ],
+                const SizedBox(height: 16),
+                for (final group in groups) ...[
+                  PrismSectionCard(
+                    title: (group['label'] ?? group['key'] ?? '').toString(),
+                    glyph: AntGlyphs.tune,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (var i = 0;
+                            i < (group['items'] as List? ?? const []).length;
+                            i++) ...[
+                          if (i > 0) ...[
+                            const SizedBox(height: 10),
+                            const prism.Divider(height: 1),
+                            const SizedBox(height: 10),
+                          ],
+                          _buildCapabilityRow(
+                            context,
+                            Map<String, dynamic>.from(
+                              (group['items'] as List)[i] as Map,
+                            ),
+                            versions,
+                            currentKey,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            prism.TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('关闭'),
+            ),
+          ],
+        ),
+      );
+    } catch (error) {
+      if (mounted) _message('读取内核能力表失败：$error');
+    }
+  }
+
   Widget _buildCoreSettingsCard(BuildContext context) {
     final colors = prism.Theme.of(context).colorScheme;
     final userDataRoot = (_settings['userDataRoot'] ?? '').toString().trim();
+    final bridgeCustomDns =
+        (_settings['bridgeCustomDns'] ?? '').toString().trim();
     final restoreLastSession = _settings['restoreLastSession'] == true;
     final lightStartEnabled = _settings['lightStartEnabled'] != false;
     final readyTimeout =
@@ -1415,6 +1622,11 @@ class _CoresPageState extends State<CoresPage> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       actions: [
         prism.TextButton.icon(
+          onPressed: _showCapabilityTableModal,
+          icon: const PrismGlyph(AntGlyphs.gridView, size: 14),
+          label: const Text('内核能力表'),
+        ),
+        prism.TextButton.icon(
           onPressed: () =>
               setState(() => _settingsExpanded = !_settingsExpanded),
           icon: PrismGlyph(
@@ -1452,6 +1664,12 @@ class _CoresPageState extends State<CoresPage> {
                 label: '稳定窗口 ${stableWindow}ms',
                 tone: PrismTone.neutral,
               ),
+              PrismBadge(
+                label: bridgeCustomDns.isEmpty ? '桥接 DNS：跟随订阅' : '桥接 DNS：自定义',
+                tone: bridgeCustomDns.isEmpty
+                    ? PrismTone.neutral
+                    : PrismTone.primary,
+              ),
             ],
           ),
           PrismCollapsible(
@@ -1465,6 +1683,12 @@ class _CoresPageState extends State<CoresPage> {
                   kvRow(
                     '默认启动页',
                     startUrls.isEmpty ? '未配置' : startUrls.join(' · '),
+                  ),
+                  kvRow(
+                    '自定义桥接 DNS',
+                    bridgeCustomDns.isEmpty
+                        ? '跟随节点/订阅 DNS'
+                        : bridgeCustomDns.replaceAll('\n', ' · '),
                   ),
                   kvRow(
                     '默认指纹参数',
