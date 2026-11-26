@@ -5,19 +5,19 @@ import 'package:prism_ui/theme_data.dart';
 /// two steps it lacks: [display] for a dashboard figure, [pageTitle] for an app
 /// bar.
 enum AppTextStyle {
-  display(40, 44, emphasizedWeight: FontWeight.w700),
-  largeTitle(34, 41, emphasizedWeight: FontWeight.w700),
-  title1(28, 34, emphasizedWeight: FontWeight.w700),
-  pageTitle(24, 30, weight: FontWeight.w600, emphasizedWeight: FontWeight.w700),
-  title2(22, 28, emphasizedWeight: FontWeight.w700),
-  title3(20, 25),
-  headline(17, 22, weight: FontWeight.w600),
-  body(17, 22),
-  callout(16, 21),
-  subheadline(15, 20),
-  footnote(13, 18),
-  caption1(12, 16),
-  caption2(11, 13);
+  display(40, 48, emphasizedWeight: FontWeight.w700),
+  largeTitle(34, 44, emphasizedWeight: FontWeight.w700),
+  title1(28, 38, emphasizedWeight: FontWeight.w700),
+  pageTitle(24, 34, weight: FontWeight.w600, emphasizedWeight: FontWeight.w700),
+  title2(22, 31, emphasizedWeight: FontWeight.w700),
+  title3(20, 28),
+  headline(17, 25, weight: FontWeight.w600),
+  body(17, 25),
+  callout(16, 24),
+  subheadline(15, 22),
+  footnote(13, 20),
+  caption1(12, 18),
+  caption2(11, 16);
 
   const AppTextStyle(
     this.size,
@@ -66,6 +66,6 @@ enum AppTextStyle {
     fontSize: size,
     height: leading / size,
     fontWeight: emphasized ? emphasizedWeight : weight,
-    letterSpacing: 0,
+    letterSpacing: size >= title2.size ? 0.15 : 0.25,
   );
 }

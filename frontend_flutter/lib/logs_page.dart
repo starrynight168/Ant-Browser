@@ -364,7 +364,7 @@ class _LogsPageState extends State<LogsPage> {
                 '将导出当前筛选到的 ${entries.length} 条日志记录。',
                 style: prism.AppTextStyle.footnote.of(context),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               PrismTextField(
                 controller: pathController,
                 autofocus: true,
@@ -472,7 +472,7 @@ class _LogsPageState extends State<LogsPage> {
           return Row(
             children: [
               for (var i = 0; i < tiles.length; i++) ...[
-                if (i > 0) const SizedBox(width: 12),
+                if (i > 0) const SizedBox(width: 16),
                 Expanded(child: tiles[i]),
               ],
             ],
@@ -483,15 +483,15 @@ class _LogsPageState extends State<LogsPage> {
             Row(
               children: [
                 Expanded(child: tiles[0]),
-                const SizedBox(width: 10),
+                const SizedBox(width: 16),
                 Expanded(child: tiles[1]),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(child: tiles[2]),
-                const SizedBox(width: 10),
+                const SizedBox(width: 16),
                 Expanded(child: tiles[3]),
               ],
             ),
@@ -609,12 +609,12 @@ class _LogsPageState extends State<LogsPage> {
                         onChanged: (value) => setState(() => _keyword = value),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 16),
                     levelControl,
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 16),
                     Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
+                      spacing: 12,
+                      runSpacing: 10,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: actionWidgets,
                     ),
@@ -636,14 +636,14 @@ class _LogsPageState extends State<LogsPage> {
                                 setState(() => _keyword = value),
                           ),
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 14),
                         levelControl,
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
+                      spacing: 12,
+                      runSpacing: 10,
                       alignment: WrapAlignment.end,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: actionWidgets,
@@ -660,7 +660,7 @@ class _LogsPageState extends State<LogsPage> {
                     height: 36,
                     onChanged: (value) => setState(() => _keyword = value),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   prism.SegmentedControl<String>(
                     value: _level,
                     onChanged: (value) => setState(() => _level = value),
@@ -672,10 +672,10 @@ class _LogsPageState extends State<LogsPage> {
                       ('ERROR', 'ERROR'),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
+                    spacing: 12,
+                    runSpacing: 10,
                     alignment: WrapAlignment.end,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: actionWidgets,
@@ -689,11 +689,11 @@ class _LogsPageState extends State<LogsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 const prism.Divider(height: 1),
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 Wrap(
-                  spacing: 8,
+                  spacing: 12,
                   runSpacing: 10,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
@@ -829,8 +829,8 @@ class _LogsPageState extends State<LogsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Wrap(
-              spacing: 10,
-              runSpacing: 8,
+              spacing: 12,
+              runSpacing: 10,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 PrismBadge(label: level, tone: _levelTone(level)),
@@ -935,7 +935,7 @@ class _LogsPageState extends State<LogsPage> {
                       controller: _scrollController,
                       padding: kPrismListPadding,
                       itemCount: filtered.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
                       itemBuilder: (context, index) =>
                           _buildLogRow(context, filtered[index], colors),
                     ),
@@ -955,9 +955,9 @@ class _LogsPageState extends State<LogsPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildOverviewStrip(context),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           _buildToolbar(context, filtered),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Expanded(child: _buildLogViewerCard(context, filtered)),
         ],
       ),

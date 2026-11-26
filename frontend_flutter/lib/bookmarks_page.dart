@@ -224,7 +224,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
     _BookmarkEntry entry, {
     required bool protected,
     int? dragIndex,
-    EdgeInsetsGeometry margin = const EdgeInsets.only(bottom: 12),
+    EdgeInsetsGeometry margin = const EdgeInsets.only(bottom: 14),
   }) {
     final colors = prism.Theme.of(context).colorScheme;
     return Padding(
@@ -234,7 +234,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
         color: colors.surfaceContainerLow,
         shape: prism.AppShape.lg,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -272,7 +272,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
                 flex: 4,
                 child: PrismTextField(
@@ -284,7 +284,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -298,7 +298,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
                 ],
               ),
               if (!protected) ...[
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
                 prism.IconButton(
                   tooltip: '删除',
                   onPressed: () => _removeEntry(entry),
@@ -375,7 +375,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
           return Row(
             children: [
               for (var i = 0; i < tiles.length; i++) ...[
-                if (i > 0) const SizedBox(width: 12),
+                if (i > 0) const SizedBox(width: 16),
                 Expanded(child: tiles[i]),
               ],
             ],
@@ -386,15 +386,15 @@ class _BookmarksPageState extends State<BookmarksPage> {
             Row(
               children: [
                 Expanded(child: tiles[0]),
-                const SizedBox(width: 10),
+                const SizedBox(width: 16),
                 Expanded(child: tiles[1]),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(child: tiles[2]),
-                const SizedBox(width: 10),
+                const SizedBox(width: 16),
                 Expanded(child: tiles[3]),
               ],
             ),
@@ -469,10 +469,10 @@ class _BookmarksPageState extends State<BookmarksPage> {
                     onChanged: (_) => setState(() {}),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 16),
                 Wrap(
-                  spacing: 10,
-                  runSpacing: 6,
+                  spacing: 12,
+                  runSpacing: 10,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: actionWidgets,
                 ),
@@ -488,10 +488,10 @@ class _BookmarksPageState extends State<BookmarksPage> {
                 height: 36,
                 onChanged: (_) => setState(() {}),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               Wrap(
-                spacing: 10,
-                runSpacing: 6,
+                spacing: 12,
+                runSpacing: 10,
                 alignment: WrapAlignment.end,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: actionWidgets,
@@ -522,9 +522,9 @@ class _BookmarksPageState extends State<BookmarksPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildOverviewStrip(protectedEntries, regularEntries, isFiltering),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           _buildToolbar(),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Expanded(
             child: _loading
                 ? const Center(child: PrismProgressIndicator())
@@ -548,12 +548,12 @@ class _BookmarksPageState extends State<BookmarksPage> {
                                   protected: true,
                                   margin: i == filteredProtected.length - 1
                                       ? EdgeInsets.zero
-                                      : const EdgeInsets.only(bottom: 8),
+                                      : const EdgeInsets.only(bottom: 14),
                                 ),
                             ],
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
                       ],
                       Expanded(
                         child: PrismHoverCard(

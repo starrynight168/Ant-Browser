@@ -385,7 +385,7 @@ Future<void> _showPublicApiQuickDialog(
                 children: [
                   if (!apiEnabled && '${script['type'] ?? ''}' != 'launch-api')
                     const Padding(
-                      padding: EdgeInsets.only(bottom: 10),
+                      padding: EdgeInsets.only(bottom: 12),
                       child: PrismBanner(
                         tone: PrismTone.warning,
                         message: '该脚本尚未启用对外 API，当前显示内部脚本触发地址。可在编辑页开启对外 API。',
@@ -394,7 +394,7 @@ Future<void> _showPublicApiQuickDialog(
                   Row(
                     children: [
                       const PrismBadge(label: 'POST', tone: PrismTone.primary),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: prism.SelectableText(
                           url,
@@ -404,7 +404,7 @@ Future<void> _showPublicApiQuickDialog(
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 10),
                       prism.OutlinedButton.icon(
                         onPressed: () {
                           Clipboard.setData(ClipboardData(text: url));
@@ -413,7 +413,7 @@ Future<void> _showPublicApiQuickDialog(
                         icon: const PrismGlyph(AntGlyphs.copy, size: 14),
                         label: const Text('复制 URL'),
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       prism.OutlinedButton.icon(
                         onPressed: () {
                           Clipboard.setData(ClipboardData(text: curl));
@@ -424,7 +424,7 @@ Future<void> _showPublicApiQuickDialog(
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   PrismTextField(
                     controller: apiKeyController,
                     onChanged: (_) => setDialog(() {}),
@@ -434,7 +434,7 @@ Future<void> _showPublicApiQuickDialog(
                       hintText: '输入 Launch Server API Key',
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 14),
                   PrismTextField(
                     controller: bodyController,
                     minLines: 4,
@@ -444,7 +444,7 @@ Future<void> _showPublicApiQuickDialog(
                       labelText: '请求 Body JSON',
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 14),
                   PrismCodeSurface(
                     code: curl,
                     language: 'bash',
@@ -452,7 +452,7 @@ Future<void> _showPublicApiQuickDialog(
                     showCopy: true,
                   ),
                   if (output.isNotEmpty) ...[
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 14),
                     PrismCodeSurface(
                       code: output,
                       language: 'json',
@@ -829,7 +829,7 @@ class _AutomationScriptRunModalState extends State<AutomationScriptRunModal> {
                           });
                         },
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
@@ -843,7 +843,7 @@ class _AutomationScriptRunModalState extends State<AutomationScriptRunModal> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 14),
                     Expanded(
                       child: PrismSwitchTile(
                         contentPadding: EdgeInsets.zero,
@@ -865,11 +865,11 @@ class _AutomationScriptRunModalState extends State<AutomationScriptRunModal> {
                       : '当前脚本使用“按条件轮询实例”模式，运行时将按条件自动匹配实例。',
                 ),
               if (_variables.isNotEmpty) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 PrismSectionCard(
                   title: '变量参数（替换 {{变量名}}）',
                   glyph: AntGlyphs.tune,
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(14),
                   staggerIndex: 0,
                   staggerDelay: const Duration(milliseconds: 45),
                   child: Column(
@@ -877,7 +877,7 @@ class _AutomationScriptRunModalState extends State<AutomationScriptRunModal> {
                       for (final v in _variables)
                         if ('${v['name'] ?? ''}'.trim().isNotEmpty)
                           Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.only(bottom: 12),
                             child: PrismTextField(
                               controller:
                                   _varControllers['${v['name']}'.trim()],
@@ -898,7 +898,7 @@ class _AutomationScriptRunModalState extends State<AutomationScriptRunModal> {
                   ),
                 ),
               ],
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               PrismTextField(
                 controller: _params,
                 enabled: !_running,
@@ -910,7 +910,7 @@ class _AutomationScriptRunModalState extends State<AutomationScriptRunModal> {
                 ),
               ),
               if (status.isNotEmpty) ...[
-                const SizedBox(height: 14),
+                const SizedBox(height: 16),
                 PrismSectionCard(
                   title: '执行结果',
                   glyph: AntGlyphs.factCheck,
@@ -1435,8 +1435,8 @@ class _AutomationPageState extends State<AutomationPage> {
           child: ListView(
             children: [
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: 12,
+                runSpacing: 10,
                 children: [
                   PrismBadge(
                     label: success
@@ -1462,13 +1462,13 @@ class _AutomationPageState extends State<AutomationPage> {
                     ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 14),
               Text(
                 '开始时间：${_formatDateTime(run['startedAt'])} · 结束时间：${_formatDateTime(run['finishedAt'])}',
                 style: prism.AppTextStyle.footnote.of(context),
               ),
               if (summary.isNotEmpty) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 PrismBanner(
                   tone: PrismTone.info,
                   title: '详细摘要',
@@ -1476,7 +1476,7 @@ class _AutomationPageState extends State<AutomationPage> {
                 ),
               ],
               if (errorText.isNotEmpty) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 PrismBanner(
                   tone: PrismTone.danger,
                   title: '错误信息',
@@ -1484,7 +1484,7 @@ class _AutomationPageState extends State<AutomationPage> {
                 ),
               ],
               if (resultText.isNotEmpty) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 Text(
                   '运行结果',
                   style: prism.AppTextStyle.footnote.of(
@@ -1501,7 +1501,7 @@ class _AutomationPageState extends State<AutomationPage> {
                 ),
               ],
               if (logText.isNotEmpty) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(
@@ -1629,7 +1629,7 @@ class _AutomationPageState extends State<AutomationPage> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 14),
                   Row(
                     children: [
                       Expanded(
@@ -1640,7 +1640,7 @@ class _AutomationPageState extends State<AutomationPage> {
                           tone: PrismTone.success,
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 16),
                       Expanded(
                         child: PrismMetricTile(
                           label: '失败次数',
@@ -1649,7 +1649,7 @@ class _AutomationPageState extends State<AutomationPage> {
                           tone: PrismTone.danger,
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 16),
                       Expanded(
                         child: PrismMetricTile(
                           label: '最近调用',
@@ -1662,7 +1662,7 @@ class _AutomationPageState extends State<AutomationPage> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 16),
                   Expanded(
                     child: runs.isEmpty
                         ? const PrismEmptyState(
@@ -1696,7 +1696,7 @@ class _AutomationPageState extends State<AutomationPage> {
                                 statusTone,
                               );
                               return PrismCard(
-                                margin: const EdgeInsets.only(bottom: 12),
+                                margin: const EdgeInsets.only(bottom: 14),
                                 child: Column(
                                   children: [
                                     PrismListTile(
@@ -1792,10 +1792,10 @@ class _AutomationPageState extends State<AutomationPage> {
                                               CrossAxisAlignment.stretch,
                                           children: [
                                             const prism.Divider(height: 1),
-                                            const SizedBox(height: 10),
+                                            const SizedBox(height: 12),
                                             Wrap(
-                                              spacing: 8,
-                                              runSpacing: 6,
+                                              spacing: 12,
+                                              runSpacing: 10,
                                               children: [
                                                 PrismBadge(
                                                   label:
@@ -1814,7 +1814,7 @@ class _AutomationPageState extends State<AutomationPage> {
                                                 ),
                                               ],
                                             ),
-                                            const SizedBox(height: 6),
+                                            const SizedBox(height: 8),
                                             Text(
                                               '开始：${_formatDateTime(run['startedAt'])} · '
                                               '结束：${_formatDateTime(run['finishedAt'])}',
@@ -1826,7 +1826,7 @@ class _AutomationPageState extends State<AutomationPage> {
                                                   ),
                                             ),
                                             if (summary.isNotEmpty) ...[
-                                              const SizedBox(height: 8),
+                                              const SizedBox(height: 12),
                                               PrismBanner(
                                                 tone: PrismTone.info,
                                                 title: '详细摘要',
@@ -1834,7 +1834,7 @@ class _AutomationPageState extends State<AutomationPage> {
                                               ),
                                             ],
                                             if (errorMsg.isNotEmpty) ...[
-                                              const SizedBox(height: 8),
+                                              const SizedBox(height: 12),
                                               PrismBanner(
                                                 tone: PrismTone.danger,
                                                 title: '错误信息',
@@ -1842,7 +1842,7 @@ class _AutomationPageState extends State<AutomationPage> {
                                               ),
                                             ],
                                             if (resultText.isNotEmpty) ...[
-                                              const SizedBox(height: 8),
+                                              const SizedBox(height: 12),
                                               PrismCodeSurface(
                                                 code: resultText,
                                                 language: 'json',
@@ -1924,7 +1924,7 @@ class _AutomationPageState extends State<AutomationPage> {
                     children: [
                       Wrap(
                         spacing: 12,
-                        runSpacing: 6,
+                        runSpacing: 10,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           if (pinned)
@@ -1970,7 +1970,7 @@ class _AutomationPageState extends State<AutomationPage> {
                         ],
                       ),
                       if (desc.isNotEmpty) ...[
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 8),
                         Text(
                           desc,
                           maxLines: 2,
@@ -2026,12 +2026,12 @@ class _AutomationPageState extends State<AutomationPage> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           const prism.Divider(height: 1),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Wrap(
-            spacing: 8,
-            runSpacing: 6,
+            spacing: 12,
+            runSpacing: 10,
             alignment: WrapAlignment.end,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
@@ -2149,7 +2149,7 @@ class _AutomationPageState extends State<AutomationPage> {
           return Row(
             children: [
               for (var i = 0; i < tiles.length; i++) ...[
-                if (i > 0) const SizedBox(width: 12),
+                if (i > 0) const SizedBox(width: 16),
                 Expanded(child: tiles[i]),
               ],
             ],
@@ -2160,15 +2160,15 @@ class _AutomationPageState extends State<AutomationPage> {
             Row(
               children: [
                 Expanded(child: tiles[0]),
-                const SizedBox(width: 10),
+                const SizedBox(width: 16),
                 Expanded(child: tiles[1]),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(child: tiles[2]),
-                const SizedBox(width: 10),
+                const SizedBox(width: 16),
                 Expanded(child: tiles[3]),
               ],
             ),
@@ -2232,7 +2232,7 @@ class _AutomationPageState extends State<AutomationPage> {
       staggerIndex: 4,
       staggerDelay: const Duration(milliseconds: 45),
       radius: prism.AppCorner.xl,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= 820;
@@ -2247,12 +2247,12 @@ class _AutomationPageState extends State<AutomationPage> {
                     onChanged: (_) => setState(() {}),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 filterControl,
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
+                  spacing: 10,
+                  runSpacing: 10,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: actionWidgets,
                 ),
@@ -2272,14 +2272,14 @@ class _AutomationPageState extends State<AutomationPage> {
                       onChanged: (_) => setState(() {}),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   filterControl,
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Wrap(
-                spacing: 6,
-                runSpacing: 6,
+                spacing: 10,
+                runSpacing: 10,
                 alignment: WrapAlignment.end,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: actionWidgets,
@@ -2338,8 +2338,8 @@ class _AutomationPageState extends State<AutomationPage> {
                               title: '还没有自动化脚本',
                               subtitle: '创建第一个 Playwright / Launch API 脚本，或直接导入内置脚本库快速上手。',
                               action: Wrap(
-                                spacing: 10,
-                                runSpacing: 8,
+                                spacing: 12,
+                                runSpacing: 10,
                                 alignment: WrapAlignment.center,
                                 children: [
                                   PrismHoverMotion(
@@ -2380,9 +2380,9 @@ class _AutomationPageState extends State<AutomationPage> {
                               ),
                             ))
                     : ListView.separated(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(16),
                         itemCount: filteredScripts.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        separatorBuilder: (_, __) => const SizedBox(height: 14),
                         itemBuilder: (context, index) => _buildScriptCard(
                           context,
                           filteredScripts[index],
@@ -2493,9 +2493,9 @@ class _AutomationPageState extends State<AutomationPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildOverviewStrip(context),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           _buildToolbar(context),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Expanded(
             child: _loading
                 ? const Center(child: PrismProgressIndicator())
@@ -2513,7 +2513,7 @@ class _AutomationPageState extends State<AutomationPage> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Expanded(child: scriptsSection),
-                            const SizedBox(width: 14),
+                            const SizedBox(width: 16),
                             SizedBox(width: 340, child: recentRunsSection),
                           ],
                         );
@@ -2522,7 +2522,7 @@ class _AutomationPageState extends State<AutomationPage> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Expanded(flex: 3, child: scriptsSection),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 16),
                           Expanded(flex: 2, child: recentRunsSection),
                         ],
                       );
@@ -3263,7 +3263,7 @@ class _AutomationScriptDetailPageState
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
                 child: PrismTextField(
                   controller: _rotProfileId,
@@ -3276,7 +3276,7 @@ class _AutomationScriptDetailPageState
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
@@ -3289,7 +3289,7 @@ class _AutomationScriptDetailPageState
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
                 child: PrismDropdownField<String>(
                   value: _rotGroupId,
@@ -3313,7 +3313,7 @@ class _AutomationScriptDetailPageState
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
@@ -3326,7 +3326,7 @@ class _AutomationScriptDetailPageState
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
                 child: PrismTextField(
                   controller: _rotKeywords,
@@ -3339,7 +3339,7 @@ class _AutomationScriptDetailPageState
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
           PrismTextField(
             controller: _targetSelector,
             minLines: 2,
@@ -3390,7 +3390,7 @@ class _AutomationScriptDetailPageState
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         if (_apiVarEditorMode == 0) ...[
           if (_varRows.isEmpty)
             prism.Surface(
@@ -3408,12 +3408,12 @@ class _AutomationScriptDetailPageState
             ),
           for (var i = 0; i < _varRows.length; i++)
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.only(bottom: 12),
               child: prism.Surface(
                 color: colors.surfaceContainerLow,
                 shape: prism.AppShape.lg,
                 child: Padding(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(12),
                   child: Column(
                     children: [
                       Row(
@@ -3428,7 +3428,7 @@ class _AutomationScriptDetailPageState
                               ),
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: PrismTextField(
                               controller: _varRows[i].defaultValue,
@@ -3439,7 +3439,7 @@ class _AutomationScriptDetailPageState
                               ),
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: PrismTextField(
                               controller: _varRows[i].description,
@@ -3452,7 +3452,7 @@ class _AutomationScriptDetailPageState
                           ),
                         ],
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       Row(
                         children: [
                           prism.Checkbox(
@@ -3531,7 +3531,7 @@ class _AutomationScriptDetailPageState
         Row(
           children: [
             Padding(
-              padding: const EdgeInsets.only(bottom: 14),
+              padding: const EdgeInsets.only(bottom: 18),
               child: prism.IconButton(
                 tooltip: '返回',
                 onPressed: _busy.isEmpty ? _leavePage : null,
@@ -3687,14 +3687,14 @@ class _AutomationScriptDetailPageState
           ],
         ),
         if (_status == 'disabled') ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           const PrismBanner(
             tone: PrismTone.warning,
             title: '脚本已禁用',
             message: '当前状态为“已禁用”，运行与对外 API 触发均会被拦截。切换为“就绪”或“草稿”后即可恢复。',
           ),
         ],
-        const SizedBox(height: 14),
+        const SizedBox(height: 18),
         PrismSectionCard(
           title: '基础信息',
           glyph: AntGlyphs.docs,
@@ -3713,7 +3713,7 @@ class _AutomationScriptDetailPageState
                       decoration: const PrismInputDecoration(labelText: '脚本名称'),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: PrismDropdownField<String>(
                       value: _status,
@@ -3734,7 +3734,7 @@ class _AutomationScriptDetailPageState
                 ],
               ),
               if (widget.scriptId == 'new') ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 PrismDropdownField<String>(
                   value: (_record?['type'] ?? 'playwright-cdp').toString(),
                   decoration: const PrismInputDecoration(labelText: '脚本类型'),
@@ -3753,7 +3753,7 @@ class _AutomationScriptDetailPageState
                   },
                 ),
               ],
-              const SizedBox(height: 10),
+              const SizedBox(height: 14),
               PrismTextField(
                 controller: _description,
                 decoration: const PrismInputDecoration(labelText: '说明'),
@@ -3761,7 +3761,7 @@ class _AutomationScriptDetailPageState
             ],
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 18),
         PrismSectionCard(
           title: _isLaunchApi ? '启动配置' : '目标实例与运行参数',
           glyph: AntGlyphs.browser,
@@ -3782,7 +3782,7 @@ class _AutomationScriptDetailPageState
                   onChanged: (value) =>
                       setState(() => _targetMode = value ?? 'manual'),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
               ],
               if (_isLaunchApi || _targetMode == 'manual') ...[
                 PrismDropdownField<String>(
@@ -3810,7 +3810,7 @@ class _AutomationScriptDetailPageState
                   onChanged: (value) =>
                       setState(() => _targetProfileId = value),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 PrismTextField(
                   controller: _selector,
                   minLines: 2,
@@ -3841,7 +3841,7 @@ class _AutomationScriptDetailPageState
                   onChanged: (value) =>
                       setState(() => _templateProfileId = value),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 PrismTextField(
                   controller: _createNameTemplate,
                   decoration: const PrismInputDecoration(
@@ -3853,7 +3853,7 @@ class _AutomationScriptDetailPageState
               ],
               if (!_isLaunchApi && _targetMode == 'rotate')
                 _buildRotateTargetEditor(context),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               Row(
                 children: [
                   Expanded(
@@ -3884,7 +3884,7 @@ class _AutomationScriptDetailPageState
             ],
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 18),
         if (_isLaunchApi) ...[
           PrismSectionCard(
             title: 'OpenClaw 指令模板',
@@ -3898,7 +3898,7 @@ class _AutomationScriptDetailPageState
               showCopy: true,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 18),
           PrismSectionCard(
             title: '固定接口模板（只读预览）',
             glyph: AntGlyphs.code,
@@ -3927,7 +3927,7 @@ class _AutomationScriptDetailPageState
               ),
             ),
           ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 18),
         PrismSectionCard(
           title: '对外 API 配置',
           glyph: AntGlyphs.api,
@@ -3954,12 +3954,12 @@ class _AutomationScriptDetailPageState
                     : null,
               ),
               if (_apiEnabled) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 prism.Surface(
                   color: colors.surfaceContainerLow,
                   shape: prism.AppShape.lg,
                   child: Padding(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(14),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -3969,7 +3969,7 @@ class _AutomationScriptDetailPageState
                               label: 'POST',
                               tone: PrismTone.primary,
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 10),
                             Expanded(
                               child: prism.SelectableText(
                                 _fullPublicApiUrl(),
@@ -3981,10 +3981,10 @@ class _AutomationScriptDetailPageState
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 10),
                         Wrap(
-                          spacing: 8,
-                          runSpacing: 6,
+                          spacing: 12,
+                          runSpacing: 10,
                           children: [
                             prism.OutlinedButton.icon(
                               onPressed: () {
@@ -4019,7 +4019,7 @@ class _AutomationScriptDetailPageState
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
@@ -4032,7 +4032,7 @@ class _AutomationScriptDetailPageState
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 10),
                     prism.OutlinedButton.icon(
                       onPressed: () => setState(() {
                         _apiPath.text = _recommendedApiPath(
@@ -4045,7 +4045,7 @@ class _AutomationScriptDetailPageState
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 Row(
                   children: [
                     Expanded(
@@ -4069,7 +4069,7 @@ class _AutomationScriptDetailPageState
                         ),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: PrismDropdownField<String>(
                         value: _apiResponseMode,
@@ -4091,7 +4091,7 @@ class _AutomationScriptDetailPageState
                         ),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: PrismTextField(
                         controller: _apiTimeout,
@@ -4103,7 +4103,7 @@ class _AutomationScriptDetailPageState
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 PrismTextField(
                   controller: _apiKey,
                   obscureText: _obscureApiKey,
@@ -4122,7 +4122,7 @@ class _AutomationScriptDetailPageState
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 PrismTextField(
                   controller: _apiRequest,
                   minLines: 3,
@@ -4131,7 +4131,7 @@ class _AutomationScriptDetailPageState
                     labelText: '请求 Body JSON',
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 PrismTextField(
                   controller: _apiResponse,
                   minLines: 2,
@@ -4140,9 +4140,9 @@ class _AutomationScriptDetailPageState
                     labelText: '响应示例 JSON（可选）',
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 _buildVisualVariablesEditor(context),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 Align(
                   alignment: Alignment.centerRight,
                   child: PrismHoverMotion(
@@ -4159,7 +4159,7 @@ class _AutomationScriptDetailPageState
           ),
         ),
         if (_runOutput.isNotEmpty) ...[
-          const SizedBox(height: 14),
+          const SizedBox(height: 18),
           PrismSectionCard(
             title: '接口测试输出',
             glyph: AntGlyphs.logs,

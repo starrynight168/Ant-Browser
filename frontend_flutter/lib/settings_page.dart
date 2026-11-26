@@ -653,7 +653,7 @@ class _SettingsPageState extends State<SettingsPage> {
               SizedBox(width: 96, child: _numberField(fieldKey)),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           prism.Slider(
             value: current.toDouble(),
             min: min.toDouble(),
@@ -701,7 +701,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     child: SingleChildScrollView(
                       child: PrismSlidingRail<_SettingsSection>(
                         itemHeight: 44,
-                        gap: 2,
+                        gap: 4,
                         items: [
                           for (final section in _SettingsSection.values)
                             PrismSlidingRailItem<_SettingsSection>(
@@ -730,7 +730,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   prism.Surface(
                     color: colors.surfaceContainerLow,
                     shape: prism.AppShape.lg,
@@ -805,7 +805,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 10),
                           Row(
                             children: [
                               _railActionPill(
@@ -819,7 +819,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                         notify: true,
                                       ),
                               ),
-                              const SizedBox(width: 6),
+                              const SizedBox(width: 8),
                               _railActionPill(
                                 context,
                                 glyph: AntGlyphs.restore,
@@ -845,7 +845,7 @@ class _SettingsPageState extends State<SettingsPage> {
               children: [
                 // Top contextual bar：仅左侧标题区随分区平滑切换，右侧保存按钮固定不动。
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.only(bottom: 16),
                   child: Row(
                     children: [
                       Expanded(
@@ -891,7 +891,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                           emphasized: true,
                                         ),
                                       ),
-                                      const SizedBox(height: 4),
+                                      const SizedBox(height: 6),
                                       Text(
                                         _activeSection.subtitle,
                                         maxLines: 1,
@@ -948,7 +948,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 if (_busy.isNotEmpty || _loading)
                   const Padding(
-                    padding: EdgeInsets.only(bottom: 12),
+                    padding: EdgeInsets.only(bottom: 14),
                     child: prism.LinearProgressIndicator(minHeight: 3),
                   ),
                 Expanded(
@@ -1022,8 +1022,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Wrap(
-                          spacing: 10,
-                          runSpacing: 6,
+                          spacing: 12,
+                          runSpacing: 10,
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             const PrismBadge(
@@ -1042,7 +1042,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 8),
                         Text(
                           '主色与色彩风格实时联动全站界面',
                           maxLines: 2,
@@ -1054,8 +1054,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       ],
                     );
                     final actions = Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                      spacing: 12,
+                      runSpacing: 10,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         PrismHoverMotion(
@@ -1088,7 +1088,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     }
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [info, const SizedBox(height: 12), actions],
+                      children: [info, const SizedBox(height: 16), actions],
                     );
                   },
                 ),
@@ -1096,7 +1096,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         _groupedCard([
           prism.ListRow(
             title: prism.Tooltip(
@@ -1156,7 +1156,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
         ]),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         PrismSectionCard(
           title: '主题色板',
           glyph: AntGlyphs.tune,
@@ -1164,8 +1164,8 @@ class _SettingsPageState extends State<SettingsPage> {
           staggerIndex: _staggerSeq++,
           staggerDelay: const Duration(milliseconds: 55),
           child: Wrap(
-            spacing: 10,
-            runSpacing: 10,
+            spacing: 12,
+            runSpacing: 12,
             children: [
               for (final option in appThemeColorOptions)
                 _ColorSwatchPill(
@@ -1180,7 +1180,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         _buildMotionSettingsCard(context, currentMotion),
       ],
     );
@@ -1216,7 +1216,7 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       ),
       Padding(
-        padding: const EdgeInsets.fromLTRB(18, 10, 18, 10),
+        padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -1240,7 +1240,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 PrismValueBadge(value: currentMotion, unit: '%'),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             prism.Slider(
               value: currentMotion.toDouble(),
               min: kMinMotionIntensity.toDouble(),
@@ -1379,8 +1379,8 @@ class _SettingsPageState extends State<SettingsPage> {
           index: _staggerSeq++,
           initialDelay: const Duration(milliseconds: 55),
           child: Wrap(
-            spacing: 12,
-            runSpacing: 10,
+            spacing: 16,
+            runSpacing: 14,
             children: [
               PrismMetricTile(
                 label: '运行环境状态',
@@ -1413,7 +1413,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         _groupedCard([
           PrismSwitchTile(
             title: prism.Tooltip(
@@ -1498,10 +1498,10 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 16),
                 Wrap(
-                  spacing: 10,
-                  runSpacing: 8,
+                  spacing: 12,
+                  runSpacing: 10,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     PrismTonalButton.icon(
@@ -1540,7 +1540,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ],
                 ),
                 if (_nodeProbe != null) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   PrismBanner(
                     tone: _nodeProbe!['ok'] == true
                         ? PrismTone.success
@@ -1556,11 +1556,11 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 ],
                 if (_runtimeProgress != null) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   _buildRuntimeProgressPanel(_runtimeProgress!),
                 ],
                 if (_runtimeCheck != null) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   PrismBanner(
                     tone: _runtimeCheck!['ok'] == true
                         ? PrismTone.success
@@ -1571,7 +1571,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 ],
                 if ('${automationStatus['lastError'] ?? ''}'.isNotEmpty) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   PrismBanner(
                     tone: PrismTone.danger,
                     title: '运行时错误',
@@ -1639,8 +1639,8 @@ class _SettingsPageState extends State<SettingsPage> {
           index: _staggerSeq++,
           initialDelay: const Duration(milliseconds: 55),
           child: Wrap(
-            spacing: 12,
-            runSpacing: 10,
+            spacing: 16,
+            runSpacing: 14,
             children: [
               PrismMetricTile(
                 label: '服务状态',
@@ -1662,7 +1662,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         _groupedCard([
           prism.ListRow(
             title: const Text('监听端口'),

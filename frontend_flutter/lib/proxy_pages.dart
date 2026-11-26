@@ -1101,7 +1101,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                     autofocus: true,
                     decoration: const PrismInputDecoration(labelText: '代理名称'),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 14),
                   if (chainConfig == null) ...[
                     Row(
                       children: [
@@ -1158,7 +1158,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     if (directEditMode) ...[
                       PrismDropdownField<String>(
                         value: directProtocol,
@@ -1177,7 +1177,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                         onChanged: (value) =>
                             setDialog(() => directProtocol = value ?? 'http'),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
                       Row(
                         children: [
                           Expanded(
@@ -1190,7 +1190,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                               ),
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 10),
                           Expanded(
                             flex: 1,
                             child: PrismTextField(
@@ -1204,7 +1204,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
                       Row(
                         children: [
                           Expanded(
@@ -1215,7 +1215,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                               ),
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: PrismTextField(
                               controller: directPassword,
@@ -1246,7 +1246,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                         labelText: '本地监听端口（可选）',
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     Text(
                       '第一层代理',
                       style: prism.AppTextStyle.footnote.of(
@@ -1254,7 +1254,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                         emphasized: true,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     PrismDropdownField<String>(
                       value: firstProtocol,
                       decoration: const PrismInputDecoration(
@@ -1270,7 +1270,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                       onChanged: (value) =>
                           setDialog(() => firstProtocol = value ?? 'http'),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     Row(
                       children: [
                         Expanded(
@@ -1282,7 +1282,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 10),
                         Expanded(
                           flex: 1,
                           child: PrismTextField(
@@ -1295,7 +1295,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     Row(
                       children: [
                         Expanded(
@@ -1306,7 +1306,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: PrismTextField(
                             controller: firstPassword,
@@ -1318,7 +1318,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 14),
                     Text(
                       '第二层代理',
                       style: prism.AppTextStyle.footnote.of(
@@ -1326,7 +1326,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                         emphasized: true,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     PrismDropdownField<String>(
                       value: secondProtocol,
                       decoration: const PrismInputDecoration(
@@ -1342,7 +1342,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                       onChanged: (value) =>
                           setDialog(() => secondProtocol = value ?? 'http'),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     Row(
                       children: [
                         Expanded(
@@ -1354,7 +1354,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 10),
                         Expanded(
                           flex: 1,
                           child: PrismTextField(
@@ -1367,7 +1367,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     Row(
                       children: [
                         Expanded(
@@ -1378,7 +1378,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: PrismTextField(
                             controller: secondPassword,
@@ -1391,16 +1391,16 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                       ],
                     ),
                   ],
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 14),
                   PrismTextField(
                     controller: group,
                     decoration: const PrismInputDecoration(labelText: '分组（可选）'),
                   ),
                   if (groupSuggestions.isNotEmpty) ...[
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
+                      spacing: 10,
+                      runSpacing: 10,
                       children: [
                         for (final suggestion in groupSuggestions.take(12))
                           PrismChip(
@@ -1412,7 +1412,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                       ],
                     ),
                   ],
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 14),
                   PrismDropdownField<String>(
                     value: preferredKernel,
                     decoration: const PrismInputDecoration(labelText: '代理内核'),
@@ -1427,7 +1427,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                       () => preferredKernel = _normalizeKernel(value),
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 14),
                   PrismTextField(
                     controller: dns,
                     minLines: 3,
@@ -1740,10 +1740,10 @@ socks5://user:password@proxy.example.com:1080''',
                       onChanged: (value) =>
                           setDialog(() => mode = value ?? 'clash'),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
+                      spacing: 12,
+                      runSpacing: 10,
                       children: [
                         prism.OutlinedButton.icon(
                           onPressed: () {
@@ -1773,7 +1773,7 @@ socks5://user:password@proxy.example.com:1080''',
                           ),
                       ],
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 14),
                     if (mode == 'direct') ...[
                       PrismDropdownField<String>(
                         value: protocol,
@@ -2046,7 +2046,7 @@ socks5://user:password@proxy.example.com:1080''',
                             : null,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     if (mode != 'chain') ...[
                       PrismTextField(
                         controller: prefix,
@@ -2054,7 +2054,7 @@ socks5://user:password@proxy.example.com:1080''',
                           labelText: '节点名称前缀（可选）',
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
                     ],
                     PrismTextField(
                       controller: group,
@@ -2062,7 +2062,7 @@ socks5://user:password@proxy.example.com:1080''',
                         labelText: '分组名称（可选）',
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     PrismDropdownField<String>(
                       value: kernel,
                       decoration: const PrismInputDecoration(labelText: '代理内核'),
@@ -2076,7 +2076,7 @@ socks5://user:password@proxy.example.com:1080''',
                       onChanged: (value) =>
                           setDialog(() => kernel = _normalizeKernel(value)),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     PrismTextField(
                       controller: dns,
                       minLines: 2,
@@ -2427,7 +2427,7 @@ socks5://user:password@proxy.example.com:1080''',
               : ListView.separated(
                   padding: kPrismListPadding,
                   itemCount: selected.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  separatorBuilder: (_, __) => const SizedBox(height: 14),
                   itemBuilder: (context, index) {
                     final proxyId = selected.elementAt(index);
                     final proxy = _proxies
@@ -2914,7 +2914,7 @@ socks5://user:password@proxy.example.com:1080''',
                       onChanged: (value) =>
                           setDialog(() => filterAvailableOnly = value),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     PrismTextField(
                       controller: bridgeTimeout,
                       keyboardType: TextInputType.number,
@@ -2922,7 +2922,7 @@ socks5://user:password@proxy.example.com:1080''',
                         labelText: '代理启动等待（毫秒）',
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     PrismTextField(
                       controller: interval,
                       keyboardType: TextInputType.number,
@@ -2930,7 +2930,7 @@ socks5://user:password@proxy.example.com:1080''',
                         labelText: '成功节点重测间隔（分钟）',
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     PrismTextField(
                       controller: retry,
                       keyboardType: TextInputType.number,
@@ -2938,7 +2938,7 @@ socks5://user:password@proxy.example.com:1080''',
                         labelText: '失败重试间隔（分钟）',
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     PrismTextField(
                       controller: concurrency,
                       keyboardType: TextInputType.number,
@@ -2946,21 +2946,21 @@ socks5://user:password@proxy.example.com:1080''',
                         labelText: '测速并发上限（1 到 10）',
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     PrismTextField(
                       controller: speedTarget,
                       decoration: const PrismInputDecoration(
                         labelText: '测速目标 ID',
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     PrismTextField(
                       controller: healthTarget,
                       decoration: const PrismInputDecoration(
                         labelText: 'IP 健康目标 ID',
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     PrismTextField(
                       controller: targets,
                       minLines: 8,
@@ -3063,21 +3063,21 @@ socks5://user:password@proxy.example.com:1080''',
                           labelText: '订阅地址',
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
                       PrismTextField(
                         controller: prefix,
                         decoration: const PrismInputDecoration(
                           labelText: '节点名前缀（可选）',
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
                       PrismTextField(
                         controller: group,
                         decoration: const PrismInputDecoration(
                           labelText: '代理分组（可选）',
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
                       PrismTextField(
                         controller: dns,
                         minLines: 2,
@@ -3087,7 +3087,7 @@ socks5://user:password@proxy.example.com:1080''',
                           hintText: 'dns:\n  enable: true\n  nameserver:\n    - 119.29.29.29',
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
                       PrismDropdownField<String>(
                         value: fetchProxyId,
                         decoration: const PrismInputDecoration(
@@ -3107,7 +3107,7 @@ socks5://user:password@proxy.example.com:1080''',
                         onChanged: (value) =>
                             setDialog(() => fetchProxyId = value ?? ''),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
                       PrismSwitchTile(
                         contentPadding: EdgeInsets.zero,
                         title: const Text('自动刷新'),
@@ -3116,7 +3116,7 @@ socks5://user:password@proxy.example.com:1080''',
                             setDialog(() => autoRefresh = value),
                       ),
                       if (autoRefresh) ...[
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 10),
                         PrismTextField(
                           controller: interval,
                           keyboardType: TextInputType.number,
@@ -3124,10 +3124,10 @@ socks5://user:password@proxy.example.com:1080''',
                             labelText: '刷新间隔（分钟，5–1440）',
                           ),
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 10),
                         Wrap(
-                          spacing: 6,
-                          runSpacing: 6,
+                          spacing: 10,
+                          runSpacing: 10,
                           children: [
                             for (final preset in const [
                               ('60', '1 小时'),
@@ -3520,7 +3520,7 @@ socks5://user:password@proxy.example.com:1080''',
           return Row(
             children: [
               for (var i = 0; i < tiles.length; i++) ...[
-                if (i > 0) const SizedBox(width: 12),
+                if (i > 0) const SizedBox(width: 16),
                 Expanded(child: tiles[i]),
               ],
             ],
@@ -3531,15 +3531,15 @@ socks5://user:password@proxy.example.com:1080''',
             Row(
               children: [
                 Expanded(child: tiles[0]),
-                const SizedBox(width: 10),
+                const SizedBox(width: 16),
                 Expanded(child: tiles[1]),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(child: tiles[2]),
-                const SizedBox(width: 10),
+                const SizedBox(width: 16),
                 Expanded(child: tiles[3]),
               ],
             ),
@@ -3762,12 +3762,12 @@ socks5://user:password@proxy.example.com:1080''',
                         height: 36,
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 12),
                     availabilityFilter,
                     const SizedBox(width: 12),
                     Wrap(
-                      spacing: 10,
-                      runSpacing: 6,
+                      spacing: 12,
+                      runSpacing: 10,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: actionWidgets,
                     ),
@@ -3787,14 +3787,14 @@ socks5://user:password@proxy.example.com:1080''',
                           height: 36,
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 12),
                       availabilityFilter,
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   Wrap(
-                    spacing: 10,
-                    runSpacing: 6,
+                    spacing: 12,
+                    runSpacing: 10,
                     alignment: WrapAlignment.end,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: actionWidgets,
@@ -3808,24 +3808,24 @@ socks5://user:password@proxy.example.com:1080''',
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 const prism.Divider(height: 1),
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 LayoutBuilder(
                   builder: (context, constraints) {
                     if (constraints.maxWidth >= 760) {
                       return Row(
                         children: [
                           for (var i = 0; i < filterFields.length; i++) ...[
-                            if (i > 0) const SizedBox(width: 10),
+                            if (i > 0) const SizedBox(width: 12),
                             Expanded(child: filterFields[i]),
                           ],
                         ],
                       );
                     }
                     return Wrap(
-                      spacing: 10,
-                      runSpacing: 8,
+                      spacing: 12,
+                      runSpacing: 10,
                       children: [
                         for (final field in filterFields)
                           SizedBox(width: 210, child: field),
@@ -3834,10 +3834,10 @@ socks5://user:password@proxy.example.com:1080''',
                   },
                 ),
                 if (_virtualGroups.isNotEmpty || hasAnyFilter) ...[
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 14),
                   Wrap(
-                    spacing: 10,
-                    runSpacing: 6,
+                    spacing: 12,
+                    runSpacing: 10,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       if (_virtualGroups.isNotEmpty) ...[
@@ -3964,10 +3964,10 @@ socks5://user:password@proxy.example.com:1080''',
           ],
         ),
         subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
+          padding: const EdgeInsets.only(top: 6),
           child: Wrap(
-            spacing: 10,
-            runSpacing: 6,
+            spacing: 12,
+            runSpacing: 10,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               PrismBadge(
@@ -4219,7 +4219,7 @@ socks5://user:password@proxy.example.com:1080''',
                           padding: kPrismListPadding,
                           itemCount: visible.length,
                           separatorBuilder: (_, __) =>
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 14),
                           itemBuilder: (context, index) =>
                               _buildProxyRow(context, visible[index]),
                         ),
@@ -4339,7 +4339,7 @@ socks5://user:password@proxy.example.com:1080''',
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildOverviewStrip(context, hasSources: hasSources),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           _buildToolbar(
             context,
             protocols: protocols,
@@ -4348,7 +4348,7 @@ socks5://user:password@proxy.example.com:1080''',
             hasSources: hasSources,
           ),
           if (showMieruBanner) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
             PrismBanner(
               tone: PrismTone.warning,
               title: '检测到 mieru 代理节点，但尚未安装 mieru 内核',
@@ -4372,7 +4372,7 @@ socks5://user:password@proxy.example.com:1080''',
               ),
             ),
           ],
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Expanded(
             child: _buildProxyListSection(
               context,
@@ -4587,7 +4587,7 @@ class _ProxySourceRefreshModalState extends State<_ProxySourceRefreshModal> {
             : ListView.separated(
                 padding: kPrismListPadding,
                 itemCount: sources.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (_, __) => const SizedBox(height: 14),
                 itemBuilder: (context, index) {
                   final source = sources[index];
                   final sourceId = source['sourceId'].toString();
@@ -4604,7 +4604,7 @@ class _ProxySourceRefreshModalState extends State<_ProxySourceRefreshModal> {
                       .toString();
                   final isEditing = _editingSourceId == sourceId;
                   return PrismSectionCard(
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -4612,8 +4612,8 @@ class _ProxySourceRefreshModalState extends State<_ProxySourceRefreshModal> {
                           children: [
                             Expanded(
                               child: Wrap(
-                                spacing: 6,
-                                runSpacing: 6,
+                                spacing: 12,
+                                runSpacing: 10,
                                 crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   Text(
@@ -4678,10 +4678,10 @@ class _ProxySourceRefreshModalState extends State<_ProxySourceRefreshModal> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 10),
                         Wrap(
                           spacing: 12,
-                          runSpacing: 6,
+                          runSpacing: 10,
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             PrismBadge(
@@ -4708,16 +4708,16 @@ class _ProxySourceRefreshModalState extends State<_ProxySourceRefreshModal> {
                           ],
                         ),
                         if (lastError.isNotEmpty) ...[
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 10),
                           PrismBanner(
                             tone: PrismTone.danger,
                             message: lastError,
                           ),
                         ],
                         if (isEditing) ...[
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 14),
                           const prism.Divider(height: 1),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 14),
                           PrismSwitchTile(
                             contentPadding: EdgeInsets.zero,
                             title: const Text('启用自动刷新'),
@@ -4726,7 +4726,7 @@ class _ProxySourceRefreshModalState extends State<_ProxySourceRefreshModal> {
                                 setState(() => _editAutoRefresh = value),
                           ),
                           if (_editAutoRefresh) ...[
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 10),
                             PrismTextField(
                               controller: _editInterval,
                               keyboardType: TextInputType.number,
@@ -4735,7 +4735,7 @@ class _ProxySourceRefreshModalState extends State<_ProxySourceRefreshModal> {
                               ),
                             ),
                           ],
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 12),
                           PrismDropdownField<String>(
                             value: _editFetchProxyId,
                             decoration: const PrismInputDecoration(
@@ -4881,7 +4881,7 @@ class _ProxySourceAbnormalModalState extends State<_ProxySourceAbnormalModal> {
             : ListView.separated(
                 padding: kPrismListPadding,
                 itemCount: widget.abnormalNodes.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (_, __) => const SizedBox(height: 14),
                 itemBuilder: (context, index) {
                   final node = widget.abnormalNodes[index];
                   final missingSince = _formatShortTime(
@@ -4988,7 +4988,7 @@ socks5://user:password@proxy.example.com:6616''';
               ('ipfly', '链式代理'),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Expanded(
             child: ListView(
               children: [
@@ -5009,7 +5009,7 @@ socks5://user:password@proxy.example.com:6616''';
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   const PrismCodeSurface(language: 'yaml', code: _clashExample),
                 ],
                 if (_tab == 'direct') ...[
@@ -5029,7 +5029,7 @@ socks5://user:password@proxy.example.com:6616''';
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   const PrismCodeSurface(language: 'text', code: _proxyExample),
                 ],
                 if (_tab == 'ipfly') ...[
@@ -5041,7 +5041,7 @@ socks5://user:password@proxy.example.com:6616''';
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   const PrismCodeSurface(language: 'json', code: _chainExample),
                 ],
               ],
@@ -5254,7 +5254,7 @@ class _ProxyCoreDownloadDialogState extends State<_ProxyCoreDownloadDialog> {
                         if (value != null) _changeTarget(core: value);
                       },
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
@@ -5280,7 +5280,7 @@ class _ProxyCoreDownloadDialogState extends State<_ProxyCoreDownloadDialog> {
                             },
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: PrismDropdownField<String>(
                       key: ValueKey(_goarch),
@@ -5307,7 +5307,7 @@ class _ProxyCoreDownloadDialogState extends State<_ProxyCoreDownloadDialog> {
                 ],
               ),
               if (widget.usableProxies.isNotEmpty) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 PrismDropdownField<String>(
                   value: _selectedProxyPreset,
                   decoration: const PrismInputDecoration(
@@ -5351,7 +5351,7 @@ class _ProxyCoreDownloadDialogState extends State<_ProxyCoreDownloadDialog> {
                         },
                 ),
               ],
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               PrismTextField(
                 controller: _proxyConfig,
                 enabled: !_downloading,
@@ -5360,9 +5360,9 @@ class _ProxyCoreDownloadDialogState extends State<_ProxyCoreDownloadDialog> {
                   hintText: '例如 http://127.0.0.1:7890',
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               PrismSectionCard(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(14),
                 staggerIndex: 0,
                 staggerDelay: const Duration(milliseconds: 45),
                 child: Column(
@@ -5397,7 +5397,7 @@ class _ProxyCoreDownloadDialogState extends State<_ProxyCoreDownloadDialog> {
                     if ((_status?['binaryPath'] ?? '')
                         .toString()
                         .isNotEmpty) ...[
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       Text(
                         _status!['binaryPath'].toString(),
                         maxLines: 2,
@@ -5415,7 +5415,7 @@ class _ProxyCoreDownloadDialogState extends State<_ProxyCoreDownloadDialog> {
                 ),
               ),
               if (_progress case final progress?) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 PrismProgressPanel(
                   title: progress['phase'] == 'done'
                       ? '下载完成'
@@ -5427,11 +5427,11 @@ class _ProxyCoreDownloadDialogState extends State<_ProxyCoreDownloadDialog> {
                 ),
               ],
               if (_downloadInfo case final info?) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 PrismSectionCard(
                   title: '手动下载信息',
                   glyph: AntGlyphs.info,
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(14),
                   staggerIndex: 1,
                   staggerDelay: const Duration(milliseconds: 45),
                   child: Column(
@@ -5453,7 +5453,7 @@ class _ProxyCoreDownloadDialogState extends State<_ProxyCoreDownloadDialog> {
                           style: prism.AppTextStyle.footnote.of(context),
                         ),
                       if ((info['message'] ?? '').toString().isNotEmpty) ...[
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
                         Text(
                           info['message'].toString(),
                           style: prism.AppTextStyle.caption1
@@ -5582,7 +5582,8 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
                   value: autoRefresh,
                   onChanged: (value) => setDialog(() => autoRefresh = value),
                 ),
-                if (autoRefresh)
+                if (autoRefresh) ...[
+                  const SizedBox(height: 10),
                   PrismTextField(
                     controller: interval,
                     keyboardType: TextInputType.number,
@@ -5590,7 +5591,8 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
                       labelText: '刷新间隔（分钟，5–1440）',
                     ),
                   ),
-                const SizedBox(height: 8),
+                ],
+                const SizedBox(height: 12),
                 PrismDropdownField<String>(
                   value: fetchProxyId,
                   decoration: const PrismInputDecoration(
@@ -5844,7 +5846,7 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
           Row(
             children: [
               Padding(
-                padding: const EdgeInsets.only(bottom: 14),
+                padding: const EdgeInsets.only(bottom: 18),
                 child: prism.IconButton(
                   tooltip: '返回代理池',
                   onPressed: widget.onBack,
@@ -5870,8 +5872,8 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
           ),
           if (_sources.isNotEmpty)
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: 12,
+              runSpacing: 10,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 SizedBox(
@@ -5955,7 +5957,7 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
                 ),
               ],
             ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           Expanded(
             child: _loading
                 ? const Center(child: PrismProgressIndicator())
@@ -5974,7 +5976,7 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
                 : ListView.separated(
                     padding: kPrismListPadding,
                     itemCount: _records.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    separatorBuilder: (_, __) => const SizedBox(height: 14),
                     itemBuilder: (context, index) {
                       final record = _records[index];
                       final isAuto = record['mode'] == 'auto';
@@ -6006,7 +6008,7 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 6),
                               Text(
                                 '${_formatShortTime((record['at'] ?? '').toString())} · 新增 ${record['added'] ?? 0} · 保留异常 ${record['keptMissing'] ?? 0}',
                               ),
@@ -6080,12 +6082,12 @@ class _ProxyManualAlignmentDialogState
                   .of(context)
                   .copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Expanded(
               child: ListView.separated(
                 padding: kPrismListPadding,
                 itemCount: widget.oldProxies.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (_, __) => const SizedBox(height: 14),
                 itemBuilder: (context, index) {
                   final proxy = widget.oldProxies[index];
                   final proxyId = (proxy['proxyId'] ?? '').toString();
@@ -6372,7 +6374,7 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: PrismDropdownField<String>(
                           value: strategy,
@@ -6396,7 +6398,7 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 14),
                   Row(
                     children: [
                       Expanded(
@@ -6407,7 +6409,7 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
                           onChanged: (_) => setDialog(() {}),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 12),
                       SizedBox(
                         width: 170,
                         child: PrismDropdownField<String>(
@@ -6431,10 +6433,10 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
+                    spacing: 10,
+                    runSpacing: 10,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       PrismChip(
@@ -6456,7 +6458,7 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
                         ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   Expanded(
                     child: filtered.isEmpty
                         ? const PrismEmptyState(
@@ -6466,7 +6468,7 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
                         : ListView.separated(
                             itemCount: filtered.length,
                             separatorBuilder: (_, __) =>
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 6),
                             itemBuilder: (context, index) {
                               final proxy = filtered[index];
                               final id = (proxy['proxyId'] ?? '').toString();
@@ -6728,7 +6730,7 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
               : ListView.separated(
                   padding: kPrismListPadding,
                   itemCount: memberIds.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  separatorBuilder: (_, __) => const SizedBox(height: 14),
                   itemBuilder: (context, index) {
                     final proxyId = memberIds.elementAt(index);
                     final proxy = _proxies
@@ -6968,7 +6970,7 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
           return Row(
             children: [
               for (var i = 0; i < tiles.length; i++) ...[
-                if (i > 0) const SizedBox(width: 12),
+                if (i > 0) const SizedBox(width: 16),
                 Expanded(child: tiles[i]),
               ],
             ],
@@ -6979,15 +6981,15 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
             Row(
               children: [
                 Expanded(child: tiles[0]),
-                const SizedBox(width: 10),
+                const SizedBox(width: 16),
                 Expanded(child: tiles[1]),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(child: tiles[2]),
-                const SizedBox(width: 10),
+                const SizedBox(width: 16),
                 Expanded(child: tiles[3]),
               ],
             ),
@@ -7054,12 +7056,12 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
                     onChanged: (value) => setState(() => _query = value),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 filterControl,
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
+                  spacing: 10,
+                  runSpacing: 10,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: actionWidgets,
                 ),
@@ -7087,14 +7089,14 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
                       onChanged: (value) => setState(() => _query = value),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   filterControl,
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Wrap(
-                spacing: 6,
-                runSpacing: 6,
+                spacing: 10,
+                runSpacing: 10,
                 alignment: WrapAlignment.end,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: actionWidgets,
@@ -7259,7 +7261,7 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
                           padding: kPrismListPadding,
                           itemCount: filteredGroups.length,
                           separatorBuilder: (_, __) =>
-                              const SizedBox(height: 10),
+                              const SizedBox(height: 14),
                           itemBuilder: (context, index) =>
                               _buildGroupRow(context, filteredGroups[index]),
                         ),
@@ -7285,9 +7287,9 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildOverviewStrip(context),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           _buildToolbar(context, backAction),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Expanded(child: _buildGroupsSection(context, filteredGroups)),
         ],
       ),

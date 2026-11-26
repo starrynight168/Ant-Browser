@@ -202,7 +202,7 @@ class _CoresPageState extends State<CoresPage> {
                       labelText: '用户数据根目录',
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 14),
                   PrismTextField(
                     controller: fingerprint,
                     minLines: 2,
@@ -211,7 +211,7 @@ class _CoresPageState extends State<CoresPage> {
                       labelText: '默认指纹参数（每行一个）',
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 14),
                   PrismTextField(
                     controller: launchArgs,
                     minLines: 2,
@@ -220,7 +220,7 @@ class _CoresPageState extends State<CoresPage> {
                       labelText: '默认启动参数（每行一个）',
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 14),
                   PrismTextField(
                     controller: startUrls,
                     minLines: 2,
@@ -229,7 +229,7 @@ class _CoresPageState extends State<CoresPage> {
                       labelText: '默认启动页面（每行一个 URL）',
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 14),
                   PrismDropdownField<String>(
                     initialValue: connectorType == 'mihomo' ? 'mihomo' : 'xray',
                     decoration: const PrismInputDecoration(
@@ -248,7 +248,7 @@ class _CoresPageState extends State<CoresPage> {
                     onChanged: (value) =>
                         setDialog(() => connectorType = value ?? 'xray'),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   PrismSwitchTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('轻启动模式'),
@@ -263,7 +263,7 @@ class _CoresPageState extends State<CoresPage> {
                     onChanged: (value) =>
                         setDialog(() => restoreSession = value),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   PrismTextField(
                     controller: readyTimeout,
                     keyboardType: TextInputType.number,
@@ -271,7 +271,7 @@ class _CoresPageState extends State<CoresPage> {
                       labelText: '启动就绪超时（毫秒）',
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 14),
                   PrismTextField(
                     controller: stableWindow,
                     keyboardType: TextInputType.number,
@@ -279,7 +279,7 @@ class _CoresPageState extends State<CoresPage> {
                       labelText: '启动稳定窗口（毫秒）',
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 14),
                   PrismTextField(
                     controller: concurrent,
                     keyboardType: TextInputType.number,
@@ -431,7 +431,7 @@ class _CoresPageState extends State<CoresPage> {
                     controller: name,
                     decoration: const PrismInputDecoration(labelText: '内核名称'),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 14),
                   PrismTextField(
                     controller: path,
                     onChanged: scheduleValidation,
@@ -440,7 +440,7 @@ class _CoresPageState extends State<CoresPage> {
                       hintText: '例如 C:\\...\\chrome.exe',
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
@@ -470,7 +470,7 @@ class _CoresPageState extends State<CoresPage> {
                     ],
                   ),
                   if (validationMessage.isNotEmpty && !validating) ...[
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                     PrismBanner(
                       tone: pathValid == true
                           ? PrismTone.success
@@ -770,7 +770,7 @@ class _CoresPageState extends State<CoresPage> {
                         title: '目录替换与回滚说明',
                         message: '重新下载将替换当前内核目录；若下载、校验或解压失败，系统会自动回滚到原有内核，不会影响已配置的实例。',
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                     ],
                     if (!isRedownload) ...[
                       PrismTextField(
@@ -780,17 +780,17 @@ class _CoresPageState extends State<CoresPage> {
                           labelText: '内核名称',
                         ),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 14),
                     ],
                     PrismTextField(
                       controller: url,
                       enabled: !downloading,
                       decoration: const PrismInputDecoration(labelText: '下载地址'),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 14),
                     Wrap(
-                      spacing: 10,
-                      runSpacing: 6,
+                      spacing: 12,
+                      runSpacing: 10,
                       children: [
                         prism.TextButton.icon(
                           onPressed: (recommendationLoading || downloading)
@@ -832,13 +832,13 @@ class _CoresPageState extends State<CoresPage> {
                       ),
                     ],
                     if (recommendationError.isNotEmpty) ...[
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 10),
                       PrismBanner(
                         tone: PrismTone.warning,
                         message: '自动匹配最新内核失败：$recommendationError',
                       ),
                     ],
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 14),
                     PrismDropdownField<String>(
                       initialValue: proxyMode,
                       decoration: const PrismInputDecoration(labelText: '下载代理'),
@@ -863,7 +863,7 @@ class _CoresPageState extends State<CoresPage> {
                                 setDialog(() => proxyMode = value ?? 'system'),
                     ),
                     if (proxyMode == 'custom') ...[
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 14),
                       PrismDropdownField<String>(
                         initialValue:
                             _proxies.any((proxy) => proxy['proxyId'] == proxyId)
@@ -888,7 +888,7 @@ class _CoresPageState extends State<CoresPage> {
                       ),
                     ],
                     if (modalProgress != null) ...[
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 16),
                       PrismProgressPanel(
                         title: downloading
                             ? (isRedownload ? '正在重新下载内核' : '正在下载内核')
@@ -898,7 +898,7 @@ class _CoresPageState extends State<CoresPage> {
                       ),
                     ],
                     if (downloadError.isNotEmpty) ...[
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 14),
                       PrismBanner(
                         tone: PrismTone.danger,
                         message: downloadError,
@@ -1181,7 +1181,7 @@ class _CoresPageState extends State<CoresPage> {
           return Row(
             children: [
               for (var i = 0; i < tiles.length; i++) ...[
-                if (i > 0) const SizedBox(width: 12),
+                if (i > 0) const SizedBox(width: 16),
                 Expanded(child: tiles[i]),
               ],
             ],
@@ -1192,15 +1192,15 @@ class _CoresPageState extends State<CoresPage> {
             Row(
               children: [
                 Expanded(child: tiles[0]),
-                const SizedBox(width: 10),
+                const SizedBox(width: 16),
                 Expanded(child: tiles[1]),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(child: tiles[2]),
-                const SizedBox(width: 10),
+                const SizedBox(width: 16),
                 Expanded(child: tiles[3]),
               ],
             ),
@@ -1312,12 +1312,12 @@ class _CoresPageState extends State<CoresPage> {
                     onChanged: (_) => setState(() {}),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 filterControl,
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
+                  spacing: 10,
+                  runSpacing: 10,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: actionWidgets,
                 ),
@@ -1337,14 +1337,14 @@ class _CoresPageState extends State<CoresPage> {
                       onChanged: (_) => setState(() {}),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   filterControl,
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Wrap(
-                spacing: 6,
-                runSpacing: 6,
+                spacing: 10,
+                runSpacing: 10,
                 alignment: WrapAlignment.end,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: actionWidgets,
@@ -1379,7 +1379,7 @@ class _CoresPageState extends State<CoresPage> {
         .toList();
 
     Widget kvRow(String label, String value) => Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1412,7 +1412,7 @@ class _CoresPageState extends State<CoresPage> {
       glyph: AntGlyphs.tune,
       staggerIndex: 5,
       staggerDelay: const Duration(milliseconds: 45),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       actions: [
         prism.TextButton.icon(
           onPressed: () =>
@@ -1433,8 +1433,8 @@ class _CoresPageState extends State<CoresPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Wrap(
-            spacing: 8,
-            runSpacing: 6,
+            spacing: 12,
+            runSpacing: 10,
             children: [
               PrismBadge(
                 label: lightStartEnabled ? '轻启动：开启' : '轻启动：关闭',
@@ -1457,7 +1457,7 @@ class _CoresPageState extends State<CoresPage> {
           PrismCollapsible(
             expanded: _settingsExpanded,
             child: Padding(
-              padding: const EdgeInsets.only(top: 10),
+              padding: const EdgeInsets.only(top: 14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1547,7 +1547,7 @@ class _CoresPageState extends State<CoresPage> {
           ),
       ],
       child: PrismCard(
-        padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
@@ -1566,14 +1566,14 @@ class _CoresPageState extends State<CoresPage> {
                 ),
               ),
             ),
-            const SizedBox(width: 13),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Wrap(
-                    spacing: 10,
-                    runSpacing: 6,
+                    spacing: 12,
+                    runSpacing: 10,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text(
@@ -1593,7 +1593,7 @@ class _CoresPageState extends State<CoresPage> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Text(
                     '${core['corePath'] ?? ''}',
                     maxLines: 1,
@@ -1602,7 +1602,7 @@ class _CoresPageState extends State<CoresPage> {
                         .of(context)
                         .copyWith(color: colors.onSurfaceVariant),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Text(
                     '使用实例 ${((core['instanceCount'] as num?) ?? 0).toInt()} 个'
                     ' · Chrome ${core['chromeVersion'] ?? '版本未知'}',
@@ -1613,7 +1613,7 @@ class _CoresPageState extends State<CoresPage> {
                         .copyWith(color: colors.onSurfaceVariant),
                   ),
                   if (!valid) ...[
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     Text(
                       '${validation['message'] ?? '路径无效'}',
                       maxLines: 2,
@@ -1626,7 +1626,7 @@ class _CoresPageState extends State<CoresPage> {
                 ],
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 14),
             if (!isDefault) ...[
               prism.TextButton(
                 onPressed: _busy
@@ -1762,7 +1762,7 @@ class _CoresPageState extends State<CoresPage> {
                               padding: kPrismListPadding,
                               itemCount: filteredCores.length,
                               separatorBuilder: (context, index) =>
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: 14),
                               itemBuilder: (context, index) =>
                                   _buildCoreItem(context, filteredCores[index]),
                             ),
@@ -1784,18 +1784,18 @@ class _CoresPageState extends State<CoresPage> {
         children: [
           _buildOverviewStrip(context),
           if (_downloadProgress != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             PrismProgressPanel(
               title: '内核处理进度',
               subtitle: '${_downloadProgress!['message'] ?? ''}',
               progress: _progressValue(_downloadProgress!['progress']),
             ),
           ],
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           _buildToolbar(context),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           _buildCoreSettingsCard(context),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Expanded(child: _buildCoresListCard(context, filteredCores)),
         ],
       ),

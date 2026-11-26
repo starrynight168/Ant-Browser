@@ -25,8 +25,8 @@ TextStyle prismMonoTextStyle({
 enum PrismTone { neutral, primary, success, warning, danger, info }
 
 /// 滚动视口默认留白，避免卡片悬停浮起与高光描边被边缘裁切。
-const EdgeInsets kPrismScrollPadding = EdgeInsets.fromLTRB(4, 4, 4, 20);
-const EdgeInsets kPrismListPadding = EdgeInsets.fromLTRB(4, 4, 4, 16);
+const EdgeInsets kPrismScrollPadding = EdgeInsets.fromLTRB(6, 6, 6, 24);
+const EdgeInsets kPrismListPadding = EdgeInsets.fromLTRB(6, 6, 6, 20);
 
 class PrismToneColors {
   const PrismToneColors({
@@ -103,7 +103,7 @@ class PrismBadge extends StatelessWidget {
       color: palette.bg,
       shape: prism.AppShape.full,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           spacing: 8,
@@ -184,7 +184,7 @@ class PrismBanner extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             prism_icons.GlyphIcon(effectiveGlyph, size: 18, color: palette.fg),
-            const SizedBox(width: 10),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -198,7 +198,7 @@ class PrismBanner extends StatelessWidget {
                           .copyWith(color: palette.fg),
                     ),
                   if (title != null && title!.isNotEmpty)
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                   Text(
                     message,
                     style: prism.AppTextStyle.footnote
@@ -208,7 +208,7 @@ class PrismBanner extends StatelessWidget {
                 ],
               ),
             ),
-            if (trailing != null) ...[const SizedBox(width: 12), trailing!],
+            if (trailing != null) ...[const SizedBox(width: 16), trailing!],
           ],
         ),
       ),
@@ -294,7 +294,7 @@ class PrismPageContextBar extends StatelessWidget {
       index: 0,
       initialDelay: const Duration(milliseconds: 30),
       child: Padding(
-        padding: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.only(bottom: 18),
         child: Row(
           children: [
             prism.Surface(
@@ -309,7 +309,7 @@ class PrismPageContextBar extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -323,7 +323,7 @@ class PrismPageContextBar extends StatelessWidget {
                       emphasized: true,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Text(
                     subtitle,
                     maxLines: 2,
@@ -336,10 +336,10 @@ class PrismPageContextBar extends StatelessWidget {
               ),
             ),
             if (actions.isNotEmpty) ...[
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: 12,
+                runSpacing: 10,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: actions,
               ),
@@ -1571,26 +1571,26 @@ class PrismMetricTile extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: prism.AppTextStyle.footnote
               .of(context)
-              .copyWith(color: colors.onSurfaceVariant, height: 1.2),
+              .copyWith(color: colors.onSurfaceVariant, height: 1.35),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         Text(
           value,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: prism.AppTextStyle.title3
               .of(context, emphasized: true)
-              .copyWith(fontWeight: FontWeight.w700, height: 1.15),
+              .copyWith(fontWeight: FontWeight.w700, height: 1.25),
         ),
         if (showSubtitle && hasSubtitle) ...[
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
             subtitle!,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: prism.AppTextStyle.caption2
                 .of(context)
-                .copyWith(color: colors.onSurfaceVariant, height: 1.2),
+                .copyWith(color: colors.onSurfaceVariant, height: 1.35),
           ),
         ],
       ],
@@ -1625,7 +1625,7 @@ class PrismMetricTile extends StatelessWidget {
         inert: onPressed == null,
         padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 52),
+          constraints: const BoxConstraints(minHeight: 56),
           child: LayoutBuilder(
             builder: (context, constraints) {
               final bounded = constraints.hasBoundedWidth;
@@ -2055,7 +2055,7 @@ class PrismTextField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 10, bottom: 8),
+          padding: const EdgeInsets.only(left: 10, bottom: 10),
           child: Text(
             label,
             style: prism.AppTextStyle.footnote
@@ -2143,7 +2143,7 @@ class PrismTextFormField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 10, bottom: 8),
+          padding: const EdgeInsets.only(left: 10, bottom: 10),
           child: Text(
             label,
             style: prism.AppTextStyle.footnote
@@ -2358,7 +2358,7 @@ class _PrismDropdownFieldState<T> extends State<PrismDropdownField<T>> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 10, bottom: 8),
+          padding: const EdgeInsets.only(left: 10, bottom: 10),
           child: Text(
             labelText,
             style: prism.AppTextStyle.footnote
@@ -2497,8 +2497,8 @@ class PrismDialog extends StatelessWidget {
                       padding: const EdgeInsets.fromLTRB(24, 14, 24, 20),
                       child: Wrap(
                         alignment: WrapAlignment.end,
-                        spacing: 10,
-                        runSpacing: 8,
+                        spacing: 12,
+                        runSpacing: 10,
                         children: actions!,
                       ),
                     ),
@@ -2846,11 +2846,11 @@ class PrismListTile extends StatelessWidget {
       trailing: trailing,
       padding: contentPadding ?? const EdgeInsets.symmetric(horizontal: 20),
       minHeight: isThreeLine
-          ? 78
+          ? 84
           : dense
-          ? 50
-          : 64,
-      minVerticalPadding: dense ? 8 : 12,
+          ? 54
+          : 68,
+      minVerticalPadding: dense ? 10 : 14,
     );
     final content = prism.Surface(
       color: selected

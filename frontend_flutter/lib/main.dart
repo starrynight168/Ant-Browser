@@ -1610,10 +1610,11 @@ class _BrowserListPageState extends State<BrowserListPage> {
           overflow: TextOverflow.ellipsis,
           style: style,
         ),
-        if (keywords.isNotEmpty)
+        if (keywords.isNotEmpty) ...[
+          const SizedBox(height: 6),
           Wrap(
-            spacing: 4,
-            runSpacing: 2,
+            spacing: 8,
+            runSpacing: 6,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text('关键字：', style: style),
@@ -1629,6 +1630,8 @@ class _BrowserListPageState extends State<BrowserListPage> {
                 Text('+${keywords.length - 3}', style: style),
             ],
           ),
+        ],
+        const SizedBox(height: 6),
         Text(
           '上次更新：${_profileUpdatedAt(profile)}',
           maxLines: 1,
@@ -1787,7 +1790,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
                       overflow: TextOverflow.ellipsis,
                       style: prism.AppTextStyle.headline.of(context),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     Text(
                       id,
                       maxLines: 1,
@@ -1856,7 +1859,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Expanded(
             child: SingleChildScrollView(
               child: Column(
@@ -1867,8 +1870,8 @@ class _BrowserListPageState extends State<BrowserListPage> {
                   if (tags.isNotEmpty) ...[
                     const SizedBox(height: 10),
                     Wrap(
-                      spacing: 10,
-                      runSpacing: 6,
+                      spacing: 12,
+                      runSpacing: 10,
                       children: [
                         for (final tag in tags.take(4))
                           PrismBadge(label: tag, tone: PrismTone.info),
@@ -1881,7 +1884,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
@@ -2641,15 +2644,16 @@ class _BrowserListPageState extends State<BrowserListPage> {
                   ),
                 ),
                 if (resolvedLocationSummary.isNotEmpty) ...[
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 10),
                   PrismBanner(
                     tone: PrismTone.success,
                     message: resolvedLocationSummary,
                   ),
                 ],
+                const SizedBox(height: 8),
                 Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
+                  spacing: 12,
+                  runSpacing: 10,
                   children: [
                     prism.TextButton.icon(
                       onPressed: () => _showFingerprintReport(
@@ -2998,9 +3002,10 @@ class _BrowserListPageState extends State<BrowserListPage> {
               child: ListView(
                 children: [
                   const Text('快速预设'),
+                  const SizedBox(height: 6),
                   Wrap(
-                    spacing: 4,
-                    runSpacing: 4,
+                    spacing: 10,
+                    runSpacing: 8,
                     children: [
                       prism.TextButton(
                         onPressed: () => setDialog(
@@ -3201,11 +3206,12 @@ class _BrowserListPageState extends State<BrowserListPage> {
                     onChanged: (value) =>
                         setDialog(() => rectNoise = value ?? ''),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   const Text('排除伪装项'),
+                  const SizedBox(height: 6),
                   Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
+                    spacing: 12,
+                    runSpacing: 10,
                     children: [
                       toggle('字体', 'font', disableSpoofing),
                       toggle('音频', 'audio', disableSpoofing),
@@ -4766,7 +4772,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
                 return Row(
                   children: [
                     for (var i = 0; i < kpiTiles.length; i++) ...[
-                      if (i > 0) const SizedBox(width: 12),
+                      if (i > 0) const SizedBox(width: 16),
                       Expanded(child: kpiTiles[i]),
                     ],
                   ],
@@ -4777,15 +4783,15 @@ class _BrowserListPageState extends State<BrowserListPage> {
                   Row(
                     children: [
                       Expanded(child: kpiTiles[0]),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 16),
                       Expanded(child: kpiTiles[1]),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 16),
                   Row(
                     children: [
                       Expanded(child: kpiTiles[2]),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 16),
                       Expanded(child: kpiTiles[3]),
                     ],
                   ),
@@ -4793,13 +4799,13 @@ class _BrowserListPageState extends State<BrowserListPage> {
               );
             },
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           PrismHoverCard(
             staggerIndex: 4,
             staggerDelay: const Duration(milliseconds: 45),
             radius: prism.AppCorner.xl,
             lift: false,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -4820,10 +4826,10 @@ class _BrowserListPageState extends State<BrowserListPage> {
                               },
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 14),
                           Wrap(
-                            spacing: 10,
-                            runSpacing: 6,
+                            spacing: 12,
+                            runSpacing: 10,
                             crossAxisAlignment: WrapCrossAlignment.center,
                             children: toolbarActions,
                           ),
@@ -4842,10 +4848,10 @@ class _BrowserListPageState extends State<BrowserListPage> {
                             _persistFilters();
                           },
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 12),
                         Wrap(
-                          spacing: 10,
-                          runSpacing: 6,
+                          spacing: 12,
+                          runSpacing: 10,
                           alignment: WrapAlignment.end,
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: toolbarActions,
@@ -4859,9 +4865,9 @@ class _BrowserListPageState extends State<BrowserListPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
                       const prism.Divider(height: 1),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
                       LayoutBuilder(
                         builder: (context, constraints) {
                           if (constraints.maxWidth >= 760) {
@@ -4872,15 +4878,15 @@ class _BrowserListPageState extends State<BrowserListPage> {
                                   i < dropdownFields.length;
                                   i++
                                 ) ...[
-                                  if (i > 0) const SizedBox(width: 10),
+                                  if (i > 0) const SizedBox(width: 12),
                                   Expanded(child: dropdownFields[i]),
                                 ],
                               ],
                             );
                           }
                           return Wrap(
-                            spacing: 10,
-                            runSpacing: 8,
+                            spacing: 12,
+                            runSpacing: 10,
                             children: [
                               for (final field in dropdownFields)
                                 SizedBox(width: 180, child: field),
@@ -4889,14 +4895,14 @@ class _BrowserListPageState extends State<BrowserListPage> {
                         },
                       ),
                       if (tagOptions.isNotEmpty || hasActiveFilters) ...[
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 12),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Expanded(
                               child: Wrap(
-                                spacing: 6,
-                                runSpacing: 6,
+                                spacing: 10,
+                                runSpacing: 10,
                                 crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   if (tagOptions.isNotEmpty) ...[
@@ -4955,7 +4961,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Row(
             children: [
               prism.TextButton.icon(
@@ -4990,7 +4996,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
           PrismCollapsible(
             expanded: _selectedProfileIds.isNotEmpty,
             child: Padding(
-              padding: const EdgeInsets.only(top: 10, bottom: 10),
+              padding: const EdgeInsets.only(top: 12, bottom: 14),
               child: prism.Surface(
                 color: prism.Theme.of(context).colorScheme.surfaceContainerLow,
                 shape: prism.AppShape.lg,
@@ -5000,7 +5006,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
                     vertical: 12,
                   ),
                   child: Wrap(
-                    spacing: 10,
+                    spacing: 12,
                     runSpacing: 10,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
@@ -5061,9 +5067,9 @@ class _BrowserListPageState extends State<BrowserListPage> {
                               gridDelegate:
                                   const SliverGridDelegateWithMaxCrossAxisExtent(
                                     maxCrossAxisExtent: 480,
-                                    mainAxisExtent: 316,
-                                    crossAxisSpacing: 12,
-                                    mainAxisSpacing: 12,
+                                    mainAxisExtent: 336,
+                                    crossAxisSpacing: 16,
+                                    mainAxisSpacing: 16,
                                   ),
                               itemCount: visible.length,
                               itemBuilder: (context, index) => _profileGridCard(
@@ -5075,7 +5081,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
                               padding: kPrismListPadding,
                               itemCount: visible.length,
                               separatorBuilder: (context, index) =>
-                                  const SizedBox(height: 10),
+                                  const SizedBox(height: 14),
                               itemBuilder: (context, index) {
                                 final profile = visible[index];
                                 final running = profile['running'] == true;
@@ -5099,7 +5105,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
                                   radius: prism.AppCorner.xl,
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 18,
-                                    vertical: 15,
+                                    vertical: 16,
                                   ),
                                   child: Row(
                                     children: [
@@ -5172,9 +5178,9 @@ class _BrowserListPageState extends State<BrowserListPage> {
                                                             .onSurfaceVariant,
                                                   ),
                                             ),
-                                            const SizedBox(height: 4),
+                                            const SizedBox(height: 6),
                                             _profileProxyBadgeRow(profile),
-                                            const SizedBox(height: 4),
+                                            const SizedBox(height: 6),
                                             _profileMetadata(profile),
                                           ],
                                         ),
@@ -5187,8 +5193,8 @@ class _BrowserListPageState extends State<BrowserListPage> {
                                           ),
                                           child: Wrap(
                                             alignment: WrapAlignment.end,
-                                            spacing: 6,
-                                            runSpacing: 4,
+                                            spacing: 8,
+                                            runSpacing: 8,
                                             children: tags
                                                 .take(3)
                                                 .map(
@@ -5380,8 +5386,8 @@ class _RunningStatus extends StatelessWidget {
         ? ('异常', PrismTone.danger)
         : ('已停止', PrismTone.neutral);
     return Wrap(
-      spacing: 10,
-      runSpacing: 6,
+      spacing: 12,
+      runSpacing: 10,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         PrismBadge(label: label, tone: tone, dot: true),

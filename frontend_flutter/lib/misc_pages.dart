@@ -222,7 +222,7 @@ class _DocsPageState extends State<DocsPage> {
                 return Row(
                   children: [
                     for (var i = 0; i < kpiTiles.length; i++) ...[
-                      if (i > 0) const SizedBox(width: 12),
+                      if (i > 0) const SizedBox(width: 16),
                       Expanded(child: kpiTiles[i]),
                     ],
                   ],
@@ -233,15 +233,15 @@ class _DocsPageState extends State<DocsPage> {
                   Row(
                     children: [
                       Expanded(child: kpiTiles[0]),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 16),
                       Expanded(child: kpiTiles[1]),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 16),
                   Row(
                     children: [
                       Expanded(child: kpiTiles[2]),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 16),
                       Expanded(child: kpiTiles[3]),
                     ],
                   ),
@@ -249,7 +249,7 @@ class _DocsPageState extends State<DocsPage> {
               );
             },
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Expanded(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -335,7 +335,7 @@ class _DocsPageState extends State<DocsPage> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 18),
                 Expanded(
                   child: PrismHoverCard(
                     staggerIndex: 5,
@@ -381,7 +381,7 @@ class _DocsPageState extends State<DocsPage> {
                                       .of(context)
                                       .copyWith(color: colors.onSurfaceVariant),
                                 ),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 16),
                                 Row(
                                   children: [
                                     SizedBox(
@@ -400,10 +400,10 @@ class _DocsPageState extends State<DocsPage> {
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 16),
+                                const SizedBox(height: 18),
                                 _DocsMarkdown(source: renderedSource),
                                 if (section.id == 'tutorial-skill') ...[
-                                  const SizedBox(height: 14),
+                                  const SizedBox(height: 18),
                                   PrismSectionCard(
                                     padding: EdgeInsets.zero,
                                     child: PrismListTile(
@@ -428,7 +428,7 @@ class _DocsPageState extends State<DocsPage> {
                                   ),
                                 ],
                                 if (section.id == 'api-demo') ...[
-                                  const SizedBox(height: 14),
+                                  const SizedBox(height: 18),
                                   _LaunchApiDemoPanel(
                                     launchServerInfo: _launchServerInfo,
                                     onRefreshServerInfo: _loadLaunchServerInfo,
@@ -436,7 +436,7 @@ class _DocsPageState extends State<DocsPage> {
                                 ],
                                 const SizedBox(height: 28),
                                 const prism.Divider(height: 1),
-                                const SizedBox(height: 16),
+                                const SizedBox(height: 18),
                                 Row(
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
@@ -668,7 +668,7 @@ class _DocsMarkdown extends StatelessWidget {
       if (bullet != null) {
         children.add(
           Padding(
-            padding: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.only(bottom: 8),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -725,7 +725,7 @@ class ChartsPage extends StatelessWidget {
       padding: const EdgeInsets.all(24),
       children: [
         Text('图表案例展示', style: prism.AppTextStyle.pageTitle.of(context)),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         Text(
           '基于 Prism UI 渲染的折线、柱状、饼图、面积与复合统计视图。',
           style: prism.AppTextStyle.footnote
@@ -992,7 +992,7 @@ class _ChartCard extends StatelessWidget {
             if (legend.isNotEmpty) ...[
               Wrap(
                 spacing: 12,
-                runSpacing: 6,
+                runSpacing: 10,
                 alignment: WrapAlignment.end,
                 children: [
                   for (final (label, color) in legend)
@@ -1018,7 +1018,7 @@ class _ChartCard extends StatelessWidget {
                     ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
             ],
             child,
           ],
@@ -1348,10 +1348,10 @@ class _LaunchApiDemoPanelState extends State<_LaunchApiDemoPanel> {
                       .of(context)
                       .copyWith(color: colors.onSurfaceVariant),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                  spacing: 12,
+                  runSpacing: 10,
                   children: [
                     prism.OutlinedButton.icon(
                       onPressed: _busy ? null : _healthCheck,
@@ -1384,14 +1384,14 @@ class _LaunchApiDemoPanelState extends State<_LaunchApiDemoPanel> {
                   ],
                 ),
                 if (_demoProfileId.isNotEmpty) ...[
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 14),
                   PrismBanner(
                     tone: PrismTone.info,
                     message: '当前演示实例：$_demoProfileId · 启动码 $_demoLaunchCode',
                   ),
                 ],
                 if (_cdpUrl.isNotEmpty) ...[
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 14),
                   prism.Surface(
                     color: colors.surfaceContainerLow,
                     shape: prism.AppShape.lg,
@@ -1435,7 +1435,7 @@ class _LaunchApiDemoPanelState extends State<_LaunchApiDemoPanel> {
                     ),
                   ),
                 ],
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 prism.Surface(
                   color: colors.surfaceContainerLow,
                   shape: prism.AppShape.lg,

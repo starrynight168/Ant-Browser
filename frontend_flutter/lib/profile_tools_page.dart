@@ -617,7 +617,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
   Widget _infoRow(BuildContext context, String label, String value) {
     final colors = prism.Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -632,7 +632,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                   .copyWith(color: colors.onSurfaceVariant),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
               value.isEmpty ? '-' : value,
@@ -681,14 +681,14 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
           Row(
             children: [
               Padding(
-                padding: const EdgeInsets.only(bottom: 14),
+                padding: const EdgeInsets.only(bottom: 18),
                 child: prism.IconButton(
                   tooltip: '返回',
                   onPressed: widget.onBack,
                   icon: const PrismGlyph(AntGlyphs.arrowBack, size: 18),
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 10),
               Expanded(
                 child: PrismPageContextBar(
                   glyph: AntGlyphs.browser,
@@ -759,7 +759,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                 key: ValueKey(_selectedDetailTab),
                 child: switch (_selectedDetailTab) {
                   0 => ListView(
-                    padding: const EdgeInsets.fromLTRB(4, 12, 4, 20),
+                    padding: const EdgeInsets.fromLTRB(4, 16, 4, 24),
                     children: [
                       if (lastError.isNotEmpty) ...[
                         PrismBanner(
@@ -767,7 +767,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                           title: '最近错误',
                           message: lastError,
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 14),
                       ],
                       if (runtimeWarning.isNotEmpty) ...[
                         PrismBanner(
@@ -775,7 +775,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                           title: '运行提示',
                           message: runtimeWarning,
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 14),
                       ],
                       LayoutBuilder(
                         builder: (context, constraints) {
@@ -828,7 +828,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                             return Row(
                               children: [
                                 for (var i = 0; i < tiles.length; i++) ...[
-                                  if (i > 0) const SizedBox(width: 12),
+                                  if (i > 0) const SizedBox(width: 16),
                                   Expanded(child: tiles[i]),
                                 ],
                               ],
@@ -839,15 +839,15 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                               Row(
                                 children: [
                                   Expanded(child: tiles[0]),
-                                  const SizedBox(width: 10),
+                                  const SizedBox(width: 16),
                                   Expanded(child: tiles[1]),
                                 ],
                               ),
-                              const SizedBox(height: 10),
+                              const SizedBox(height: 16),
                               Row(
                                 children: [
                                   Expanded(child: tiles[2]),
-                                  const SizedBox(width: 10),
+                                  const SizedBox(width: 16),
                                   Expanded(child: tiles[3]),
                                 ],
                               ),
@@ -855,7 +855,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                           );
                         },
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 18),
                       PrismSectionCard(
                         title: '实例配置与启动码',
                         glyph: AntGlyphs.settings,
@@ -904,10 +904,10 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                                   '${profile['userDataDir'] ?? ''}',
                                 ),
                                 if (tags.isNotEmpty) ...[
-                                  const SizedBox(height: 8),
+                                  const SizedBox(height: 10),
                                   Wrap(
-                                    spacing: 10,
-                                    runSpacing: 6,
+                                    spacing: 12,
+                                    runSpacing: 10,
                                     children: [
                                       for (final tag in tags)
                                         PrismBadge(
@@ -918,9 +918,9 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                                     ],
                                   ),
                                 ],
-                                const SizedBox(height: 10),
+                                const SizedBox(height: 14),
                                 const prism.Divider(height: 1),
-                                const SizedBox(height: 10),
+                                const SizedBox(height: 14),
                                 Row(
                                   children: [
                                     Expanded(
@@ -964,7 +964,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 18),
                       PrismSectionCard(
                         title: '打开网址与标签页',
                         glyph: AntGlyphs.globe,
@@ -1012,7 +1012,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 16),
                             if (!_running)
                               const PrismEmptyState(
                                 glyph: AntGlyphs.browser,
@@ -1034,7 +1034,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                             else
                               for (final tab in _tabs)
                                 Padding(
-                                  padding: const EdgeInsets.only(bottom: 12),
+                                  padding: const EdgeInsets.only(bottom: 14),
                                   child: prism.Surface(
                                     color: colors.surfaceContainerLow,
                                     shape: prism.AppShape.lg,
@@ -1065,7 +1065,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Padding(
-                        padding: const EdgeInsets.only(top: 16, bottom: 10),
+                        padding: const EdgeInsets.only(top: 16, bottom: 14),
                         child: Row(
                           children: [
                             Expanded(
@@ -1104,7 +1104,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                                 children: [
                                   for (final snapshot in _snapshots)
                                     PrismCard(
-                                      margin: const EdgeInsets.only(bottom: 12),
+                                      margin: const EdgeInsets.only(bottom: 14),
                                       child: PrismListTile(
                                         leading: const PrismGlyph(
                                           AntGlyphs.archive,
@@ -1165,14 +1165,14 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                   _ => Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 16),
                       if (_running && !_debugReady) ...[
                         const PrismBanner(
                           tone: PrismTone.warning,
                           title: '等待调试端口就绪',
                           message: '实例已启动但调试端口尚未就绪，就绪后将自动支持 Cookie 读取与导入导出。',
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 14),
                       ],
                       PrismSearchBar(
                         controller: _cookieFilter,
@@ -1180,10 +1180,10 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                         onChanged: (_) => setState(() {}),
                       ),
                       Padding(
-                        padding: const EdgeInsets.only(top: 12, bottom: 10),
+                        padding: const EdgeInsets.only(top: 14, bottom: 14),
                         child: Wrap(
                           spacing: 12,
-                          runSpacing: 8,
+                          runSpacing: 10,
                           children: [
                             prism.OutlinedButton.icon(
                               onPressed: _debugReady && _busy.isEmpty
@@ -1251,14 +1251,14 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 8),
                         PrismCodeSurface(
                           code: _cookieExport,
                           language: 'netscape',
                           maxHeight: 150,
                           showCopy: true,
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 14),
                       ],
                       Expanded(
                         child: !_running
@@ -1318,7 +1318,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                                           for (final cookie in cookies)
                                             PrismCard(
                                               margin: const EdgeInsets.only(
-                                                bottom: 12,
+                                                bottom: 14,
                                               ),
                                               child: Padding(
                                                 padding: const EdgeInsets.all(
@@ -1377,7 +1377,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                                                           ),
                                                       ],
                                                     ),
-                                                    const SizedBox(height: 4),
+                                                    const SizedBox(height: 6),
                                                     Text(
                                                       '${cookie['domain'] ?? ''} · ${cookie['path'] ?? '/'} · ${_cookieExpiry(cookie['expires'])}',
                                                       maxLines: 1,
@@ -1392,7 +1392,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                                                                 .onSurfaceVariant,
                                                           ),
                                                     ),
-                                                    const SizedBox(height: 6),
+                                                    const SizedBox(height: 8),
                                                     Text(
                                                       (cookie['value'] ?? '')
                                                           .toString(),

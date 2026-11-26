@@ -395,7 +395,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                           success ? PrismTone.success : PrismTone.danger,
                         );
                         return PrismCard(
-                          margin: const EdgeInsets.only(bottom: 12),
+                          margin: const EdgeInsets.only(bottom: 14),
                           padding: const EdgeInsets.all(16),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -410,14 +410,14 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                   color: tone.fg,
                                 ),
                               ),
-                              const SizedBox(width: 10),
+                              const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Wrap(
-                                      spacing: 10,
-                                      runSpacing: 6,
+                                      spacing: 12,
+                                      runSpacing: 10,
                                       crossAxisAlignment:
                                           WrapCrossAlignment.center,
                                       children: [
@@ -453,7 +453,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                         ),
                                       ],
                                     ),
-                                    const SizedBox(height: 4),
+                                    const SizedBox(height: 6),
                                     Text(
                                       [
                                         if (extId.isNotEmpty) 'ID: $extId',
@@ -471,7 +471,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                     ),
                                     if (message.isNotEmpty ||
                                         queryText.isNotEmpty) ...[
-                                      const SizedBox(height: 2),
+                                      const SizedBox(height: 6),
                                       Text(
                                         message.isNotEmpty
                                             ? message
@@ -612,7 +612,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                     message:
                         '已打开插件手动下载目录。将 .crx 或 .zip 插件包放入该目录后，点击「刷新列表」并选择导入即可。',
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 14),
                   Expanded(
                     child: files.isEmpty
                         ? const PrismEmptyState(
@@ -624,7 +624,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                             padding: kPrismListPadding,
                             itemCount: files.length,
                             separatorBuilder: (_, __) =>
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 14),
                             itemBuilder: (context, index) {
                               final file = files[index];
                               final fileName = (file['fileName'] ?? '')
@@ -782,8 +782,8 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
+                      spacing: 12,
+                      runSpacing: 10,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         PrismBadge(
@@ -799,7 +799,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     Text(
                       '插件在实例启动时加载，修改配置后需要重启实例。',
                       style: prism.AppTextStyle.caption1
@@ -810,7 +810,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                 .onSurfaceVariant,
                           ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 14),
                     Expanded(
                       child: usingProfiles.isEmpty
                           ? const PrismEmptyState(
@@ -821,7 +821,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                               padding: kPrismListPadding,
                               itemCount: usingProfiles.length,
                               separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 6),
+                                  const SizedBox(height: 14),
                               itemBuilder: (context, index) {
                                 final profile = usingProfiles[index];
                                 final id = (profile['profileId'] ?? '')
@@ -831,8 +831,8 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                 return PrismCard(
                                   child: PrismListTile(
                                     title: Wrap(
-                                      spacing: 6,
-                                      runSpacing: 4,
+                                      spacing: 10,
+                                      runSpacing: 6,
                                       crossAxisAlignment:
                                           WrapCrossAlignment.center,
                                       children: [
@@ -971,12 +971,12 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                       tone: PrismTone.info,
                       message: '无法在线安装时，可在浏览器中打开下载地址，再把下载的文件放入推荐保存路径后导入。',
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 14),
                     prism.Surface(
                       color: colors.surfaceContainerLow,
                       shape: prism.AppShape.lg,
                       child: Padding(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(14),
                         child: RepaintBoundary(
                           child: prism.SelectionArea(
                             child: Column(
@@ -989,14 +989,14 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                     emphasized: true,
                                   ),
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 6),
                                 Text(
                                   '下载地址：${guide['downloadUrl'] ?? ''}',
                                   style: prism.AppTextStyle.caption1
                                       .of(context)
                                       .copyWith(color: colors.onSurfaceVariant),
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 6),
                                 Text(
                                   '推荐保存路径：$recommendedSavePath',
                                   style: prism.AppTextStyle.caption1
@@ -1009,10 +1009,10 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
+                      spacing: 12,
+                      runSpacing: 10,
                       children: [
                         prism.OutlinedButton.icon(
                           onPressed: () async {
@@ -1060,7 +1060,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 14),
                     Text(
                       '可导入的 CRX / ZIP 文件',
                       style: prism.AppTextStyle.footnote.of(
@@ -1068,7 +1068,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                         emphasized: true,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     Expanded(
                       child: files.isEmpty
                           ? const Center(
@@ -1083,7 +1083,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                               padding: kPrismListPadding,
                               itemCount: files.length,
                               separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 6),
+                                  const SizedBox(height: 14),
                               itemBuilder: (context, index) {
                                 final file = files[index];
                                 final name = (file['fileName'] ?? '')
@@ -1343,8 +1343,8 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                 return PrismCheckboxTile(
                   value: selected.contains(id),
                   title: Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
+                    spacing: 10,
+                    runSpacing: 6,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text(
@@ -1400,7 +1400,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                         .onSurfaceVariant,
                                   ),
                             ),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 14),
                             Row(
                               children: [
                                 Expanded(
@@ -1410,7 +1410,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                     onChanged: (_) => setDialog(() {}),
                                   ),
                                 ),
-                                const SizedBox(width: 8),
+                                const SizedBox(width: 10),
                                 SizedBox(
                                   width: 175,
                                   child: PrismDropdownField<String>(
@@ -1444,7 +1444,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                     },
                                   ),
                                 ),
-                                const SizedBox(width: 6),
+                                const SizedBox(width: 8),
                                 prism.TextButton(
                                   onPressed: () => setDialog(
                                     () => onlyInstalled = !onlyInstalled,
@@ -1453,7 +1453,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 12),
                             Expanded(
                               child: sections.isEmpty
                                   ? PrismEmptyState(
@@ -1488,7 +1488,8 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                                   PrismListTile(
                                                     dense: true,
                                                     title: Wrap(
-                                                      spacing: 8,
+                                                      spacing: 12,
+                                                      runSpacing: 8,
                                                       crossAxisAlignment:
                                                           WrapCrossAlignment
                                                               .center,
@@ -1552,7 +1553,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                                   for (final profile
                                                       in section.value)
                                                     profileTile(profile),
-                                                  const SizedBox(height: 6),
+                                                  const SizedBox(height: 10),
                                                 ],
                                               );
                                             },
@@ -1781,7 +1782,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
           return Row(
             children: [
               for (var i = 0; i < tiles.length; i++) ...[
-                if (i > 0) const SizedBox(width: 12),
+                if (i > 0) const SizedBox(width: 16),
                 Expanded(child: tiles[i]),
               ],
             ],
@@ -1792,15 +1793,15 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
             Row(
               children: [
                 Expanded(child: tiles[0]),
-                const SizedBox(width: 10),
+                const SizedBox(width: 16),
                 Expanded(child: tiles[1]),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(child: tiles[2]),
-                const SizedBox(width: 10),
+                const SizedBox(width: 16),
                 Expanded(child: tiles[3]),
               ],
             ),
@@ -1815,9 +1816,9 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SizedBox(height: 10),
+        const SizedBox(height: 14),
         const prism.Divider(height: 1),
-        const SizedBox(height: 10),
+        const SizedBox(height: 14),
         Row(
           children: [
             Expanded(
@@ -1839,7 +1840,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                 child: Text(_busy == 'lookup' ? '查询中…' : '查询'),
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 10),
             prism.OutlinedButton.icon(
               onPressed: _openStoreSearch,
               icon: const PrismGlyph(AntGlyphs.openInNew, size: 15),
@@ -1853,7 +1854,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         PrismSwitchTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('通过代理下载'),
@@ -1886,7 +1887,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
             },
           ),
         if (_lookup case final result?) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Builder(
             builder: (context) {
               final installable = result['installable'] == true;
@@ -1902,13 +1903,13 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                 color: colors.surfaceContainerLow,
                 shape: prism.AppShape.lg,
                 child: Padding(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Wrap(
-                        spacing: 8,
-                        runSpacing: 6,
+                        spacing: 12,
+                        runSpacing: 10,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           Text(
@@ -1940,7 +1941,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                         ],
                       ),
                       if (extId.isNotEmpty) ...[
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 8),
                         prism.SelectableText(
                           '插件 ID：$extId',
                           style: prism.AppTextStyle.caption1
@@ -1949,7 +1950,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                         ),
                       ],
                       if (desc.isNotEmpty) ...[
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
                         Text(
                           '插件简介：$desc',
                           style: prism.AppTextStyle.caption1
@@ -1958,18 +1959,18 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                         ),
                       ],
                       if (msg.isNotEmpty) ...[
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 10),
                         PrismBanner(
                           tone: installable ? PrismTone.info : PrismTone.danger,
                           message: msg,
                         ),
                       ],
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 14),
                       Align(
                         alignment: Alignment.centerRight,
                         child: Wrap(
-                          spacing: 8,
-                          runSpacing: 6,
+                          spacing: 12,
+                          runSpacing: 10,
                           children: [
                             if (!installable)
                               prism.OutlinedButton.icon(
@@ -2111,12 +2112,12 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                         onChanged: (_) => setState(() {}),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 12),
                     filterControl,
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 12),
                     Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
+                      spacing: 10,
+                      runSpacing: 10,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: actionWidgets,
                     ),
@@ -2136,14 +2137,14 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                           onChanged: (_) => setState(() {}),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 12),
                       filterControl,
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
+                    spacing: 10,
+                    runSpacing: 10,
                     alignment: WrapAlignment.end,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: actionWidgets,
@@ -2215,8 +2216,8 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                         '点击上方「商店安装」查询 Chrome 插件，或从本地插件包导入。',
                                     glyph: AntGlyphs.extension,
                                     action: Wrap(
-                                      spacing: 10,
-                                      runSpacing: 8,
+                                      spacing: 12,
+                                      runSpacing: 10,
                                       alignment: WrapAlignment.center,
                                       children: [
                                         PrismHoverMotion(
@@ -2267,7 +2268,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                               padding: kPrismListPadding,
                               itemCount: filteredItems.length,
                               separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 10),
+                                  const SizedBox(height: 14),
                               itemBuilder: (context, index) =>
                                   _extensionCard(filteredItems[index]),
                             ),
@@ -2288,10 +2289,10 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildOverviewStrip(context),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           _buildToolbar(context),
           if (_error != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             PrismBanner(
               tone: PrismTone.danger,
               message: _error!,
@@ -2301,7 +2302,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
               ),
             ),
           ],
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Expanded(child: _buildExtensionsListCard(context, filteredItems)),
         ],
       ),
@@ -2323,7 +2324,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
     final description = (item['description'] ?? '').toString().trim();
 
     return PrismCard(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -2357,14 +2358,14 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                     ),
                   ),
                 ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Wrap(
-                      spacing: 10,
-                      runSpacing: 6,
+                      spacing: 12,
+                      runSpacing: 10,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
@@ -2397,7 +2398,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                           ),
                       ],
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     Text(
                       'v${item['version'] ?? '-'} · $id',
                       maxLines: 1,
@@ -2407,7 +2408,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                           .copyWith(color: colors.onSurfaceVariant),
                     ),
                     if (description.isNotEmpty) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
                       Text(
                         description,
                         maxLines: 2,
@@ -2419,10 +2420,10 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                     ],
                     if (manifest.permissions.isNotEmpty ||
                         manifest.hostPermissionCount > 0) ...[
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       Wrap(
-                        spacing: 10,
-                        runSpacing: 6,
+                        spacing: 12,
+                        runSpacing: 10,
                         children: [
                           if (manifest.hostPermissionCount > 0)
                             PrismBadge(
@@ -2440,7 +2441,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                       ),
                     ],
                     if (installedAt.isNotEmpty || updatedAt.isNotEmpty) ...[
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       Text(
                         [
                           if (installedAt.isNotEmpty) '安装于 $installedAt',
@@ -2459,7 +2460,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
               const SizedBox(width: 14),
               Wrap(
                 spacing: 12,
-                runSpacing: 8,
+                runSpacing: 10,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   if (storeUrl.isNotEmpty)

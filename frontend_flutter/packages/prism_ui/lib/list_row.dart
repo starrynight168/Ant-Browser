@@ -37,7 +37,7 @@ class ListRow extends StatelessWidget {
   final double minHeight;
   final ListRowAlignment alignment;
 
-  static const _defaultTitleGap = 16.0;
+  static const _defaultTitleGap = 18.0;
 
   @override
   Widget build(BuildContext context) {
@@ -207,7 +207,7 @@ class _RenderListRow extends RenderBox
   static const _maxSideHeight = 56.0;
   static const _titleMaxWidthFactor = 0.5;
   static const _titleBaselineY = 32.0;
-  static const _subtitleBaselineY = 52.0;
+  static const _subtitleBaselineY = 56.0;
 
   RenderBox? get _leading => childForSlot(_Slot.leading);
   RenderBox get _title => childForSlot(_Slot.title)!;

@@ -214,7 +214,7 @@ class _AboutPageState extends State<AboutPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _authorCard(),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           LayoutBuilder(
             builder: (context, constraints) {
               final columns = constraints.maxWidth < 560
@@ -224,11 +224,11 @@ class _AboutPageState extends State<AboutPage> {
                   : 3;
               final cardWidth = columns == 1
                   ? constraints.maxWidth
-                  : ((constraints.maxWidth - 12 * (columns - 1)) / columns)
+                  : ((constraints.maxWidth - 16 * (columns - 1)) / columns)
                         .floorToDouble();
               return Wrap(
-                spacing: 12,
-                runSpacing: 12,
+                spacing: 16,
+                runSpacing: 16,
                 children: [
                   for (var i = 0; i < channels.length; i++)
                     SizedBox(
@@ -239,9 +239,9 @@ class _AboutPageState extends State<AboutPage> {
               );
             },
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           _skillsCard(staggerIndex: 1 + channels.length),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           _projectCard(staggerIndex: 2 + channels.length),
         ],
       ),
@@ -293,7 +293,7 @@ class _AboutPageState extends State<AboutPage> {
                         emphasized: true,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     Text(
                       (_author['title'] ?? '').toString(),
                       maxLines: 2,
@@ -314,10 +314,10 @@ class _AboutPageState extends State<AboutPage> {
                 .of(context)
                 .copyWith(height: 1.7, color: colors.onSurfaceVariant),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Wrap(
             spacing: 18,
-            runSpacing: 8,
+            runSpacing: 10,
             children: [
               if ((_author['location'] ?? '').toString().trim().isNotEmpty)
                 _MetaLabel(
@@ -332,7 +332,7 @@ class _AboutPageState extends State<AboutPage> {
             ],
           ),
           if (_loadingProfile || _profileLoadError != null) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             Text(
               _loadingProfile ? '正在加载作者资料…' : '远程作者资料加载失败，当前显示默认资料。',
               style: prism.AppTextStyle.caption1
@@ -340,9 +340,9 @@ class _AboutPageState extends State<AboutPage> {
                   .copyWith(color: colors.onSurfaceVariant),
             ),
           ],
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           Wrap(
-            spacing: 10,
+            spacing: 12,
             runSpacing: 10,
             children: [
               if (github.isNotEmpty)
@@ -403,7 +403,7 @@ class _AboutPageState extends State<AboutPage> {
                 ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -418,7 +418,8 @@ class _AboutPageState extends State<AboutPage> {
                       emphasized: true,
                     ),
                   ),
-                  if ((channel['description'] ?? '').toString().isNotEmpty)
+                  if ((channel['description'] ?? '').toString().isNotEmpty) ...[
+                    const SizedBox(height: 6),
                     Text(
                       channel['description'].toString(),
                       maxLines: 1,
@@ -427,7 +428,9 @@ class _AboutPageState extends State<AboutPage> {
                           .of(context)
                           .copyWith(color: colors.onSurfaceVariant),
                     ),
-                  if (detail.isNotEmpty)
+                  ],
+                  if (detail.isNotEmpty) ...[
+                    const SizedBox(height: 6),
                     Text(
                       detail,
                       maxLines: 1,
@@ -436,6 +439,7 @@ class _AboutPageState extends State<AboutPage> {
                           .of(context)
                           .copyWith(color: colors.onSurfaceVariant),
                     ),
+                  ],
                 ],
               ),
             ),
@@ -461,7 +465,7 @@ class _AboutPageState extends State<AboutPage> {
       staggerIndex: staggerIndex,
       staggerDelay: const Duration(milliseconds: 45),
       child: Wrap(
-        spacing: 10,
+        spacing: 12,
         runSpacing: 10,
         children: [
           for (final skill in (_author['skills'] as List? ?? []).map(
@@ -546,7 +550,7 @@ class _AboutPageState extends State<AboutPage> {
           ),
           const SizedBox(height: 16),
           Wrap(
-            spacing: 10,
+            spacing: 12,
             runSpacing: 10,
             children: [
               for (final item in (_project['techStack'] as List? ?? []))
@@ -555,7 +559,7 @@ class _AboutPageState extends State<AboutPage> {
           ),
           const SizedBox(height: 16),
           Wrap(
-            spacing: 10,
+            spacing: 12,
             runSpacing: 10,
             children: [
               for (final action
@@ -577,7 +581,7 @@ class _AboutPageState extends State<AboutPage> {
           ),
           const SizedBox(height: 20),
           const prism.Divider(height: 1),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           Row(
             children: [
               PrismGlyph(
@@ -610,7 +614,7 @@ class _AboutPageState extends State<AboutPage> {
             ],
           ),
           if (updateText.isNotEmpty) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             PrismBanner(
               tone: hasError
                   ? PrismTone.danger

@@ -23,7 +23,7 @@ class CloseDialog extends StatelessWidget {
         color: colors.surface,
         shape: prism.AppShape.all(prism.AppCorner.alert),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 18),
+          padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -32,7 +32,7 @@ class CloseDialog extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: prism.AppTextStyle.title3.of(context, emphasized: true),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Text(
                 '可仅退出应用，或连同浏览器一起关闭。',
                 textAlign: TextAlign.center,
@@ -40,7 +40,7 @@ class CloseDialog extends StatelessWidget {
                     .of(context)
                     .copyWith(color: colors.onSurfaceVariant, height: 1.45),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 22),
               if (isWindows) ...[
                 PrismHoverMotion(
                   hoverScale: 1.025,
@@ -57,7 +57,7 @@ class CloseDialog extends StatelessWidget {
                     label: const Text('最小化到托盘'),
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
               ],
               PrismHoverMotion(
                 hoverScale: 1.025,
@@ -73,7 +73,7 @@ class CloseDialog extends StatelessWidget {
                   child: const Text('仅退出应用'),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               PrismHoverMotion(
                 hoverScale: 1.025,
                 pressScale: 0.975,
@@ -88,7 +88,7 @@ class CloseDialog extends StatelessWidget {
                   child: const Text('退出应用与浏览器'),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               PrismHoverMotion(
                 hoverScale: 1.025,
                 pressScale: 0.975,

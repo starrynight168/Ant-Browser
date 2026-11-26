@@ -351,7 +351,7 @@ class _TagsPageState extends State<TagsPage> {
           return Row(
             children: [
               for (var i = 0; i < tiles.length; i++) ...[
-                if (i > 0) const SizedBox(width: 12),
+                if (i > 0) const SizedBox(width: 16),
                 Expanded(child: tiles[i]),
               ],
             ],
@@ -362,15 +362,15 @@ class _TagsPageState extends State<TagsPage> {
             Row(
               children: [
                 Expanded(child: tiles[0]),
-                const SizedBox(width: 10),
+                const SizedBox(width: 16),
                 Expanded(child: tiles[1]),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(child: tiles[2]),
-                const SizedBox(width: 10),
+                const SizedBox(width: 16),
                 Expanded(child: tiles[3]),
               ],
             ),
@@ -397,7 +397,7 @@ class _TagsPageState extends State<TagsPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildOverviewStrip(tags, counts, profiles),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Expanded(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -556,7 +556,7 @@ class _TagsPageState extends State<TagsPage> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 18),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -576,7 +576,7 @@ class _TagsPageState extends State<TagsPage> {
                           children: [
                             Expanded(
                               child: Wrap(
-                                spacing: 10,
+                                spacing: 12,
                                 runSpacing: 10,
                                 crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
@@ -659,7 +659,7 @@ class _TagsPageState extends State<TagsPage> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       Expanded(
                         child: PrismHoverCard(
                           staggerIndex: 6,
@@ -859,7 +859,7 @@ class _TagsPageState extends State<TagsPage> {
                                                                       horizontal:
                                                                           16,
                                                                       vertical:
-                                                                          8,
+                                                                          10,
                                                                     ),
                                                                 child: Row(
                                                                   children: [
@@ -902,9 +902,9 @@ class _TagsPageState extends State<TagsPage> {
                                                                       flex: 5,
                                                                       child: Wrap(
                                                                         spacing:
-                                                                            5,
+                                                                            8,
                                                                         runSpacing:
-                                                                            4,
+                                                                            6,
                                                                         children:
                                                                             profileTags.isEmpty
                                                                             ? [

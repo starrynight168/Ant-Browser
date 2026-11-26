@@ -176,8 +176,8 @@ mixin _BackupProfileImportFlow<T extends StatefulWidget> on State<T> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
+                    spacing: 12,
+                    runSpacing: 10,
                     children: [
                       PrismBadge(
                         label:
@@ -200,18 +200,18 @@ mixin _BackupProfileImportFlow<T extends StatefulWidget> on State<T> {
                     ],
                   ),
                   if (hasOverwrite) ...[
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 14),
                     const PrismBanner(
                       tone: PrismTone.warning,
                       title: '覆盖提示',
                       message: '选择「覆盖匹配实例」时，原实例数据会先移入回收站，再由备份包数据替换。',
                     ),
                   ],
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 14),
                   Expanded(
                     child: ListView.separated(
                       itemCount: profiles.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      separatorBuilder: (_, __) => const SizedBox(height: 14),
                       itemBuilder: (context, index) {
                         final profile = profiles[index];
                         final action = actions[index];
@@ -257,13 +257,13 @@ mixin _BackupProfileImportFlow<T extends StatefulWidget> on State<T> {
                           color: colors.surfaceContainerLow,
                           shape: prism.AppShape.lg,
                           child: Padding(
-                            padding: const EdgeInsets.all(12),
+                            padding: const EdgeInsets.all(14),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Wrap(
-                                  spacing: 6,
-                                  runSpacing: 6,
+                                  spacing: 10,
+                                  runSpacing: 8,
                                   crossAxisAlignment: WrapCrossAlignment.center,
                                   children: [
                                     Text(
@@ -293,7 +293,7 @@ mixin _BackupProfileImportFlow<T extends StatefulWidget> on State<T> {
                                   ],
                                 ),
                                 if (targetName.isNotEmpty) ...[
-                                  const SizedBox(height: 4),
+                                  const SizedBox(height: 6),
                                   Text(
                                     '匹配到本机实例：$targetName',
                                     maxLines: 1,
@@ -306,10 +306,10 @@ mixin _BackupProfileImportFlow<T extends StatefulWidget> on State<T> {
                                   ),
                                 ],
                                 if (conflictReasons.isNotEmpty) ...[
-                                  const SizedBox(height: 6),
+                                  const SizedBox(height: 8),
                                   Wrap(
-                                    spacing: 6,
-                                    runSpacing: 4,
+                                    spacing: 10,
+                                    runSpacing: 6,
                                     children: [
                                       for (final reason in conflictReasons)
                                         PrismBadge(
@@ -320,7 +320,7 @@ mixin _BackupProfileImportFlow<T extends StatefulWidget> on State<T> {
                                     ],
                                   ),
                                 ],
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 12),
                                 PrismDropdownField<String>(
                                   value: currentMode,
                                   items: [
@@ -354,7 +354,7 @@ mixin _BackupProfileImportFlow<T extends StatefulWidget> on State<T> {
                                   },
                                 ),
                                 if (currentMode == 'rename') ...[
-                                  const SizedBox(height: 8),
+                                  const SizedBox(height: 12),
                                   PrismTextFormField(
                                     key: ValueKey('backup-import-name-$index'),
                                     initialValue: (action['profileName'] ?? '')
@@ -367,7 +367,7 @@ mixin _BackupProfileImportFlow<T extends StatefulWidget> on State<T> {
                                     ),
                                   ),
                                 ],
-                                const SizedBox(height: 6),
+                                const SizedBox(height: 8),
                                 Text(
                                   resultPreview,
                                   maxLines: 2,
@@ -471,7 +471,7 @@ mixin _BackupProfileImportFlow<T extends StatefulWidget> on State<T> {
                     '此备份包包含加密的跨设备登录态。输入导出时设置的迁移密码即可恢复 Cookie；留空或点击「跳过登录态」仅恢复配置。',
                     style: prism.AppTextStyle.footnote.of(dialogContext),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -487,9 +487,9 @@ mixin _BackupProfileImportFlow<T extends StatefulWidget> on State<T> {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       Padding(
-                        padding: const EdgeInsets.only(top: 26),
+                        padding: const EdgeInsets.only(top: 28),
                         child: prism.IconButton(
                           tooltip: obscure ? '显示密码' : '隐藏密码',
                           onPressed: submitting
@@ -504,7 +504,7 @@ mixin _BackupProfileImportFlow<T extends StatefulWidget> on State<T> {
                     ],
                   ),
                   if (error.isNotEmpty) ...[
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 14),
                     PrismBanner(tone: PrismTone.danger, message: error),
                   ],
                 ],
@@ -891,7 +891,7 @@ class _BackupPageState extends State<BackupPage>
                           child: const Text('去配置'),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                     ],
                     PrismSwitchTile(
                       contentPadding: EdgeInsets.zero,
@@ -902,7 +902,7 @@ class _BackupPageState extends State<BackupPage>
                           ? null
                           : (value) => setDialog(() => enabled = value),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     PrismTextField(
                       controller: timeController,
                       enabled: !saving,
@@ -918,12 +918,12 @@ class _BackupPageState extends State<BackupPage>
                         }
                       },
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 16),
                     prism.Surface(
                       color: colors.surfaceContainerLow,
                       shape: prism.AppShape.lg,
                       child: Padding(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(14),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -945,7 +945,7 @@ class _BackupPageState extends State<BackupPage>
                               ],
                             ),
                             if (lastSuccessAt.isNotEmpty) ...[
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 8),
                               Text(
                                 '上次成功：$lastSuccessAt',
                                 style: prism.AppTextStyle.caption1
@@ -954,7 +954,7 @@ class _BackupPageState extends State<BackupPage>
                               ),
                             ],
                             if (lastRemoteName.isNotEmpty) ...[
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 6),
                               Text(
                                 '最近上传：$lastRemoteName',
                                 maxLines: 1,
@@ -965,21 +965,21 @@ class _BackupPageState extends State<BackupPage>
                               ),
                             ],
                             if (lastError.isNotEmpty) ...[
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 10),
                               PrismBanner(
                                 tone: PrismTone.danger,
                                 message: lastError,
                               ),
                             ],
                             if (recentTimes.isNotEmpty) ...[
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 10),
                               Text(
                                 '最近备份时间',
                                 style: prism.AppTextStyle.caption1
                                     .of(dialogContext, emphasized: true)
                                     .copyWith(color: colors.onSurfaceVariant),
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 6),
                               for (final time in recentTimes.take(5))
                                 Padding(
                                   padding: const EdgeInsets.only(top: 2),
@@ -1234,7 +1234,7 @@ class _BackupPageState extends State<BackupPage>
                                 onChanged: (_) => setDialog(() {}),
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 10),
                             SizedBox(
                               width: 190,
                               child: PrismDropdownField<String>(
@@ -1270,7 +1270,7 @@ class _BackupPageState extends State<BackupPage>
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 12),
                         Expanded(
                           child: visible.isEmpty
                               ? const PrismEmptyState(
@@ -1350,7 +1350,7 @@ class _BackupPageState extends State<BackupPage>
                   '可以设置迁移密码，将实例 Cookie 加密后一并迁移到另一台电脑。',
                   style: prism.AppTextStyle.footnote.of(context),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
@@ -1377,7 +1377,7 @@ class _BackupPageState extends State<BackupPage>
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 PrismTextField(
                   controller: confirmPassword,
                   obscureText: obscure,
@@ -1620,7 +1620,7 @@ class _BackupPageState extends State<BackupPage>
               : null,
         ),
         if (_progressLogs.isNotEmpty) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           prism.Surface(
             color: colors.surfaceContainerLow,
             shape: prism.AppShape.lg,
@@ -1692,8 +1692,8 @@ class _BackupPageState extends State<BackupPage>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
+                      spacing: 12,
+                      runSpacing: 10,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
@@ -1710,7 +1710,7 @@ class _BackupPageState extends State<BackupPage>
                           PrismBadge(label: sizeText, tone: PrismTone.neutral),
                       ],
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     Text(
                       modifiedAt.isEmpty ? '时间未知' : '修改时间：$modifiedAt',
                       style: prism.AppTextStyle.caption1
@@ -1718,7 +1718,7 @@ class _BackupPageState extends State<BackupPage>
                           .copyWith(color: colors.onSurfaceVariant),
                     ),
                     if (profileCount > 0 || profileNames.isNotEmpty) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
                       Text(
                         profileNames.isNotEmpty
                             ? '包含 ${profileCount > 0 ? profileCount : profileNames.length} 个实例：${profileNames.take(5).join('、')}${profileNames.length > 5 ? ' 等' : ''}'
@@ -1731,7 +1731,7 @@ class _BackupPageState extends State<BackupPage>
                       ),
                     ],
                     if (isLocal && path.isNotEmpty) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
                       prism.PressRegion(
                         onTap: () => _run(
                           'open',
@@ -1767,10 +1767,10 @@ class _BackupPageState extends State<BackupPage>
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
               Wrap(
-                spacing: 6,
-                runSpacing: 6,
+                spacing: 10,
+                runSpacing: 10,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   if (isLocal)
@@ -1806,7 +1806,7 @@ class _BackupPageState extends State<BackupPage>
             ],
           ),
           if (restoreBlocked) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             PrismBanner(
               tone: metadataOrphan ? PrismTone.danger : PrismTone.warning,
               message: metadataOrphan
@@ -1836,7 +1836,7 @@ class _BackupPageState extends State<BackupPage>
       return ListView.separated(
         padding: kPrismListPadding,
         itemCount: _localBackups.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        separatorBuilder: (_, __) => const SizedBox(height: 14),
         itemBuilder: (context, index) =>
             _buildBackupHistoryItem(_localBackups[index], channel: 'local'),
       );
@@ -1865,7 +1865,7 @@ class _BackupPageState extends State<BackupPage>
       return ListView.separated(
         padding: kPrismListPadding,
         itemCount: _openListBackups.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        separatorBuilder: (_, __) => const SizedBox(height: 14),
         itemBuilder: (context, index) => _buildBackupHistoryItem(
           _openListBackups[index],
           channel: 'openlist',
@@ -1895,7 +1895,7 @@ class _BackupPageState extends State<BackupPage>
     return ListView.separated(
       padding: kPrismListPadding,
       itemCount: _s3Backups.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      separatorBuilder: (_, __) => const SizedBox(height: 14),
       itemBuilder: (context, index) =>
           _buildBackupHistoryItem(_s3Backups[index], channel: 's3'),
     );
@@ -1993,7 +1993,7 @@ class _BackupPageState extends State<BackupPage>
           return Row(
             children: [
               for (var i = 0; i < tiles.length; i++) ...[
-                if (i > 0) const SizedBox(width: 12),
+                if (i > 0) const SizedBox(width: 16),
                 Expanded(child: tiles[i]),
               ],
             ],
@@ -2004,15 +2004,15 @@ class _BackupPageState extends State<BackupPage>
             Row(
               children: [
                 Expanded(child: tiles[0]),
-                const SizedBox(width: 10),
+                const SizedBox(width: 16),
                 Expanded(child: tiles[1]),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(child: tiles[2]),
-                const SizedBox(width: 10),
+                const SizedBox(width: 16),
                 Expanded(child: tiles[3]),
               ],
             ),
@@ -2104,17 +2104,17 @@ class _BackupPageState extends State<BackupPage>
       staggerIndex: 4,
       staggerDelay: const Duration(milliseconds: 45),
       radius: prism.AppCorner.xl,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: LayoutBuilder(
         builder: (context, constraints) {
           if (constraints.maxWidth >= 880) {
             return Row(
               children: [
                 Expanded(child: directoryInfo),
-                const SizedBox(width: 14),
+                const SizedBox(width: 16),
                 Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
+                  spacing: 12,
+                  runSpacing: 10,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: actionWidgets,
                 ),
@@ -2125,12 +2125,12 @@ class _BackupPageState extends State<BackupPage>
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               directoryInfo,
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               const prism.Divider(height: 1),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               Wrap(
-                spacing: 8,
-                runSpacing: 6,
+                spacing: 12,
+                runSpacing: 10,
                 alignment: WrapAlignment.end,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: actionWidgets,
@@ -2202,13 +2202,13 @@ class _BackupPageState extends State<BackupPage>
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildOverviewStrip(context),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           _buildToolbar(context),
           if (_activeProgress != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             _buildProgressSection(),
           ],
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Expanded(child: _buildHistorySection(context)),
         ],
       ),
@@ -2493,7 +2493,7 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
         Row(
           children: [
             Padding(
-              padding: const EdgeInsets.only(bottom: 14),
+              padding: const EdgeInsets.only(bottom: 18),
               child: prism.IconButton(
                 onPressed: widget.onBack,
                 tooltip: '返回',
@@ -2524,7 +2524,7 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
           ],
         ),
         if (_testResult != null) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           PrismBanner(
             tone: _testResult!.ok ? PrismTone.success : PrismTone.danger,
             message: _testResult!.message,
@@ -2546,12 +2546,12 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
                   hintText: 'https://alist.example.com',
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 14),
               PrismTextField(
                 controller: _path,
                 decoration: const PrismInputDecoration(labelText: '远程目录'),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 14),
               PrismDropdownField<String>(
                 initialValue: _mode,
                 decoration: const PrismInputDecoration(labelText: '认证方式'),
@@ -2561,13 +2561,13 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
                 ],
                 onChanged: (value) => setState(() => _mode = value ?? 'token'),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 14),
               if (_mode == 'basic') ...[
                 PrismTextField(
                   controller: _username,
                   decoration: const PrismInputDecoration(labelText: '用户名'),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
@@ -2626,7 +2626,7 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
                     ),
                   ],
                 ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 14),
               PrismTextField(
                 controller: _rate,
                 keyboardType: TextInputType.number,
@@ -2662,12 +2662,12 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 14),
         if (_files.isEmpty)
           const PrismEmptyState(title: '没有找到远程备份', glyph: AntGlyphs.cloud),
         for (final file in _files)
           PrismCard(
-            margin: const EdgeInsets.only(bottom: 12),
+            margin: const EdgeInsets.only(bottom: 14),
             child: PrismListTile(
               title: Text(
                 (file['name'] ?? '').toString(),
@@ -3007,7 +3007,7 @@ class _S3ConfigPageState extends State<S3ConfigPage>
         Row(
           children: [
             Padding(
-              padding: const EdgeInsets.only(bottom: 14),
+              padding: const EdgeInsets.only(bottom: 18),
               child: prism.IconButton(
                 onPressed: widget.onBack,
                 tooltip: '返回',
@@ -3040,7 +3040,7 @@ class _S3ConfigPageState extends State<S3ConfigPage>
           ],
         ),
         if (_testResult != null) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           PrismBanner(
             tone: _testResult!.ok ? PrismTone.success : PrismTone.danger,
             message: _testResult!.message,
@@ -3062,22 +3062,22 @@ class _S3ConfigPageState extends State<S3ConfigPage>
                   hintText: 'https://s3.amazonaws.com',
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 14),
               PrismTextField(
                 controller: _region,
                 decoration: const PrismInputDecoration(labelText: 'Region'),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 14),
               PrismTextField(
                 controller: _bucket,
                 decoration: const PrismInputDecoration(labelText: 'Bucket'),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 14),
               PrismTextField(
                 controller: _prefix,
                 decoration: const PrismInputDecoration(labelText: '备份目录前缀'),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 14),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -3093,11 +3093,11 @@ class _S3ConfigPageState extends State<S3ConfigPage>
                       ),
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
                   _credentialVisibilityButton('accessKeyID', _accessKey),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 14),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -3115,11 +3115,11 @@ class _S3ConfigPageState extends State<S3ConfigPage>
                       ),
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
                   _credentialVisibilityButton('secretAccessKey', _secret),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 14),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -3135,11 +3135,11 @@ class _S3ConfigPageState extends State<S3ConfigPage>
                       ),
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
                   _credentialVisibilityButton('sessionToken', _token),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               PrismSwitchTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('强制使用路径风格地址'),
@@ -3174,12 +3174,12 @@ class _S3ConfigPageState extends State<S3ConfigPage>
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 14),
         if (_files.isEmpty)
           const PrismEmptyState(title: '没有找到 S3 备份文件', glyph: AntGlyphs.cloud),
         for (final file in _files)
           PrismCard(
-            margin: const EdgeInsets.only(bottom: 12),
+            margin: const EdgeInsets.only(bottom: 14),
             child: PrismListTile(
               title: Text(
                 (file['name'] ?? '').toString(),

@@ -123,7 +123,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
           return Row(
             children: [
               for (var i = 0; i < tiles.length; i++) ...[
-                if (i > 0) const SizedBox(width: 12),
+                if (i > 0) const SizedBox(width: 16),
                 Expanded(child: tiles[i]),
               ],
             ],
@@ -134,15 +134,15 @@ class _NotificationsPageState extends State<NotificationsPage> {
             Row(
               children: [
                 Expanded(child: tiles[0]),
-                const SizedBox(width: 10),
+                const SizedBox(width: 16),
                 Expanded(child: tiles[1]),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(child: tiles[2]),
-                const SizedBox(width: 10),
+                const SizedBox(width: 16),
                 Expanded(child: tiles[3]),
               ],
             ),
@@ -210,12 +210,12 @@ class _NotificationsPageState extends State<NotificationsPage> {
                     onChanged: (_) => setState(() {}),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 16),
                 filterControl,
-                const SizedBox(width: 12),
+                const SizedBox(width: 16),
                 Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
+                  spacing: 12,
+                  runSpacing: 10,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: actionWidgets,
                 ),
@@ -236,14 +236,14 @@ class _NotificationsPageState extends State<NotificationsPage> {
                         onChanged: (_) => setState(() {}),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 14),
                     filterControl,
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
+                  spacing: 12,
+                  runSpacing: 10,
                   alignment: WrapAlignment.end,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: actionWidgets,
@@ -260,7 +260,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 height: 36,
                 onChanged: (_) => setState(() {}),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               prism.SegmentedControl<String>(
                 value: _filter,
                 onChanged: (value) => setState(() => _filter = value),
@@ -271,10 +271,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   ('warning', '警告 ($warningCount)'),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Wrap(
-                spacing: 8,
-                runSpacing: 6,
+                spacing: 12,
+                runSpacing: 10,
                 alignment: WrapAlignment.end,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: actionWidgets,
@@ -329,7 +329,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
               child: PrismGlyph(glyph, color: palette.fg, size: 18),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -357,7 +357,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(
                   '$source · ${item['time'] ?? ''}',
                   maxLines: 1,
@@ -366,7 +366,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                       .of(context)
                       .copyWith(color: colors.onSurfaceVariant),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 prism.SelectableText(
                   '${item['message'] ?? ''}',
                   style: prism.AppTextStyle.body
@@ -374,7 +374,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                       .copyWith(color: colors.onSurface, height: 1.5),
                 ),
                 if (action != null && action['path'] is String) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   prism.TextButton.icon(
                     onPressed: () {
                       widget.store.markRead(id);
@@ -449,14 +449,14 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 errorCount: errorCount,
                 warningCount: warningCount,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               _buildToolbar(
                 total: all.length,
                 unread: unread,
                 errorCount: errorCount,
                 warningCount: warningCount,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               Expanded(
                 child: PrismHoverCard(
                   staggerIndex: 5,
@@ -525,7 +525,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                       padding: kPrismListPadding,
                                       itemCount: filtered.length,
                                       separatorBuilder: (context, index) =>
-                                          const SizedBox(height: 12),
+                                          const SizedBox(height: 14),
                                       itemBuilder: (context, index) =>
                                           _buildNotificationCard(
                                             context,

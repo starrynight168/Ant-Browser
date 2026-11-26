@@ -324,7 +324,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                   onChanged: (_) => setState(() => _selectedIndex = 0),
                   onSubmitted: () => _onSubmit(filtered),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 SizedBox(
                   height: 36,
                   child: ListView(
@@ -340,7 +340,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 10),
                 if (sections.isNotEmpty)
                   SizedBox(
                     height: 32,
@@ -350,7 +350,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                       children: [
                         for (final section in sections)
                           Padding(
-                            padding: const EdgeInsets.only(right: 10),
+                            padding: const EdgeInsets.only(right: 12),
                             child: PrismBadge(
                               label: '${section.key} (${section.value.length})',
                               glyph: AntGlyphs.tag,
@@ -363,7 +363,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                       ],
                     ),
                   ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 12),
                 Flexible(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxHeight: 340),
@@ -402,9 +402,9 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                                   key: _sectionKey(section.key),
                                   padding: const EdgeInsets.fromLTRB(
                                     4,
-                                    10,
+                                    14,
                                     4,
-                                    6,
+                                    8,
                                   ),
                                   child: Text(
                                     '${section.key} · ${section.value.length} 个实例',
@@ -422,10 +422,10 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                           ),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Wrap(
-                  spacing: 12,
-                  runSpacing: 6,
+                  spacing: 14,
+                  runSpacing: 10,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     _keyHint(context, '↑↓', '选择实例'),
@@ -487,7 +487,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
 
     return Padding(
       key: _profileKey(profile),
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 14),
       child: PrismHoverGlow(
         radius: prism.AppCorner.lg,
         child: GestureDetector(
@@ -515,7 +515,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 18,
-                  vertical: 12,
+                  vertical: 14,
                 ),
                 child: Row(
                   children: [
@@ -570,10 +570,10 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                                 .copyWith(color: colors.onSurfaceVariant),
                           ),
                           if (tags.isNotEmpty) ...[
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 8),
                             Wrap(
-                              spacing: 10,
-                              runSpacing: 6,
+                              spacing: 12,
+                              runSpacing: 10,
                               children: [
                                 for (final tag in tags.take(4))
                                   PrismBadge(
@@ -652,7 +652,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
     final spec = PrismMotionSpec.current;
     final motionOn = spec.enabled && !MediaQuery.disableAnimationsOf(context);
     return Padding(
-      padding: const EdgeInsets.only(right: 10),
+      padding: const EdgeInsets.only(right: 12),
       child: PrismHoverMotion(
         hoverScale: 1.04,
         pressScale: 0.95,
