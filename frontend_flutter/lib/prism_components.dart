@@ -278,13 +278,13 @@ class PrismPageContextBar extends StatelessWidget {
     super.key,
     required this.glyph,
     required this.title,
-    required this.subtitle,
+    this.subtitle,
     this.actions = const [],
   });
 
   final prism_icons.Glyph glyph;
   final String title;
-  final String subtitle;
+  final String? subtitle;
   final List<Widget> actions;
 
   @override
@@ -323,15 +323,17 @@ class PrismPageContextBar extends StatelessWidget {
                       emphasized: true,
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    subtitle,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: prism.AppTextStyle.footnote
-                        .of(context)
-                        .copyWith(color: colors.onSurfaceVariant),
-                  ),
+                  if (subtitle != null && subtitle!.trim().isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      subtitle!,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: prism.AppTextStyle.footnote
+                          .of(context)
+                          .copyWith(color: colors.onSurfaceVariant),
+                    ),
+                  ],
                 ],
               ),
             ),

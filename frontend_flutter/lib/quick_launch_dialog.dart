@@ -320,7 +320,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                   controller: _query,
                   focusNode: _focusNode,
                   autofocus: true,
-                  hintText: '输入启动码或搜索实例（名称 / 启动码 / 标签 / 关键词，Enter 启动）',
+                  hintText: '搜索名称、启动码或标签…',
                   onChanged: (_) => setState(() => _selectedIndex = 0),
                   onSubmitted: () => _onSubmit(filtered),
                 ),
@@ -389,9 +389,6 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                         ? PrismEmptyState(
                             glyph: AntGlyphs.browser,
                             title: _profiles.isEmpty ? '暂无实例' : '没有匹配的实例',
-                            subtitle: _profiles.isEmpty
-                                ? '请先在实例管理中创建浏览器实例'
-                                : '尝试切换分组筛选或修改搜索关键词',
                           )
                         : ListView(
                             controller: _listController,
@@ -407,7 +404,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                                     8,
                                   ),
                                   child: Text(
-                                    '${section.key} · ${section.value.length} 个实例',
+                                    '${section.key}',
                                     style: prism.AppTextStyle.footnote
                                         .of(context, emphasized: true)
                                         .copyWith(
@@ -421,18 +418,6 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                             ],
                           ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 14,
-                  runSpacing: 10,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    _keyHint(context, '↑↓', '选择实例'),
-                    _keyHint(context, 'Enter', '启动选中'),
-                    _keyHint(context, '双击', '快速启动'),
-                    _keyHint(context, 'Esc', '关闭'),
-                  ],
                 ),
               ],
             ),
@@ -560,15 +545,24 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                               ],
                             ],
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            '启动码 ${launchCode.isEmpty ? '未分配' : launchCode} · ${_groupLabel(profile)}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: prism.AppTextStyle.caption1
-                                .of(context)
-                                .copyWith(color: colors.onSurfaceVariant),
-                          ),
+                          if (launchCode.isNotEmpty ||
+                              (_groupLabel(profile).isNotEmpty &&
+                                  _groupLabel(profile) != '未分组')) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              [
+                                if (launchCode.isNotEmpty) '启动码 $launchCode',
+                                if (_groupLabel(profile).isNotEmpty &&
+                                    _groupLabel(profile) != '未分组')
+                                  _groupLabel(profile),
+                              ].join(' · '),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: prism.AppTextStyle.caption1
+                                  .of(context)
+                                  .copyWith(color: colors.onSurfaceVariant),
+                            ),
+                          ],
                           if (tags.isNotEmpty) ...[
                             const SizedBox(height: 8),
                             Wrap(
@@ -614,35 +608,6 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _keyHint(BuildContext context, String keycap, String label) {
-    final colors = prism.Theme.of(context).colorScheme;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      spacing: 5,
-      children: [
-        prism.Surface(
-          color: colors.surfaceContainerHigh,
-          shape: prism.AppShape.sm,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            child: Text(
-              keycap,
-              style: prism.AppTextStyle.caption2
-                  .of(context, emphasized: true)
-                  .copyWith(color: colors.onSurface),
-            ),
-          ),
-        ),
-        Text(
-          label,
-          style: prism.AppTextStyle.caption1
-              .of(context)
-              .copyWith(color: colors.onSurfaceVariant),
-        ),
-      ],
     );
   }
 

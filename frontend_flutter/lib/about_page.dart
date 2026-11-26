@@ -74,8 +74,6 @@ class _AboutPageState extends State<AboutPage> {
   bool _checking = false;
   bool _downloading = false;
   bool _installing = false;
-  bool _loadingProfile = true;
-  String? _profileLoadError;
   late Map<String, dynamic> _author;
   final Map<String, dynamic> _project = Map<String, dynamic>.from(
     _projectProfile,
@@ -153,7 +151,6 @@ class _AboutPageState extends State<AboutPage> {
 
   Future<void> _loadAuthor() async {
     if (_remoteAuthorUrl.trim().isEmpty) {
-      if (mounted) setState(() => _loadingProfile = false);
       return;
     }
     try {
@@ -162,15 +159,12 @@ class _AboutPageState extends State<AboutPage> {
         _remoteAuthorTimeoutMs,
       ]);
       if (mounted) setState(() => _author = _normalizeAuthor(payload));
-    } catch (error) {
+    } catch (_) {
       if (mounted) {
         setState(() {
           _author = Map<String, dynamic>.from(_defaultAuthor);
-          _profileLoadError = error.toString();
         });
       }
-    } finally {
-      if (mounted) setState(() => _loadingProfile = false);
     }
   }
 
@@ -610,15 +604,6 @@ class _AboutPageState extends State<AboutPage> {
                 ),
             ],
           ),
-          if (_loadingProfile || _profileLoadError != null) ...[
-            const SizedBox(height: 12),
-            Text(
-              _loadingProfile ? '正在加载作者资料…' : '远程作者资料加载失败，当前显示默认资料。',
-              style: prism.AppTextStyle.caption1
-                  .of(context)
-                  .copyWith(color: colors.onSurfaceVariant),
-            ),
-          ],
           const SizedBox(height: 18),
           Wrap(
             spacing: 12,
@@ -697,17 +682,6 @@ class _AboutPageState extends State<AboutPage> {
                       emphasized: true,
                     ),
                   ),
-                  if ((channel['description'] ?? '').toString().isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      channel['description'].toString(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: prism.AppTextStyle.footnote
-                          .of(context)
-                          .copyWith(color: colors.onSurfaceVariant),
-                    ),
-                  ],
                   if (detail.isNotEmpty) ...[
                     const SizedBox(height: 6),
                     Text(
@@ -783,7 +757,6 @@ class _AboutPageState extends State<AboutPage> {
     final colors = prism.Theme.of(context).colorScheme;
     final result = _updateResult;
     final projectName = (_project['name'] ?? 'Ant Browser').toString();
-    final introBadge = (_project['introBadge'] ?? projectName).toString();
     final releaseUrl = '${result?['releaseUrl'] ?? ''}'.trim();
     final canOpenDownload =
         result != null &&
@@ -818,13 +791,6 @@ class _AboutPageState extends State<AboutPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '$introBadge ${_project['introText'] ?? ''}',
-            style: prism.AppTextStyle.body
-                .of(context)
-                .copyWith(color: colors.onSurfaceVariant, height: 1.6),
-          ),
-          const SizedBox(height: 18),
           Text(
             projectName,
             style: prism.AppTextStyle.title3.of(context, emphasized: true),

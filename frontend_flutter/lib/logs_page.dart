@@ -424,7 +424,6 @@ class _LogsPageState extends State<LogsPage> {
       PrismMetricTile(
         label: '日志总数',
         value: '${_logs.length}',
-        subtitle: _level == 'ALL' ? '当前显示全部级别' : '点击查看全部级别',
         glyph: AntGlyphs.logs,
         tone: PrismTone.primary,
         onPressed: () => setState(() => _level = 'ALL'),
@@ -434,7 +433,6 @@ class _LogsPageState extends State<LogsPage> {
       PrismMetricTile(
         label: 'ERROR',
         value: '$errorCount',
-        subtitle: _level == 'ERROR' ? '已筛选 ERROR · 点击取消' : '点击筛选 ERROR',
         glyph: AntGlyphs.error,
         tone: errorCount > 0 ? PrismTone.danger : PrismTone.neutral,
         onPressed: () =>
@@ -445,7 +443,6 @@ class _LogsPageState extends State<LogsPage> {
       PrismMetricTile(
         label: 'WARN',
         value: '$warnCount',
-        subtitle: _level == 'WARN' ? '已筛选 WARN · 点击取消' : '点击筛选 WARN',
         glyph: AntGlyphs.warning,
         tone: warnCount > 0 ? PrismTone.warning : PrismTone.neutral,
         onPressed: () =>
@@ -456,7 +453,6 @@ class _LogsPageState extends State<LogsPage> {
       PrismMetricTile(
         label: 'INFO',
         value: '$infoCount',
-        subtitle: _level == 'INFO' ? '已筛选 INFO · 点击取消' : '点击筛选 INFO',
         glyph: AntGlyphs.info,
         tone: PrismTone.info,
         onPressed: () =>
@@ -918,9 +914,6 @@ class _LogsPageState extends State<LogsPage> {
                 ? PrismEmptyState(
                     glyph: AntGlyphs.logs,
                     title: '没有符合条件的日志',
-                    subtitle: _logs.isEmpty
-                        ? '当前暂无应用运行日志。'
-                        : '尝试调整级别或筛选条件查看更多记录。',
                     action: _logs.isNotEmpty
                         ? prism.OutlinedButton.icon(
                             onPressed: _resetFilters,

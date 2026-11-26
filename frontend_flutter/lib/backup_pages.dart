@@ -238,14 +238,6 @@ mixin _BackupProfileImportFlow<T extends StatefulWidget> on State<T> {
                         final currentMode = choices.contains(action['mode'])
                             ? action['mode'] as String
                             : 'new';
-                        final resultPreview = switch (currentMode) {
-                          'overwrite' =>
-                            '最终结果：覆盖本机实例「${targetName.isEmpty ? sourceName : targetName}」',
-                          'rename' =>
-                            '最终结果：以新名称「${(action['profileName'] ?? '').toString().trim()}」导入',
-                          _ =>
-                            '最终结果：新建实例「${(profile['suggestedProfileName'] ?? sourceName).toString()}」',
-                        };
                         final conflictReasons = <String>[
                           if (sourceNameCollision) '备份包内存在重名实例',
                           if (sourceTargetCollision) '多个导入实例匹配到同一本机实例',
@@ -369,22 +361,6 @@ mixin _BackupProfileImportFlow<T extends StatefulWidget> on State<T> {
                                       ),
                                     ),
                                   ],
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    resultPreview,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: prism.AppTextStyle.caption1
-                                        .of(context, emphasized: true)
-                                        .copyWith(
-                                          color: currentMode == 'overwrite'
-                                              ? PrismToneColors.of(
-                                                  context,
-                                                  PrismTone.warning,
-                                                ).fg
-                                              : colors.primary,
-                                        ),
-                                  ),
                                 ],
                               ),
                             ),
@@ -1443,7 +1419,6 @@ class _BackupPageState extends State<BackupPage>
               PrismCheckboxTile(
                 value: selected.contains('local'),
                 title: const Text('本地 ZIP'),
-                subtitle: const Text('保存到电脑，可选择多个位置'),
                 onChanged: (checked) => setDialog(() {
                   checked == true
                       ? selected.add('local')
@@ -1453,7 +1428,7 @@ class _BackupPageState extends State<BackupPage>
               PrismCheckboxTile(
                 value: selected.contains('openlist'),
                 title: const Text('OpenList'),
-                subtitle: Text(_openListConfigured ? '已配置' : '未配置，选择后会打开设置页'),
+                subtitle: _openListConfigured ? null : const Text('未配置'),
                 onChanged: (checked) => setDialog(() {
                   checked == true
                       ? selected.add('openlist')
@@ -1463,7 +1438,7 @@ class _BackupPageState extends State<BackupPage>
               PrismCheckboxTile(
                 value: selected.contains('s3'),
                 title: const Text('S3'),
-                subtitle: Text(_s3Configured ? '已配置' : '未配置，选择后会打开设置页'),
+                subtitle: _s3Configured ? null : const Text('未配置'),
                 onChanged: (checked) => setDialog(() {
                   checked == true ? selected.add('s3') : selected.remove('s3');
                 }),
@@ -1715,7 +1690,7 @@ class _BackupPageState extends State<BackupPage>
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      modifiedAt.isEmpty ? '时间未知' : '修改时间：$modifiedAt',
+                      modifiedAt.isEmpty ? '时间未知' : modifiedAt,
                       style: prism.AppTextStyle.caption1
                           .of(context)
                           .copyWith(color: colors.onSurfaceVariant),
@@ -1731,40 +1706,6 @@ class _BackupPageState extends State<BackupPage>
                         style: prism.AppTextStyle.caption1
                             .of(context)
                             .copyWith(color: colors.onSurfaceVariant),
-                      ),
-                    ],
-                    if (isLocal && path.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      prism.PressRegion(
-                        onTap: () => _run(
-                          'open',
-                          () => AppBridge.call('OpenBackupPath', [path]),
-                        ),
-                        shape: prism.AppShape.sm,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 2),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              PrismGlyph(
-                                AntGlyphs.folder,
-                                size: 13,
-                                color: colors.primary,
-                              ),
-                              const SizedBox(width: 8),
-                              Flexible(
-                                child: Text(
-                                  path,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: prism.AppTextStyle.caption1
-                                      .of(context)
-                                      .copyWith(color: colors.primary),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
                       ),
                     ],
                   ],
@@ -1832,7 +1773,6 @@ class _BackupPageState extends State<BackupPage>
       if (_localBackups.isEmpty) {
         return const PrismEmptyState(
           title: '没有找到本地备份',
-          subtitle: '点击上方「立即备份」即可创建本地备份包。',
           glyph: AntGlyphs.archive,
         );
       }
@@ -1848,7 +1788,6 @@ class _BackupPageState extends State<BackupPage>
       if (!_openListConfigured) {
         return PrismEmptyState(
           title: '尚未配置 OpenList',
-          subtitle: '配置 OpenList 连接后，可在此查看、下载或合并恢复云端备份。',
           glyph: AntGlyphs.cloudOff,
           action: PrismHoverMotion(
             child: prism.FilledButton(
@@ -1861,7 +1800,6 @@ class _BackupPageState extends State<BackupPage>
       if (_openListBackups.isEmpty) {
         return const PrismEmptyState(
           title: '没有找到 OpenList 备份',
-          subtitle: '创建备份时勾选 OpenList，或前往 OpenList 设置页上传备份。',
           glyph: AntGlyphs.cloud,
         );
       }
@@ -1878,7 +1816,6 @@ class _BackupPageState extends State<BackupPage>
     if (!_s3Configured) {
       return PrismEmptyState(
         title: '尚未配置 S3 存储',
-        subtitle: '配置 S3 兼容存储后，可在此查看、下载或合并恢复远端备份。',
         glyph: AntGlyphs.cloudOff,
         action: PrismHoverMotion(
           child: prism.FilledButton(
@@ -1891,7 +1828,6 @@ class _BackupPageState extends State<BackupPage>
     if (_s3Backups.isEmpty) {
       return const PrismEmptyState(
         title: '没有找到 S3 备份',
-        subtitle: '创建备份时勾选 S3，或前往 S3 设置页上传备份。',
         glyph: AntGlyphs.cloud,
       );
     }
@@ -1934,8 +1870,8 @@ class _BackupPageState extends State<BackupPage>
         label: '本地备份',
         value: '${_localBackups.length}',
         subtitle: _localBackups.isEmpty
-            ? (_directory.isEmpty ? '尚未选择目录' : '当前目录暂无备份')
-            : '共 ${_formatFileSize(localTotalBytes)} · 点击查看',
+            ? null
+            : '共 ${_formatFileSize(localTotalBytes)}',
         glyph: AntGlyphs.archive,
         tone: PrismTone.primary,
         onPressed: () => _selectHistoryTab(0),
@@ -1947,9 +1883,6 @@ class _BackupPageState extends State<BackupPage>
         value: _openListConfigured
             ? (_openListLoaded ? '${_openListBackups.length}' : '已配置')
             : '未配置',
-        subtitle: _openListConfigured
-            ? (_openListLoaded ? '云端备份包 · 点击查看' : '点击加载云端备份')
-            : '点击前往配置连接',
         glyph: _openListConfigured ? AntGlyphs.cloud : AntGlyphs.cloudOff,
         tone: _openListConfigured ? PrismTone.info : PrismTone.neutral,
         onPressed: _openListConfigured
@@ -1963,9 +1896,6 @@ class _BackupPageState extends State<BackupPage>
         value: _s3Configured
             ? (_s3Loaded ? '${_s3Backups.length}' : '已配置')
             : '未配置',
-        subtitle: _s3Configured
-            ? (_s3Loaded ? '远端备份包 · 点击查看' : '点击加载远端备份')
-            : '点击前往配置存储',
         glyph: _s3Configured ? AntGlyphs.cloudUpload : AntGlyphs.cloudOff,
         tone: _s3Configured ? PrismTone.info : PrismTone.neutral,
         onPressed: _s3Configured ? () => _selectHistoryTab(2) : widget.onOpenS3,
@@ -1975,9 +1905,7 @@ class _BackupPageState extends State<BackupPage>
       PrismMetricTile(
         label: '定时备份',
         value: scheduledEnabled ? '每日 $scheduledTime' : '未启用',
-        subtitle: scheduledEnabled
-            ? '上次状态：$scheduledStatusLabel · 点击设置'
-            : '自动上传到 OpenList · 点击设置',
+        subtitle: scheduledEnabled ? scheduledStatusLabel : null,
         glyph: AntGlyphs.schedule,
         tone: scheduledEnabled
             ? (scheduledStatus == 'failed'
@@ -2508,7 +2436,6 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
               child: PrismPageContextBar(
                 glyph: AntGlyphs.cloud,
                 title: 'OpenList 备份设置',
-                subtitle: '配置 OpenList 远程备份通道的连接、上传与恢复。',
                 actions: [
                   prism.OutlinedButton(
                     onPressed: _busy.isEmpty ? () => _action('test') : null,
@@ -3022,7 +2949,6 @@ class _S3ConfigPageState extends State<S3ConfigPage>
               child: PrismPageContextBar(
                 glyph: AntGlyphs.cloudUpload,
                 title: 'S3 备份设置',
-                subtitle: '配置 S3 兼容对象存储备份通道的连接、上传与恢复。',
                 actions: [
                   prism.OutlinedButton(
                     onPressed: _busy.isEmpty

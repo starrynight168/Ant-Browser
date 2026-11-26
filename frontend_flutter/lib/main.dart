@@ -1801,16 +1801,8 @@ class _BrowserListPageState extends State<BrowserListPage> {
     return id.isEmpty ? '使用默认内核' : id;
   }
 
-  String _profileUpdatedAt(Map<String, dynamic> profile) {
-    final raw = (profile['updatedAt'] ?? '').toString();
-    final value = DateTime.tryParse(raw)?.toLocal();
-    if (value == null) return raw.isEmpty ? '—' : raw;
-    String two(int number) => number.toString().padLeft(2, '0');
-    return '${value.year}-${two(value.month)}-${two(value.day)} ${two(value.hour)}:${two(value.minute)}';
-  }
-
   Widget _profileMetadata(Map<String, dynamic> profile) {
-    final launchCode = (profile['launchCode'] ?? '').toString();
+    final launchCode = (profile['launchCode'] ?? '').toString().trim();
     final keywords = (profile['keywords'] as List? ?? const [])
         .map((value) => value.toString())
         .where((value) => value.isNotEmpty)
@@ -1823,7 +1815,10 @@ class _BrowserListPageState extends State<BrowserListPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '内核：${_profileCoreLabel(profile)}  ·  启动码：${launchCode.isEmpty ? '未设置' : launchCode}',
+          [
+            '内核：${_profileCoreLabel(profile)}',
+            if (launchCode.isNotEmpty) '启动码：$launchCode',
+          ].join('  ·  '),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: style,
@@ -1849,13 +1844,6 @@ class _BrowserListPageState extends State<BrowserListPage> {
             ],
           ),
         ],
-        const SizedBox(height: 6),
-        Text(
-          '上次更新：${_profileUpdatedAt(profile)}',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: style,
-        ),
       ],
     );
   }
@@ -2007,19 +1995,6 @@ class _BrowserListPageState extends State<BrowserListPage> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: prism.AppTextStyle.headline.of(context),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      id,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: prism.AppTextStyle.caption1
-                          .of(context)
-                          .copyWith(
-                            color: prism.Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant,
-                          ),
                     ),
                   ],
                 ),
@@ -5005,7 +4980,6 @@ class _BrowserListPageState extends State<BrowserListPage> {
       PrismMetricTile(
         label: '全部实例',
         value: '${_profiles.length}',
-        subtitle: '分组 ${_groups.length} · 标签 ${tagOptions.length}',
         glyph: AntGlyphs.browser,
         tone: PrismTone.primary,
         onPressed: () {
@@ -5018,7 +4992,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
       PrismMetricTile(
         label: '运行中',
         value: '$runningCount',
-        subtitle: _statusFilter == 'running' ? '已筛选 · 点击恢复全部' : '点击仅看运行中',
+        subtitle: _statusFilter == 'running' ? '已筛选' : null,
         glyph: AntGlyphs.play,
         tone: PrismTone.success,
         onPressed: () {
@@ -5034,7 +5008,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
       PrismMetricTile(
         label: '已停止',
         value: '${_profiles.length - runningCount}',
-        subtitle: _statusFilter == 'stopped' ? '已筛选 · 点击恢复全部' : '点击仅看已停止',
+        subtitle: _statusFilter == 'stopped' ? '已筛选' : null,
         glyph: AntGlyphs.stop,
         tone: PrismTone.neutral,
         onPressed: () {
@@ -5050,11 +5024,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
       PrismMetricTile(
         label: '当前显示',
         value: '${visible.length}',
-        subtitle: _selectedProfileIds.isNotEmpty
-            ? '已选 ${_selectedProfileIds.length} 项'
-            : hasActiveFilters
-            ? '共 ${_profiles.length} 个实例'
-            : '已绑定代理 $proxyBoundCount 个',
+        subtitle: proxyBoundCount > 0 ? '已绑定代理 $proxyBoundCount' : null,
         glyph: hasActiveFilters ? AntGlyphs.search : AntGlyphs.globe,
         tone: PrismTone.info,
         staggerIndex: 3,
@@ -5436,17 +5406,6 @@ class _BrowserListPageState extends State<BrowserListPage> {
                 ),
                 label: Text(allVisibleSelected ? '取消全选' : '全选当前结果'),
               ),
-              const Spacer(),
-              Text(
-                '共 ${visible.length} 个实例',
-                style: prism.AppTextStyle.footnote
-                    .of(context)
-                    .copyWith(
-                      color: prism.Theme.of(context)
-                          .colorScheme
-                          .onSurfaceVariant,
-                    ),
-              ),
             ],
           ),
           PrismCollapsible(
@@ -5619,20 +5578,6 @@ class _BrowserListPageState extends State<BrowserListPage> {
                                               overflow: TextOverflow.ellipsis,
                                               style: prism.AppTextStyle.headline
                                                   .of(context),
-                                            ),
-                                            const SizedBox(height: 6),
-                                            Text(
-                                              id,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: prism.AppTextStyle.caption1
-                                                  .of(context)
-                                                  .copyWith(
-                                                    color:
-                                                        prism.Theme.of(context)
-                                                            .colorScheme
-                                                            .onSurfaceVariant,
-                                                  ),
                                             ),
                                             const SizedBox(height: 6),
                                             _profileProxyBadgeRow(profile),
@@ -5866,7 +5811,6 @@ class _EmptyProfiles extends StatelessWidget {
   Widget build(BuildContext context) {
     return PrismEmptyState(
       title: hasProfiles ? '没有匹配的实例' : '还没有浏览器实例',
-      subtitle: hasProfiles ? '尝试调整搜索词或清除筛选条件' : '点击右上角“新建配置”创建第一个指纹浏览器实例',
       glyph: AntGlyphs.browserOff,
     );
   }

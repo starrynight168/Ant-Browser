@@ -295,7 +295,9 @@ class _TagsPageState extends State<TagsPage> {
       PrismMetricTile(
         label: '标签总数',
         value: '${tags.length}',
-        subtitle: tags.isEmpty ? '支持快速新建与重命名' : '已使用 ${counts.length} 个标签',
+        subtitle: tags.isNotEmpty && counts.length != tags.length
+            ? '已使用 ${counts.length} 个'
+            : null,
         glyph: AntGlyphs.tag,
         tone: PrismTone.primary,
         onPressed: _selectedTag == null
@@ -310,7 +312,7 @@ class _TagsPageState extends State<TagsPage> {
       PrismMetricTile(
         label: '实例总数',
         value: '${_profiles.length}',
-        subtitle: '运行中 $runningCount 个',
+        subtitle: runningCount > 0 ? '运行中 $runningCount 个' : null,
         glyph: AntGlyphs.browser,
         tone: PrismTone.info,
         onPressed: _selectedTag == null
@@ -325,7 +327,7 @@ class _TagsPageState extends State<TagsPage> {
       PrismMetricTile(
         label: '当前筛选实例',
         value: '${profiles.length}',
-        subtitle: _selectedTag == null ? '查看全部实例' : '标签：$_selectedTag',
+        subtitle: _selectedTag,
         glyph: AntGlyphs.search,
         tone: PrismTone.success,
         staggerIndex: 2,
@@ -334,7 +336,6 @@ class _TagsPageState extends State<TagsPage> {
       PrismMetricTile(
         label: '已选实例',
         value: '${_selectedIds.length}',
-        subtitle: _selectedIds.isEmpty ? '点击行勾选批量操作' : '点击清除已选状态',
         glyph: AntGlyphs.factCheck,
         tone: _selectedIds.isEmpty ? PrismTone.neutral : PrismTone.warning,
         onPressed: _selectedIds.isEmpty
@@ -541,7 +542,7 @@ class _TagsPageState extends State<TagsPage> {
                                 Padding(
                                   padding: const EdgeInsets.all(14),
                                   child: Text(
-                                    '暂无标签，输入名称回车或点击 + 创建',
+                                    '暂无标签',
                                     style: prism.AppTextStyle.caption1
                                         .of(context)
                                         .copyWith(
@@ -719,7 +720,6 @@ class _TagsPageState extends State<TagsPage> {
                                                   title: _selectedTag == null
                                                       ? '暂无实例'
                                                       : '标签“$_selectedTag”下暂无实例',
-                                                  subtitle: '在实例列表或批量操作中为实例添加标签后即可在此筛选。',
                                                 )
                                               : Column(
                                                   children: [
@@ -907,12 +907,7 @@ class _TagsPageState extends State<TagsPage> {
                                                                             6,
                                                                         children:
                                                                             profileTags.isEmpty
-                                                                            ? [
-                                                                                Text(
-                                                                                  '无标签',
-                                                                                  style: prism.AppTextStyle.caption1.of(context).copyWith(color: colors.onSurfaceVariant),
-                                                                                ),
-                                                                              ]
+                                                                            ? const []
                                                                             : profileTags.map((tag) => PrismBadge(label: tag, tone: PrismTone.neutral)).toList(),
                                                                       ),
                                                                     ),

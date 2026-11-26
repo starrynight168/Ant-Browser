@@ -1728,7 +1728,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
       PrismMetricTile(
         label: '插件总数',
         value: '$totalCount',
-        subtitle: '商店 $storeCount · 本地 $localCount',
+        subtitle: totalCount > 0 ? '商店 $storeCount · 本地 $localCount' : null,
         glyph: AntGlyphs.extension,
         tone: PrismTone.primary,
         onPressed: () => setState(() => _statusFilter = 'all'),
@@ -1738,9 +1738,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
       PrismMetricTile(
         label: '已启用',
         value: '$enabledCount',
-        subtitle: _statusFilter == 'enabled'
-            ? '已筛选 · 点击恢复全部'
-            : (disabledCount > 0 ? '已停用 $disabledCount 个 · 点击筛选' : '全部插件已启用'),
+        subtitle: disabledCount > 0 ? '停用 $disabledCount' : null,
         glyph: AntGlyphs.checkCircle,
         tone: PrismTone.success,
         onPressed: () => setState(
@@ -1752,9 +1750,6 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
       PrismMetricTile(
         label: '默认安装',
         value: '$defaultInstallCount',
-        subtitle: _statusFilter == 'default'
-            ? '已筛选 · 点击恢复全部'
-            : '新实例默认加载 · 点击筛选',
         glyph: AntGlyphs.pin,
         tone: PrismTone.info,
         onPressed: () => setState(
@@ -1766,8 +1761,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
       PrismMetricTile(
         label: _useProxy ? '代理下载' : 'MV3 插件',
         value: '$mv3Count',
-        subtitle:
-            '${_useProxy ? '代理：$_selectedProxyLabel' : '直连下载'} · 历史 ${_history.length}',
+        subtitle: _useProxy ? _selectedProxyLabel : '直连',
         glyph: _useProxy ? AntGlyphs.shield : AntGlyphs.history,
         tone: _useProxy ? PrismTone.warning : PrismTone.neutral,
         onPressed: _showHistory,
@@ -1937,24 +1931,17 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                               ),
                             if (_lookupMethodLabel.isNotEmpty)
                               PrismBadge(
-                                label: '查询方式：$_lookupMethodLabel',
+                                label: _lookupMethodLabel,
                                 tone: PrismTone.neutral,
                               ),
                           ],
                         ),
-                        if (extId.isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          prism.SelectableText(
-                            '插件 ID：$extId',
-                            style: prism.AppTextStyle.caption1
-                                .of(context)
-                                .copyWith(color: colors.onSurfaceVariant),
-                          ),
-                        ],
                         if (desc.isNotEmpty) ...[
                           const SizedBox(height: 6),
                           Text(
-                            '插件简介：$desc',
+                            desc,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                             style: prism.AppTextStyle.caption1
                                 .of(context)
                                 .copyWith(color: colors.onSurfaceVariant),
@@ -2215,8 +2202,6 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                           ? (_items.isEmpty
                                 ? PrismEmptyState(
                                     title: '还没有安装插件',
-                                    subtitle:
-                                        '点击上方「商店安装」查询 Chrome 插件，或从本地插件包导入。',
                                     glyph: AntGlyphs.extension,
                                     action: Wrap(
                                       spacing: 12,
@@ -2257,7 +2242,6 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                   )
                                 : PrismEmptyState(
                                     title: '没有匹配的插件',
-                                    subtitle: '尝试调整搜索关键词或切换筛选状态。',
                                     glyph: AntGlyphs.search,
                                     action: prism.OutlinedButton(
                                       onPressed: () {
@@ -2319,11 +2303,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
     final enabled = item['enabled'] == true;
     final defaultInstall = item['defaultInstall'] == true;
     final busy = _busy == id;
-    final manifest = _parseManifestJson(item['manifestJson']);
-    final sourceLabel = _formatSourceLabel(item);
     final storeUrl = _resolveStoreUrl(item);
-    final installedAt = _formatExtensionTime(item['installedAt']);
-    final updatedAt = _formatExtensionTime(item['updatedAt']);
     final description = (item['description'] ?? '').toString().trim();
 
     return PrismCard(
@@ -2385,14 +2365,6 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                           tone: enabled ? PrismTone.success : PrismTone.neutral,
                           dot: true,
                         ),
-                        if (manifest.manifestVersion != null)
-                          PrismBadge(
-                            label: 'MV${manifest.manifestVersion}',
-                            tone: manifest.manifestVersion == 3
-                                ? PrismTone.primary
-                                : PrismTone.warning,
-                          ),
-                        PrismBadge(label: sourceLabel, tone: PrismTone.neutral),
                         if (defaultInstall)
                           const PrismBadge(
                             label: '默认安装',
@@ -2403,7 +2375,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'v${item['version'] ?? '-'} · $id',
+                      'v${item['version'] ?? '-'}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: prism.AppTextStyle.caption1
@@ -2414,45 +2386,9 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                       const SizedBox(height: 6),
                       Text(
                         description,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: prism.AppTextStyle.caption1
-                            .of(context)
-                            .copyWith(color: colors.onSurfaceVariant),
-                      ),
-                    ],
-                    if (manifest.permissions.isNotEmpty ||
-                        manifest.hostPermissionCount > 0) ...[
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 10,
-                        children: [
-                          if (manifest.hostPermissionCount > 0)
-                            PrismBadge(
-                              label: '站点权限 ${manifest.hostPermissionCount}',
-                              tone: PrismTone.warning,
-                            ),
-                          for (final perm in manifest.permissions.take(4))
-                            PrismBadge(label: perm, tone: PrismTone.neutral),
-                          if (manifest.permissions.length > 4)
-                            PrismBadge(
-                              label: '+${manifest.permissions.length - 4}',
-                              tone: PrismTone.neutral,
-                            ),
-                        ],
-                      ),
-                    ],
-                    if (installedAt.isNotEmpty || updatedAt.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        [
-                          if (installedAt.isNotEmpty) '安装于 $installedAt',
-                          if (updatedAt.isNotEmpty) '更新于 $updatedAt',
-                        ].join(' · '),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: prism.AppTextStyle.caption2
+                        style: prism.AppTextStyle.caption1
                             .of(context)
                             .copyWith(color: colors.onSurfaceVariant),
                       ),

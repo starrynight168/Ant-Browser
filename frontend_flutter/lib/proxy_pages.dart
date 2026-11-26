@@ -3469,9 +3469,7 @@ socks5://user:password@proxy.example.com:1080''',
       PrismMetricTile(
         label: '节点总数',
         value: '${realProxies.length}',
-        subtitle: realProxies.isEmpty
-            ? '点击添加代理或导入订阅'
-            : '$protocolCount 种协议 · ${_virtualGroups.length} 虚拟组',
+        subtitle: realProxies.isEmpty ? null : '$protocolCount 种协议',
         glyph: AntGlyphs.globe,
         tone: PrismTone.primary,
         onPressed: hasActiveFilters ? _clearFilters : null,
@@ -3481,9 +3479,7 @@ socks5://user:password@proxy.example.com:1080''',
       PrismMetricTile(
         label: '可用节点',
         value: '$availableCount',
-        subtitle: testedCount > 0
-            ? '已测速 $testedCount 个 · ${_availableOnly ? '仅看可用中' : '点击筛选可用'}'
-            : '尚未完成批量测速',
+        subtitle: testedCount > 0 ? '已测速 $testedCount' : null,
         glyph: AntGlyphs.checkCircle,
         tone: _availableOnly
             ? PrismTone.primary
@@ -3495,9 +3491,7 @@ socks5://user:password@proxy.example.com:1080''',
       PrismMetricTile(
         label: '订阅来源',
         value: '$sourceCount',
-        subtitle: missingCount > 0
-            ? '异常节点 $missingCount 个 · 点击管理'
-            : (hasSources ? '点击管理订阅自动更新' : '暂无远程订阅源'),
+        subtitle: missingCount > 0 ? '异常 $missingCount' : null,
         glyph: AntGlyphs.sync,
         tone: missingCount > 0 ? PrismTone.warning : PrismTone.info,
         onPressed: _busy.isEmpty ? _openSourceRefreshModal : null,
@@ -3507,9 +3501,6 @@ socks5://user:password@proxy.example.com:1080''',
       PrismMetricTile(
         label: '代理内核',
         value: _coreStatuses.isEmpty ? '检测中' : '$installedCores/$totalCores',
-        subtitle: _coreStatuses.isEmpty
-            ? '正在检查 Xray / Sing-box / Mihomo'
-            : (installedCores == totalCores ? '内核已就绪 · 点击管理' : '点击下载或管理代理内核'),
         glyph: AntGlyphs.cpu,
         tone: _coreStatuses.isEmpty
             ? PrismTone.neutral
@@ -3906,14 +3897,10 @@ socks5://user:password@proxy.example.com:1080''',
     final id = (item['proxyId'] ?? '').toString();
     final isSelectable = id.isNotEmpty && id != '__direct__';
     final isDirect = item['proxyConfig'] == 'direct://';
-    final speed = _speedResults[id];
     final health = _ipHealthResults[id];
     final sourceId = (item['sourceId'] ?? '').toString();
     final sourceHost = _subscriptionHost((item['sourceUrl'] ?? '').toString());
     final (latencyLabel, latencyTone) = _latencyBadgeInfo(item);
-    final engine = (speed?['engine'] ?? item['lastTestEngine'] ?? '')
-        .toString()
-        .trim();
     final ipSummary = _formatIpHealthSummary(health);
     final ipAddr = health != null && health['ok'] == true
         ? (health['ip'] ?? '').toString().trim()
@@ -3993,9 +3980,7 @@ socks5://user:password@proxy.example.com:1080''',
                     ),
               ),
               PrismBadge(
-                label: engine.isEmpty
-                    ? latencyLabel
-                    : '$latencyLabel · $engine',
+                label: latencyLabel,
                 tone: latencyTone,
                 dot: true,
               ),
@@ -4010,17 +3995,10 @@ socks5://user:password@proxy.example.com:1080''',
                       : PrismTone.danger,
                   onPressed: () => _showIPHealthDetail(item),
                 ),
-              if (_globalCustomDns.isNotEmpty)
+              if (_globalCustomDns.isEmpty &&
+                  (item['dnsServers'] ?? '').toString().trim().isNotEmpty)
                 prism.Tooltip(
-                  message: '全局自定义桥接 DNS，覆盖所有节点',
-                  child: const PrismBadge(
-                    label: 'DNS: 自定义',
-                    tone: PrismTone.info,
-                  ),
-                )
-              else if ((item['dnsServers'] ?? '').toString().trim().isNotEmpty)
-                prism.Tooltip(
-                  message: '节点 DNS 来自订阅或手动填写；订阅刷新会同步',
+                  message: '节点 DNS 来自订阅或手动填写',
                   child: const PrismBadge(
                     label: 'DNS: 节点',
                     tone: PrismTone.neutral,
@@ -4028,8 +4006,7 @@ socks5://user:password@proxy.example.com:1080''',
                 ),
               if (sourceHost.isNotEmpty)
                 PrismBadge(
-                  label:
-                      '$sourceHost · ${item['sourceAutoRefresh'] == true ? '自动' : '手动'}',
+                  label: sourceHost,
                   glyph: AntGlyphs.link,
                   tone: PrismTone.neutral,
                 ),
@@ -4208,9 +4185,6 @@ socks5://user:password@proxy.example.com:1080''',
                     : visible.isEmpty
                     ? PrismEmptyState(
                         title: '没有匹配的代理',
-                        subtitle: _proxies.length <= 1
-                            ? '点击右上角“添加代理”或“导入订阅”开始构建代理池。'
-                            : '当前筛选条件下没有结果，尝试清除筛选条件。',
                         glyph: AntGlyphs.globe,
                         action:
                             _query.isNotEmpty ||
@@ -4373,8 +4347,7 @@ socks5://user:password@proxy.example.com:1080''',
             const SizedBox(height: 16),
             PrismBanner(
               tone: PrismTone.warning,
-              title: '检测到 mieru 代理节点，但尚未安装 mieru 内核',
-              message: '下载并安装 mieru 内核后即可正常测速和启动使用 mieru 代理的浏览器实例。',
+              message: '检测到 mieru 节点，请先下载 mieru 内核。',
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -5880,7 +5853,6 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
                 child: PrismPageContextBar(
                   glyph: AntGlyphs.compare,
                   title: '订阅源管理与对齐记录',
-                  subtitle: '刷新订阅前后对比节点变化，手动维护新旧节点对应关系。',
                   actions: [
                     prism.IconButton(
                       tooltip: '刷新记录',
@@ -5986,13 +5958,11 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
                 : _sources.isEmpty
                 ? const PrismEmptyState(
                     title: '还没有订阅来源',
-                    subtitle: '在代理池中通过“导入订阅”添加订阅 URL 后即可管理与对齐。',
                     glyph: AntGlyphs.link,
                   )
                 : _records.isEmpty
                 ? const PrismEmptyState(
                     title: '还没有对齐记录',
-                    subtitle: '点击“手动匹配”可在刷新前指定新旧节点对应关系。',
                     glyph: AntGlyphs.compare,
                   )
                 : ListView.separated(
@@ -6926,15 +6896,10 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
         }
       }
     }
-    final unprobedGroups = totalGroups - healthyGroups - degradedGroups;
-
     final tiles = [
       PrismMetricTile(
         label: '虚拟分组',
         value: '$totalGroups',
-        subtitle: totalGroups == 0
-            ? '支持轮询调度与故障转移'
-            : '轮询 $roundRobinCount · 固定 $stickyCount',
         glyph: AntGlyphs.hub,
         tone: PrismTone.primary,
         onPressed: _filter != 'all' || _query.isNotEmpty ? _clearFilters : null,
@@ -6944,7 +6909,6 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
       PrismMetricTile(
         label: '调度节点',
         value: '${uniqueMemberIds.length}',
-        subtitle: '候选代理 ${_candidateProxies.length} 个',
         glyph: AntGlyphs.globe,
         tone: PrismTone.info,
         staggerIndex: 1,
@@ -6953,9 +6917,7 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
       PrismMetricTile(
         label: '健康分组',
         value: '$healthyGroups/$totalGroups',
-        subtitle: degradedGroups > 0
-            ? '全部降级 $degradedGroups 组 · 点击筛选'
-            : (unprobedGroups > 0 ? '待探测 $unprobedGroups 组' : '健康探测全部正常'),
+        subtitle: degradedGroups > 0 ? '降级 $degradedGroups 组' : null,
         glyph: AntGlyphs.health,
         tone: degradedGroups > 0
             ? PrismTone.danger
@@ -6973,7 +6935,6 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
         value: stickyCount > 0
             ? '$roundRobinCount / $stickyCount'
             : '轮询 $roundRobinCount',
-        subtitle: _filter == 'sticky' ? '正在筛选固定节点组' : '点击筛选固定节点组',
         glyph: AntGlyphs.tune,
         tone: _filter == 'sticky' ? PrismTone.primary : PrismTone.neutral,
         onPressed: stickyCount > 0
@@ -7252,7 +7213,6 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
                     ? (_groups.isEmpty
                           ? PrismEmptyState(
                               title: '还没有虚拟分组',
-                              subtitle: '将多个代理节点组合为虚拟分组，支持轮询调度、自动健康探测与故障转移。',
                               glyph: AntGlyphs.hub,
                               action: PrismHoverMotion(
                                 child: prism.FilledButton.icon(
@@ -7267,7 +7227,6 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
                             )
                           : PrismEmptyState(
                               title: '没有匹配的虚拟分组',
-                              subtitle: '尝试调整搜索关键词或切换策略筛选条件。',
                               glyph: AntGlyphs.search,
                               action: prism.OutlinedButton(
                                 onPressed: _clearFilters,

@@ -36,16 +36,15 @@ const _numberBounds = <String, (int min, int max)>{
 };
 
 enum _SettingsSection {
-  appearance('外观与主题', '主题模式、色彩、语言与动效', AntGlyphs.sparkles),
-  general('通用与应用', '通知、自动保存与应用信息', AntGlyphs.settings),
-  automation('自动化运行时', 'Node.js、Playwright 与自检', AntGlyphs.robot),
-  launchApi('本地启动接口', 'HTTP 监听端口与接口状态', AntGlyphs.api),
-  performance('性能与日志', '缓存、内存上限与日志级别', AntGlyphs.speed);
+  appearance('外观与主题', AntGlyphs.sparkles),
+  general('通用与应用', AntGlyphs.settings),
+  automation('自动化运行时', AntGlyphs.robot),
+  launchApi('本地启动接口', AntGlyphs.api),
+  performance('性能与日志', AntGlyphs.speed);
 
-  const _SettingsSection(this.title, this.subtitle, this.glyph);
+  const _SettingsSection(this.title, this.glyph);
 
   final String title;
-  final String subtitle;
   final prism_icons.Glyph glyph;
 }
 
@@ -611,7 +610,6 @@ class _SettingsPageState extends State<SettingsPage> {
     required String unit,
     int? divisions,
   }) {
-    final colors = prism.Theme.of(context).colorScheme;
     final (min, max) = _numberBounds[fieldKey]!;
     final current = _int(fieldKey, min).clamp(min, max).toInt();
     return Padding(
@@ -622,28 +620,17 @@ class _SettingsPageState extends State<SettingsPage> {
           Row(
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: prism.AppTextStyle.subheadline.of(
-                        context,
-                        emphasized: true,
-                      ),
+                child: prism.Tooltip(
+                  message: subtitle,
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: prism.AppTextStyle.subheadline.of(
+                      context,
+                      emphasized: true,
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      subtitle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: prism.AppTextStyle.caption1
-                          .of(context)
-                          .copyWith(color: colors.onSurfaceVariant),
-                    ),
-                  ],
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -707,7 +694,6 @@ class _SettingsPageState extends State<SettingsPage> {
                             PrismSlidingRailItem<_SettingsSection>(
                               value: section,
                               title: section.title,
-                              subtitle: section.subtitle,
                               glyph: section.glyph,
                               statusTone: switch (section) {
                                 _SettingsSection.automation =>
@@ -891,17 +877,6 @@ class _SettingsPageState extends State<SettingsPage> {
                                           emphasized: true,
                                         ),
                                       ),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        _activeSection.subtitle,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: prism.AppTextStyle.footnote
-                                            .of(context)
-                                            .copyWith(
-                                              color: colors.onSurfaceVariant,
-                                            ),
-                                      ),
                                     ],
                                   ),
                                 ),
@@ -988,7 +963,6 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _buildAppearanceSection(BuildContext context) {
-    final colors = prism.Theme.of(context).colorScheme;
     final currentColorId = '${_settings['themeColor'] ?? 'forest'}';
     final currentTheme = '${_settings['theme'] ?? 'light'}';
     final currentStyle = '${_settings['themeStyle'] ?? 'tinted'}';
@@ -1041,15 +1015,6 @@ class _SettingsPageState extends State<SettingsPage> {
                               tone: PrismTone.info,
                             ),
                           ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '主色与色彩风格实时联动全站界面',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: prism.AppTextStyle.footnote
-                              .of(context)
-                              .copyWith(color: colors.onSurfaceVariant),
                         ),
                       ],
                     );
@@ -1207,7 +1172,6 @@ class _SettingsPageState extends State<SettingsPage> {
           message: '开启后全站启用过渡、悬停与弹簧动画',
           child: const Text('界面动效'),
         ),
-        subtitle: motionEnabled ? null : const Text('已关闭'),
         trailing: prism.Switch(
           value: motionEnabled,
           onChanged: (enabled) => _applyMotionIntensity(
@@ -1665,8 +1629,10 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(height: 16),
         _groupedCard([
           prism.ListRow(
-            title: const Text('监听端口'),
-            subtitle: const Text('供外部脚本、自动化与 OpenClaw 调用（1 – 65535，默认 19876）'),
+            title: prism.Tooltip(
+              message: '供外部脚本、自动化与 OpenClaw 调用（1 – 65535，默认 19876）',
+              child: const Text('监听端口'),
+            ),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               spacing: 12,

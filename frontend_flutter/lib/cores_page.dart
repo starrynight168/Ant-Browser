@@ -1123,9 +1123,7 @@ class _CoresPageState extends State<CoresPage> {
       PrismMetricTile(
         label: '内核总数',
         value: '$totalCores',
-        subtitle: totalInstances > 0
-            ? '关联实例 $totalInstances 个'
-            : (_statusFilter != 'all' ? '点击显示全部内核' : '下载、导入或本地扫描'),
+        subtitle: totalInstances > 0 ? '关联 $totalInstances 个实例' : null,
         glyph: AntGlyphs.cpu,
         tone: PrismTone.primary,
         onPressed: () => setState(() => _statusFilter = 'all'),
@@ -1138,7 +1136,7 @@ class _CoresPageState extends State<CoresPage> {
             ? '未设置'
             : '${defaultCore['chromeVersion'] ?? '已配置'}',
         subtitle: defaultCore == null
-            ? '请在下方列表设为默认'
+            ? null
             : '${defaultCore['coreName'] ?? '未命名内核'}',
         glyph: AntGlyphs.checkCircle,
         tone: defaultCore != null ? PrismTone.info : PrismTone.warning,
@@ -1162,11 +1160,7 @@ class _CoresPageState extends State<CoresPage> {
       PrismMetricTile(
         label: '可用内核',
         value: '$validCores',
-        subtitle: invalidCores > 0
-            ? (_statusFilter == 'invalid'
-                  ? '已筛选路径无效 · 点击恢复'
-                  : '异常 $invalidCores 个 · 点击筛选')
-            : (_statusFilter == 'valid' ? '已筛选可用 · 点击恢复' : '全部路径校验通过'),
+        subtitle: invalidCores > 0 ? '异常 $invalidCores 个' : null,
         glyph: invalidCores > 0 ? AntGlyphs.warning : AntGlyphs.shield,
         tone: invalidCores > 0 ? PrismTone.warning : PrismTone.success,
         onPressed: () => setState(() {
@@ -1182,7 +1176,6 @@ class _CoresPageState extends State<CoresPage> {
       PrismMetricTile(
         label: '轻启动状态',
         value: lightStartEnabled ? '已开启' : '已关闭',
-        subtitle: _settingsExpanded ? '点击收起全局设置' : '点击展开全局设置',
         glyph: AntGlyphs.bolt,
         tone: lightStartEnabled ? PrismTone.info : PrismTone.neutral,
         onPressed: () => setState(() => _settingsExpanded = !_settingsExpanded),
@@ -1818,25 +1811,23 @@ class _CoresPageState extends State<CoresPage> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    '${core['corePath'] ?? ''}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: prism.AppTextStyle.caption1
-                        .of(context)
-                        .copyWith(color: colors.onSurfaceVariant),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    '使用实例 ${((core['instanceCount'] as num?) ?? 0).toInt()} 个'
-                    ' · Chrome ${core['chromeVersion'] ?? '版本未知'}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: prism.AppTextStyle.caption2
-                        .of(context)
-                        .copyWith(color: colors.onSurfaceVariant),
-                  ),
+                  if ('${core['chromeVersion'] ?? ''}'.trim().isNotEmpty ||
+                      ((core['instanceCount'] as num?) ?? 0).toInt() > 0) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      [
+                        if ('${core['chromeVersion'] ?? ''}'.trim().isNotEmpty)
+                          'Chrome ${core['chromeVersion']}',
+                        if (((core['instanceCount'] as num?) ?? 0).toInt() > 0)
+                          '${((core['instanceCount'] as num?) ?? 0).toInt()} 个实例',
+                      ].join(' · '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: prism.AppTextStyle.caption1
+                          .of(context)
+                          .copyWith(color: colors.onSurfaceVariant),
+                    ),
+                  ],
                   if (!valid) ...[
                     const SizedBox(height: 6),
                     Text(
@@ -1954,8 +1945,6 @@ class _CoresPageState extends State<CoresPage> {
                           ? (_cores.isEmpty
                                 ? PrismEmptyState(
                                     title: '暂未配置浏览器内核',
-                                    subtitle:
-                                        '可以自动扫描本机内核、手动添加路径或直接下载最新指纹浏览器内核。',
                                     glyph: AntGlyphs.cpu,
                                     action: PrismHoverMotion(
                                       enabled: !_busy,
@@ -1973,7 +1962,6 @@ class _CoresPageState extends State<CoresPage> {
                                   )
                                 : PrismEmptyState(
                                     title: '没有匹配的内核',
-                                    subtitle: '尝试调整搜索关键词或切换筛选状态。',
                                     glyph: AntGlyphs.search,
                                     action: prism.OutlinedButton(
                                       onPressed: () {

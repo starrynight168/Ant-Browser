@@ -183,7 +183,6 @@ class _DocsPageState extends State<DocsPage> {
       PrismMetricTile(
         label: '当前分类',
         value: activeGroup.label,
-        subtitle: section.label,
         glyph: activeGroup.glyph,
         tone: PrismTone.info,
         staggerIndex: 1,
@@ -192,7 +191,7 @@ class _DocsPageState extends State<DocsPage> {
       PrismMetricTile(
         label: '启动服务',
         value: serverReady ? '已就绪' : '未就绪',
-        subtitle: baseUrl.isNotEmpty ? baseUrl : 'Launch Server',
+        subtitle: baseUrl.isNotEmpty ? baseUrl : null,
         glyph: AntGlyphs.api,
         tone: serverReady ? PrismTone.success : PrismTone.warning,
         onPressed: () => setState(() => _selected = 'api-demo'),
@@ -202,7 +201,6 @@ class _DocsPageState extends State<DocsPage> {
       PrismMetricTile(
         label: '交互演示',
         value: 'API 调试',
-        subtitle: '点击直达在线演示',
         glyph: AntGlyphs.bolt,
         tone: PrismTone.neutral,
         onPressed: () => setState(() => _selected = 'api-demo'),
@@ -288,7 +286,6 @@ class _DocsPageState extends State<DocsPage> {
                               ? PrismEmptyState(
                                   glyph: AntGlyphs.search,
                                   title: '无匹配章节',
-                                  subtitle: '尝试调整关键词',
                                   action: prism.OutlinedButton(
                                     onPressed: () {
                                       _searchController.clear();
@@ -725,13 +722,6 @@ class ChartsPage extends StatelessWidget {
       padding: const EdgeInsets.all(24),
       children: [
         Text('图表案例展示', style: prism.AppTextStyle.pageTitle.of(context)),
-        const SizedBox(height: 6),
-        Text(
-          '基于 Prism UI 渲染的折线、柱状、饼图、面积与复合统计视图。',
-          style: prism.AppTextStyle.footnote
-              .of(context)
-              .copyWith(color: colors.onSurfaceVariant),
-        ),
         const SizedBox(height: 18),
         LayoutBuilder(
           builder: (context, constraints) {
@@ -1342,13 +1332,6 @@ class _LaunchApiDemoPanelState extends State<_LaunchApiDemoPanel> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  '演示会创建一个临时实例并启动，验证启动 API 链路后可一键清理；不会影响已有实例。',
-                  style: prism.AppTextStyle.footnote
-                      .of(context)
-                      .copyWith(color: colors.onSurfaceVariant),
-                ),
-                const SizedBox(height: 16),
                 Wrap(
                   spacing: 12,
                   runSpacing: 10,
@@ -1387,7 +1370,7 @@ class _LaunchApiDemoPanelState extends State<_LaunchApiDemoPanel> {
                   const SizedBox(height: 14),
                   PrismBanner(
                     tone: PrismTone.info,
-                    message: '当前演示实例：$_demoProfileId · 启动码 $_demoLaunchCode',
+                    message: '启动码：$_demoLaunchCode',
                   ),
                 ],
                 if (_cdpUrl.isNotEmpty) ...[

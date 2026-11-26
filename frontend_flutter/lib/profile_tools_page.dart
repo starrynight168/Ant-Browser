@@ -232,16 +232,6 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
     return '${mb.toStringAsFixed(1)} MB';
   }
 
-  String _cookieExpiry(dynamic value) {
-    final expires = double.tryParse(value?.toString() ?? '') ?? 0;
-    if (expires <= 0) return '会话 Cookie';
-    final local = DateTime.fromMillisecondsSinceEpoch((expires * 1000).round())
-        .toLocal();
-    String two(int n) => n.toString().padLeft(2, '0');
-    return '${local.year}-${two(local.month)}-${two(local.day)} '
-        '${two(local.hour)}:${two(local.minute)}';
-  }
-
   String _resolveGroupName(Map<String, dynamic> profile) {
     final id = '${profile['groupId'] ?? ''}'.trim();
     if (id.isEmpty) return '未分组';
@@ -609,11 +599,6 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
     }
   }
 
-  int _valueCount(dynamic value) {
-    if (value is Map || value is List || value is String) return value.length;
-    return 0;
-  }
-
   Widget _infoRow(BuildContext context, String label, String value) {
     final colors = prism.Theme.of(context).colorScheme;
     return Padding(
@@ -693,8 +678,6 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                 child: PrismPageContextBar(
                   glyph: AntGlyphs.browser,
                   title: (profile['profileName'] ?? '实例详情').toString(),
-                  subtitle:
-                      '实例编号 ${profile['profileId'] ?? ''} · 启动码 ${profile['launchCode'] ?? '未分配'}',
                   actions: [
                     PrismBadge(
                       label: statusInfo.label,
@@ -803,7 +786,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                               value: debugPort > 0 ? '$debugPort' : '-',
                               subtitle: _running
                                   ? (_debugReady ? 'CDP 已就绪' : '等待 CDP 就绪')
-                                  : '未启动',
+                                  : null,
                               glyph: AntGlyphs.api,
                               tone: _debugReady
                                   ? PrismTone.success
@@ -816,8 +799,6 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                             PrismMetricTile(
                               label: '最近启动',
                               value: _formatDateTime(profile['lastStartAt']),
-                              subtitle:
-                                  '最近停止：${_formatDateTime(profile['lastStopAt'])}',
                               glyph: AntGlyphs.schedule,
                               tone: PrismTone.neutral,
                               staggerIndex: 3,
@@ -870,11 +851,6 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                               children: [
                                 _infoRow(
                                   context,
-                                  '实例编号',
-                                  '${profile['profileId'] ?? ''}',
-                                ),
-                                _infoRow(
-                                  context,
                                   '浏览器内核',
                                   _resolveCoreName(profile),
                                 ),
@@ -891,12 +867,6 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                                           .isEmpty
                                       ? '直连'
                                       : '${profile['proxyConfig']}',
-                                ),
-                                _infoRow(
-                                  context,
-                                  '参数概览',
-                                  '指纹参数 ${_valueCount(profile['fingerprintArgs'])} 项 · '
-                                      '启动参数 ${_valueCount(profile['launchArgs'])} 项',
                                 ),
                                 _infoRow(
                                   context,
@@ -1017,14 +987,11 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                               const PrismEmptyState(
                                 glyph: AntGlyphs.browser,
                                 title: '实例未启动',
-                                subtitle: '启动实例后可查看和管理当前标签页',
                               )
                             else if (!_debugReady)
                               const PrismBanner(
                                 tone: PrismTone.warning,
-                                title: '等待调试端口就绪',
-                                message:
-                                    '实例进程已启动，正在等待 CDP 调试端口就绪，就绪后可加载标签页与打开网址。',
+                                message: '等待 CDP 调试端口就绪…',
                               )
                             else if (_tabs.isEmpty)
                               const PrismEmptyState(
@@ -1071,17 +1038,16 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                         padding: const EdgeInsets.only(top: 16, bottom: 14),
                         child: Row(
                           children: [
-                            Expanded(
-                              child: PrismBanner(
-                                tone: _running
-                                    ? PrismTone.warning
-                                    : PrismTone.info,
-                                message: _running
-                                    ? '实例正在运行，请先关闭实例后再创建或恢复快照。'
-                                    : '快照用于备份或还原此实例的本地浏览器数据目录。',
-                              ),
-                            ),
-                            const SizedBox(width: 12),
+                            if (_running)
+                              const Expanded(
+                                child: PrismBanner(
+                                  tone: PrismTone.warning,
+                                  message: '实例正在运行，请先关闭后再创建或恢复快照。',
+                                ),
+                              )
+                            else
+                              const Spacer(),
+                            if (_running) const SizedBox(width: 12),
                             PrismHoverMotion(
                               enabled: !_running && _busy.isEmpty,
                               child: prism.FilledButton.icon(
@@ -1100,7 +1066,6 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                             ? const PrismEmptyState(
                                 glyph: AntGlyphs.archive,
                                 title: '暂无数据快照',
-                                subtitle: '在实例停止状态下点击“创建快照”保存当前数据',
                               )
                             : ListView(
                                 padding: kPrismListPadding,
@@ -1169,14 +1134,6 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const SizedBox(height: 16),
-                      if (_running && !_debugReady) ...[
-                        const PrismBanner(
-                          tone: PrismTone.warning,
-                          title: '等待调试端口就绪',
-                          message: '实例已启动但调试端口尚未就绪，就绪后将自动支持 Cookie 读取与导入导出。',
-                        ),
-                        const SizedBox(height: 14),
-                      ],
                       PrismSearchBar(
                         controller: _cookieFilter,
                         hintText: '按域名过滤 Cookie...',
@@ -1268,19 +1225,16 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                             ? const PrismEmptyState(
                                 glyph: AntGlyphs.shield,
                                 title: '实例未启动',
-                                subtitle: '启动实例且调试端口就绪后可管理 Cookie',
                               )
                             : !_debugReady
                             ? const PrismEmptyState(
                                 glyph: AntGlyphs.pending,
                                 title: '等待调试端口就绪',
-                                subtitle: '就绪后将自动加载当前实例的 Cookie',
                               )
                             : _cookies.isEmpty
                             ? PrismEmptyState(
                                 glyph: AntGlyphs.shield,
                                 title: '暂无 Cookie',
-                                subtitle: '点击“读取”刷新或“导入 JSON”写入 Cookie',
                                 action: prism.OutlinedButton.icon(
                                   onPressed: _busy.isEmpty
                                       ? _loadCookies
@@ -1308,7 +1262,6 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                                     return const PrismEmptyState(
                                       glyph: AntGlyphs.search,
                                       title: '没有匹配的 Cookie',
-                                      subtitle: '尝试修改域名过滤关键词',
                                     );
                                   }
                                   // 列表外层单个 SelectionArea 覆盖全部条目，
@@ -1382,7 +1335,7 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                                                     ),
                                                     const SizedBox(height: 6),
                                                     Text(
-                                                      '${cookie['domain'] ?? ''} · ${cookie['path'] ?? '/'} · ${_cookieExpiry(cookie['expires'])}',
+                                                      '${cookie['domain'] ?? ''} · ${cookie['path'] ?? '/'}',
                                                       maxLines: 1,
                                                       overflow:
                                                           TextOverflow.ellipsis,

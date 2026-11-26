@@ -75,7 +75,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
       PrismMetricTile(
         label: '全部通知',
         value: '$total',
-        subtitle: _filter == 'all' ? '当前查看全部' : '点击查看全部通知',
         glyph: AntGlyphs.bell,
         tone: PrismTone.primary,
         onPressed: () => setState(() => _filter = 'all'),
@@ -85,7 +84,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
       PrismMetricTile(
         label: '未读',
         value: '$unread',
-        subtitle: _filter == 'unread' ? '已筛选 · 点击恢复全部' : '点击仅看未读',
         glyph: AntGlyphs.mail,
         tone: unread > 0 ? PrismTone.info : PrismTone.neutral,
         onPressed: () =>
@@ -96,7 +94,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
       PrismMetricTile(
         label: '错误',
         value: '$errorCount',
-        subtitle: _filter == 'error' ? '已筛选 · 点击恢复全部' : '点击仅看错误',
         glyph: AntGlyphs.error,
         tone: errorCount > 0 ? PrismTone.danger : PrismTone.neutral,
         onPressed: () =>
@@ -107,7 +104,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
       PrismMetricTile(
         label: '警告',
         value: '$warningCount',
-        subtitle: _filter == 'warning' ? '已筛选 · 点击恢复全部' : '点击仅看警告',
         glyph: AntGlyphs.warning,
         tone: warningCount > 0 ? PrismTone.warning : PrismTone.neutral,
         onPressed: () =>
@@ -503,9 +499,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                 ? PrismEmptyState(
                                     glyph: AntGlyphs.bell,
                                     title: all.isEmpty ? '暂无通知' : '当前筛选没有通知',
-                                    subtitle: all.isEmpty
-                                        ? '系统提醒、运行状态与错误消息会显示在这里。'
-                                        : '清空搜索或切换到“全部”查看所有历史通知。',
                                     action: all.isNotEmpty && hasActiveFilter
                                         ? prism.OutlinedButton(
                                             onPressed: () => setState(() {

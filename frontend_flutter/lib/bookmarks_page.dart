@@ -331,8 +331,6 @@ class _BookmarksPageState extends State<BookmarksPage> {
       PrismMetricTile(
         label: '书签总数',
         value: '${_entries.length}',
-        subtitle:
-            '内置 ${protectedEntries.length} · 自定义 ${regularEntries.length}',
         glyph: AntGlyphs.bookmark,
         tone: PrismTone.primary,
         staggerIndex: 0,
@@ -341,7 +339,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
       PrismMetricTile(
         label: '自定义书签',
         value: '${regularEntries.length}',
-        subtitle: '启动时打开 $openOnStartCount 项',
+        subtitle: openOnStartCount > 0 ? '启动打开 $openOnStartCount 项' : null,
         glyph: AntGlyphs.link,
         tone: PrismTone.info,
         staggerIndex: 1,
@@ -350,9 +348,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
       PrismMetricTile(
         label: '内置检测',
         value: '${protectedEntries.length}',
-        subtitle: protectedEntries.any((e) => e.openOnStart)
-            ? '已开启启动检测'
-            : '默认指纹检测项',
+        subtitle: protectedEntries.any((e) => e.openOnStart) ? '启动时打开' : null,
         glyph: AntGlyphs.shield,
         tone: PrismTone.success,
         staggerIndex: 2,
@@ -361,7 +357,6 @@ class _BookmarksPageState extends State<BookmarksPage> {
       PrismMetricTile(
         label: '拖拽排序',
         value: isFiltering ? '已暂停' : '已就绪',
-        subtitle: isFiltering ? '清空搜索后可拖拽排序' : '拖动把手调整顺序',
         glyph: AntGlyphs.sort,
         tone: isFiltering ? PrismTone.warning : PrismTone.neutral,
         onPressed: isFiltering
@@ -540,9 +535,6 @@ class _BookmarksPageState extends State<BookmarksPage> {
                           glyph: AntGlyphs.shield,
                           staggerIndex: 5,
                           staggerDelay: const Duration(milliseconds: 45),
-                          actions: const [
-                            PrismBadge(label: '内置', tone: PrismTone.info),
-                          ],
                           child: Column(
                             children: [
                               for (var i = 0; i < filteredProtected.length; i++)
@@ -617,7 +609,6 @@ class _BookmarksPageState extends State<BookmarksPage> {
                                               ? PrismEmptyState(
                                                   glyph: AntGlyphs.bookmark,
                                                   title: '暂无自定义书签',
-                                                  subtitle: '点击上方“添加书签”创建常用网址。',
                                                   action: PrismHoverMotion(
                                                     child:
                                                         prism
@@ -637,7 +628,6 @@ class _BookmarksPageState extends State<BookmarksPage> {
                                               : PrismEmptyState(
                                                   glyph: AntGlyphs.search,
                                                   title: '没有匹配的书签',
-                                                  subtitle: '尝试更换关键词，或清空搜索查看全部书签并启用拖拽排序。',
                                                   action: prism.OutlinedButton(
                                                     onPressed: () => setState(
                                                       () => _searchController

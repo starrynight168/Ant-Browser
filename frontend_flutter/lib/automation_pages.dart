@@ -27,16 +27,6 @@ String _formatDateTime(dynamic raw) {
       '${_twoDigits(local.hour)}:${_twoDigits(local.minute)}:${_twoDigits(local.second)}';
 }
 
-String _formatVersionTime(dynamic raw) {
-  final text = '${raw ?? ''}'.trim();
-  if (text.isEmpty) return '';
-  final parsed = DateTime.tryParse(text);
-  if (parsed == null) return '';
-  final local = parsed.toLocal();
-  return 'V ${local.year}-${_twoDigits(local.month)}-${_twoDigits(local.day)} '
-      '${_twoDigits(local.hour)}:${_twoDigits(local.minute)}';
-}
-
 String _formatDuration(dynamic rawMs) {
   final ms = (rawMs is num)
       ? rawMs.toInt()
@@ -848,7 +838,6 @@ class _AutomationScriptRunModalState extends State<AutomationScriptRunModal> {
                       child: PrismSwitchTile(
                         contentPadding: EdgeInsets.zero,
                         title: const Text('运行前按 Code 码启动'),
-                        subtitle: const Text('若实例未运行则先自动拉起'),
                         value: _startByCodeBeforeRun,
                         onChanged: _running
                             ? null
@@ -1455,16 +1444,11 @@ class _AutomationPageState extends State<AutomationPage> {
                     label: '耗时 ${_formatDuration(run['durationMs'])}',
                     glyph: AntGlyphs.schedule,
                   ),
-                  if ('${run['id'] ?? ''}'.trim().isNotEmpty)
-                    PrismBadge(
-                      label: '记录 ID：${run['id']}',
-                      tone: PrismTone.neutral,
-                    ),
                 ],
               ),
               const SizedBox(height: 14),
               Text(
-                '开始时间：${_formatDateTime(run['startedAt'])} · 结束时间：${_formatDateTime(run['finishedAt'])}',
+                '开始时间：${_formatDateTime(run['startedAt'])}',
                 style: prism.AppTextStyle.footnote.of(context),
               ),
               if (summary.isNotEmpty) ...[
@@ -1668,7 +1652,6 @@ class _AutomationPageState extends State<AutomationPage> {
                         ? const PrismEmptyState(
                             glyph: AntGlyphs.history,
                             title: '还没有调用记录',
-                            subtitle: '运行任意脚本或调用对外 API 后会在这里展示记录',
                           )
                         : ListView.builder(
                             padding: kPrismListPadding,
@@ -1741,13 +1724,18 @@ class _AutomationPageState extends State<AutomationPage> {
                                         ],
                                       ),
                                       subtitle: Text(
-                                        '${_formatDateTime(run['startedAt'])}'
-                                        '${id.isNotEmpty ? ' · ID: $id' : ''}\n'
-                                        '${summary.isNotEmpty ? summary : errorMsg}',
+                                        [
+                                          _formatDateTime(run['startedAt']),
+                                          if (summary.isNotEmpty)
+                                            summary
+                                          else if (errorMsg.isNotEmpty)
+                                            errorMsg,
+                                        ].join('\n'),
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
                                       ),
-                                      isThreeLine: true,
+                                      isThreeLine:
+                                          summary.isNotEmpty || errorMsg.isNotEmpty,
                                       trailing: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         crossAxisAlignment:
@@ -1799,31 +1787,10 @@ class _AutomationPageState extends State<AutomationPage> {
                                               children: [
                                                 PrismBadge(
                                                   label:
-                                                      '记录 ID：${id.isEmpty ? '-' : id}',
-                                                  tone: PrismTone.neutral,
-                                                ),
-                                                PrismBadge(
-                                                  label:
                                                       '类型：${run['scriptType'] ?? '-'}',
                                                   tone: PrismTone.info,
                                                 ),
-                                                PrismBadge(
-                                                  label:
-                                                      '耗时：${_formatDuration(run['durationMs'])}',
-                                                  tone: PrismTone.neutral,
-                                                ),
                                               ],
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Text(
-                                              '开始：${_formatDateTime(run['startedAt'])} · '
-                                              '结束：${_formatDateTime(run['finishedAt'])}',
-                                              style: prism.AppTextStyle.caption1
-                                                  .of(context)
-                                                  .copyWith(
-                                                    color:
-                                                        colors.onSurfaceVariant,
-                                                  ),
                                             ),
                                             if (summary.isNotEmpty) ...[
                                               const SizedBox(height: 12),
@@ -1888,9 +1855,6 @@ class _AutomationPageState extends State<AutomationPage> {
     final isLaunchApi = '${script['type'] ?? ''}' == 'launch-api';
     final interfaceMode = _isInterfaceMode(script);
     final launchCode = _resolveLaunchCode(script, _profiles);
-    final versionTime = _formatVersionTime(
-      script['updatedAt'] ?? script['createdAt'],
-    );
     final pinned = id == _dualInstanceScriptId;
 
     return PrismHoverCard(
@@ -1962,18 +1926,13 @@ class _AutomationPageState extends State<AutomationPage> {
                               glyph: AntGlyphs.bolt,
                               tone: PrismTone.neutral,
                             ),
-                          if (versionTime.isNotEmpty)
-                            PrismBadge(
-                              label: versionTime,
-                              tone: PrismTone.neutral,
-                            ),
                         ],
                       ),
                       if (desc.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Text(
                           desc,
-                          maxLines: 2,
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: prism.AppTextStyle.footnote
                               .of(context)
@@ -2105,9 +2064,7 @@ class _AutomationPageState extends State<AutomationPage> {
       PrismMetricTile(
         label: '脚本总数',
         value: '${_scripts.length}',
-        subtitle: _scripts.isEmpty
-            ? '支持 Playwright 与 API 模式'
-            : '就绪 $readyCount · 草稿 $draftCount',
+        subtitle: _scripts.isEmpty ? null : '就绪 $readyCount · 草稿 $draftCount',
         glyph: AntGlyphs.robot,
         tone: PrismTone.primary,
         staggerIndex: 0,
@@ -2116,7 +2073,7 @@ class _AutomationPageState extends State<AutomationPage> {
       PrismMetricTile(
         label: '接口模式',
         value: '$apiModeCount',
-        subtitle: _apiAuthEnabled ? 'API 鉴权已开启' : 'Launch Server 就绪',
+        subtitle: _apiAuthEnabled ? '鉴权已开启' : null,
         glyph: AntGlyphs.api,
         tone: PrismTone.info,
         staggerIndex: 1,
@@ -2125,7 +2082,7 @@ class _AutomationPageState extends State<AutomationPage> {
       PrismMetricTile(
         label: '近期运行',
         value: '${_runs.length}',
-        subtitle: _runs.isEmpty ? '暂无执行记录' : '成功 $successRuns · 失败 $failedRuns',
+        subtitle: _runs.isEmpty ? null : '成功 $successRuns · 失败 $failedRuns',
         glyph: AntGlyphs.history,
         tone: failedRuns > 0 ? PrismTone.warning : PrismTone.success,
         onPressed: _showHistory,
@@ -2336,7 +2293,6 @@ class _AutomationPageState extends State<AutomationPage> {
                           ? PrismEmptyState(
                               glyph: AntGlyphs.robot,
                               title: '还没有自动化脚本',
-                              subtitle: '创建第一个 Playwright / Launch API 脚本，或直接导入内置脚本库快速上手。',
                               action: Wrap(
                                 spacing: 12,
                                 runSpacing: 10,
@@ -2370,7 +2326,6 @@ class _AutomationPageState extends State<AutomationPage> {
                           : PrismEmptyState(
                               glyph: AntGlyphs.search,
                               title: '没有匹配的脚本',
-                              subtitle: '尝试调整关键词或切换上方筛选分类。',
                               action: prism.OutlinedButton(
                                 onPressed: () {
                                   _searchController.clear();
@@ -2425,7 +2380,6 @@ class _AutomationPageState extends State<AutomationPage> {
                 ? const PrismEmptyState(
                     glyph: AntGlyphs.history,
                     title: '暂无运行记录',
-                    subtitle: '运行脚本或通过对外接口触发后，调用记录会显示在这里。',
                   )
                 : ListView.separated(
                     padding: const EdgeInsets.symmetric(vertical: 6),
@@ -3520,7 +3474,6 @@ class _AutomationScriptDetailPageState
     final colors = prism.Theme.of(context).colorScheme;
     final refreshable = _isRefreshableSource(_record);
     final sourceLabel = _formatSourceLabel(_record);
-    final updatedAt = _formatDateTime(_record?['updatedAt']);
     final canRun =
         _busy.isEmpty &&
         _status != 'disabled' &&
@@ -3548,9 +3501,7 @@ class _AutomationScriptDetailPageState
                     ? AntGlyphs.add
                     : AntGlyphs.code,
                 title: widget.scriptId == 'new' ? '新建脚本' : '脚本详情',
-                subtitle: sourceLabel.isEmpty
-                    ? '脚本与对外 API 配置，更新于 $updatedAt'
-                    : '来源：$sourceLabel · 更新于 $updatedAt',
+                subtitle: sourceLabel.isEmpty ? null : sourceLabel,
                 actions: [
                   if (_isDirty)
                     const PrismBadge(
@@ -3693,8 +3644,7 @@ class _AutomationScriptDetailPageState
           const SizedBox(height: 16),
           const PrismBanner(
             tone: PrismTone.warning,
-            title: '脚本已禁用',
-            message: '当前状态为“已禁用”，运行与对外 API 触发均会被拦截。切换为“就绪”或“草稿”后即可恢复。',
+            message: '已禁用，无法运行或通过 API 触发。',
           ),
         ],
         const SizedBox(height: 18),
@@ -3942,7 +3892,6 @@ class _AutomationScriptDetailPageState
               PrismSwitchTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('启用对外 API'),
-                subtitle: const Text('通过 Launch Server 的 HTTP 接口触发此脚本'),
                 value: _apiEnabled,
                 onChanged: _busy.isEmpty
                     ? (value) => setState(() {
