@@ -419,6 +419,13 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                           ),
                   ),
                 ),
+                const SizedBox(height: 8),
+                Text(
+                  '↑↓ 选择 · Enter 启动 · 双击快速启动 · Esc 关闭',
+                  style: prism.AppTextStyle.caption1
+                      .of(context)
+                      .copyWith(color: colors.onSurfaceVariant),
+                ),
               ],
             ),
           ),

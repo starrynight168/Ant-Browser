@@ -2305,6 +2305,19 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
     final busy = _busy == id;
     final storeUrl = _resolveStoreUrl(item);
     final description = (item['description'] ?? '').toString().trim();
+    final manifest = _parseManifestJson(item['manifestJson']);
+    final permissionLabel = [
+      if (manifest.permissions.isNotEmpty)
+        'API ${manifest.permissions.length}',
+      if (manifest.hostPermissionCount > 0)
+        '网站 ${manifest.hostPermissionCount}',
+    ].join(' · ');
+    final permissionDetails = [
+      if (manifest.permissions.isNotEmpty)
+        'API 权限：${manifest.permissions.join('、')}',
+      if (manifest.hostPermissionCount > 0)
+        '网站匹配规则：${manifest.hostPermissionCount} 项',
+    ].join('\n');
 
     return PrismCard(
       padding: const EdgeInsets.all(16),
@@ -2391,6 +2404,21 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                         style: prism.AppTextStyle.caption1
                             .of(context)
                             .copyWith(color: colors.onSurfaceVariant),
+                      ),
+                    ],
+                    if (permissionLabel.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      prism.Tooltip(
+                        message: permissionDetails,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: PrismBadge(
+                            label: permissionLabel,
+                            tone: manifest.hostPermissionCount > 0
+                                ? PrismTone.warning
+                                : PrismTone.neutral,
+                          ),
+                        ),
                       ),
                     ],
                   ],

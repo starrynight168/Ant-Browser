@@ -215,6 +215,16 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
         '${two(local.hour)}:${two(local.minute)}:${two(local.second)}';
   }
 
+  String _cookieExpiry(dynamic value) {
+    final expires = double.tryParse(value?.toString() ?? '') ?? 0;
+    if (expires <= 0) return '会话 Cookie';
+    final local = DateTime.fromMillisecondsSinceEpoch((expires * 1000).round())
+        .toLocal();
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '到期 ${local.year}-${two(local.month)}-${two(local.day)} '
+        '${two(local.hour)}:${two(local.minute)}';
+  }
+
   String _defaultSnapshotName() {
     final now = DateTime.now();
     String two(int n) => n.toString().padLeft(2, '0');
@@ -1335,8 +1345,10 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                                                     ),
                                                     const SizedBox(height: 6),
                                                     Text(
-                                                      '${cookie['domain'] ?? ''} · ${cookie['path'] ?? '/'}',
-                                                      maxLines: 1,
+                                                      '${cookie['domain'] ?? ''} · '
+                                                      '${cookie['path'] ?? '/'} · '
+                                                      '${_cookieExpiry(cookie['expires'])}',
+                                                      maxLines: 2,
                                                       overflow:
                                                           TextOverflow.ellipsis,
                                                       style: prism
