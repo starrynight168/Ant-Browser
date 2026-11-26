@@ -253,137 +253,140 @@ mixin _BackupProfileImportFlow<T extends StatefulWidget> on State<T> {
                           if (targetRunning) '本机目标实例正在运行，无法覆盖',
                         ];
 
-                        return prism.Surface(
-                          color: colors.surfaceContainerLow,
-                          shape: prism.AppShape.lg,
-                          child: Padding(
-                            padding: const EdgeInsets.all(14),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Wrap(
-                                  spacing: 10,
-                                  runSpacing: 8,
-                                  crossAxisAlignment: WrapCrossAlignment.center,
-                                  children: [
-                                    Text(
-                                      sourceName,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: prism.AppTextStyle.subheadline.of(
-                                        context,
-                                        emphasized: true,
-                                      ),
-                                    ),
-                                    if (matchType == 'id')
-                                      const PrismBadge(
-                                        label: 'ID 匹配',
-                                        tone: PrismTone.info,
-                                      )
-                                    else if (matchType == 'name')
-                                      const PrismBadge(
-                                        label: '名称匹配',
-                                        tone: PrismTone.warning,
-                                      ),
-                                    if (targetRunning)
-                                      const PrismBadge(
-                                        label: '运行中',
-                                        tone: PrismTone.danger,
-                                      ),
-                                  ],
-                                ),
-                                if (targetName.isNotEmpty) ...[
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    '匹配到本机实例：$targetName',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: prism.AppTextStyle.caption1
-                                        .of(context)
-                                        .copyWith(
-                                          color: colors.onSurfaceVariant,
-                                        ),
-                                  ),
-                                ],
-                                if (conflictReasons.isNotEmpty) ...[
-                                  const SizedBox(height: 8),
+                        return PrismHoverGlow(
+                          radius: prism.AppCorner.lg,
+                          child: prism.Surface(
+                            color: colors.surfaceContainerLow,
+                            shape: prism.AppShape.lg,
+                            child: Padding(
+                              padding: const EdgeInsets.all(14),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
                                   Wrap(
                                     spacing: 10,
-                                    runSpacing: 6,
+                                    runSpacing: 8,
+                                    crossAxisAlignment: WrapCrossAlignment.center,
                                     children: [
-                                      for (final reason in conflictReasons)
-                                        PrismBadge(
-                                          label: reason,
+                                      Text(
+                                        sourceName,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: prism.AppTextStyle.subheadline.of(
+                                          context,
+                                          emphasized: true,
+                                        ),
+                                      ),
+                                      if (matchType == 'id')
+                                        const PrismBadge(
+                                          label: 'ID 匹配',
+                                          tone: PrismTone.info,
+                                        )
+                                      else if (matchType == 'name')
+                                        const PrismBadge(
+                                          label: '名称匹配',
                                           tone: PrismTone.warning,
-                                          glyph: AntGlyphs.warning,
+                                        ),
+                                      if (targetRunning)
+                                        const PrismBadge(
+                                          label: '运行中',
+                                          tone: PrismTone.danger,
                                         ),
                                     ],
                                   ),
-                                ],
-                                const SizedBox(height: 12),
-                                PrismDropdownField<String>(
-                                  value: currentMode,
-                                  items: [
-                                    const PrismDropdownItem(
-                                      value: 'new',
-                                      child: Text('新建实例'),
-                                    ),
-                                    if (canOverwrite)
-                                      const PrismDropdownItem(
-                                        value: 'overwrite',
-                                        child: Text('覆盖匹配实例'),
-                                      ),
-                                    const PrismDropdownItem(
-                                      value: 'rename',
-                                      child: Text('重命名导入'),
+                                  if (targetName.isNotEmpty) ...[
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      '匹配到本机实例：$targetName',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: prism.AppTextStyle.caption1
+                                          .of(context)
+                                          .copyWith(
+                                            color: colors.onSurfaceVariant,
+                                          ),
                                     ),
                                   ],
-                                  decoration: const PrismInputDecoration(
-                                    labelText: '导入方式',
-                                  ),
-                                  onChanged: (value) {
-                                    if (value == null) return;
-                                    setDialog(() {
-                                      action['mode'] = value;
-                                      if (value == 'rename') {
-                                        action['profileName'] =
-                                            profile['suggestedProfileName'] ??
-                                            '$sourceName-副本';
-                                      }
-                                    });
-                                  },
-                                ),
-                                if (currentMode == 'rename') ...[
+                                  if (conflictReasons.isNotEmpty) ...[
+                                    const SizedBox(height: 8),
+                                    Wrap(
+                                      spacing: 10,
+                                      runSpacing: 6,
+                                      children: [
+                                        for (final reason in conflictReasons)
+                                          PrismBadge(
+                                            label: reason,
+                                            tone: PrismTone.warning,
+                                            glyph: AntGlyphs.warning,
+                                          ),
+                                      ],
+                                    ),
+                                  ],
                                   const SizedBox(height: 12),
-                                  PrismTextFormField(
-                                    key: ValueKey('backup-import-name-$index'),
-                                    initialValue: (action['profileName'] ?? '')
-                                        .toString(),
+                                  PrismDropdownField<String>(
+                                    value: currentMode,
+                                    items: [
+                                      const PrismDropdownItem(
+                                        value: 'new',
+                                        child: Text('新建实例'),
+                                      ),
+                                      if (canOverwrite)
+                                        const PrismDropdownItem(
+                                          value: 'overwrite',
+                                          child: Text('覆盖匹配实例'),
+                                        ),
+                                      const PrismDropdownItem(
+                                        value: 'rename',
+                                        child: Text('重命名导入'),
+                                      ),
+                                    ],
                                     decoration: const PrismInputDecoration(
-                                      labelText: '导入后的名称',
+                                      labelText: '导入方式',
                                     ),
-                                    onChanged: (value) => setDialog(
-                                      () => action['profileName'] = value,
+                                    onChanged: (value) {
+                                      if (value == null) return;
+                                      setDialog(() {
+                                        action['mode'] = value;
+                                        if (value == 'rename') {
+                                          action['profileName'] =
+                                              profile['suggestedProfileName'] ??
+                                              '$sourceName-副本';
+                                        }
+                                      });
+                                    },
+                                  ),
+                                  if (currentMode == 'rename') ...[
+                                    const SizedBox(height: 12),
+                                    PrismTextFormField(
+                                      key: ValueKey('backup-import-name-$index'),
+                                      initialValue: (action['profileName'] ?? '')
+                                          .toString(),
+                                      decoration: const PrismInputDecoration(
+                                        labelText: '导入后的名称',
+                                      ),
+                                      onChanged: (value) => setDialog(
+                                        () => action['profileName'] = value,
+                                      ),
                                     ),
+                                  ],
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    resultPreview,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: prism.AppTextStyle.caption1
+                                        .of(context, emphasized: true)
+                                        .copyWith(
+                                          color: currentMode == 'overwrite'
+                                              ? PrismToneColors.of(
+                                                  context,
+                                                  PrismTone.warning,
+                                                ).fg
+                                              : colors.primary,
+                                        ),
                                   ),
                                 ],
-                                const SizedBox(height: 8),
-                                Text(
-                                  resultPreview,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: prism.AppTextStyle.caption1
-                                      .of(context, emphasized: true)
-                                      .copyWith(
-                                        color: currentMode == 'overwrite'
-                                            ? PrismToneColors.of(
-                                                context,
-                                                PrismTone.warning,
-                                              ).fg
-                                            : colors.primary,
-                                      ),
-                                ),
-                              ],
+                              ),
                             ),
                           ),
                         );

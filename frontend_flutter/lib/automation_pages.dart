@@ -3409,80 +3409,83 @@ class _AutomationScriptDetailPageState
           for (var i = 0; i < _varRows.length; i++)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: prism.Surface(
-                color: colors.surfaceContainerLow,
-                shape: prism.AppShape.lg,
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: PrismTextField(
-                              controller: _varRows[i].name,
-                              onChanged: (_) => _syncJsonFromVarRows(),
-                              decoration: const PrismInputDecoration(
-                                labelText: '变量名',
-                                hintText: 'keyword',
+              child: PrismHoverGlow(
+                radius: prism.AppCorner.lg,
+                child: prism.Surface(
+                  color: colors.surfaceContainerLow,
+                  shape: prism.AppShape.lg,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: PrismTextField(
+                                controller: _varRows[i].name,
+                                onChanged: (_) => _syncJsonFromVarRows(),
+                                decoration: const PrismInputDecoration(
+                                  labelText: '变量名',
+                                  hintText: 'keyword',
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: PrismTextField(
-                              controller: _varRows[i].defaultValue,
-                              onChanged: (_) => _syncJsonFromVarRows(),
-                              decoration: const PrismInputDecoration(
-                                labelText: '默认值',
-                                hintText: 'OpenAI',
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: PrismTextField(
+                                controller: _varRows[i].defaultValue,
+                                onChanged: (_) => _syncJsonFromVarRows(),
+                                decoration: const PrismInputDecoration(
+                                  labelText: '默认值',
+                                  hintText: 'OpenAI',
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: PrismTextField(
-                              controller: _varRows[i].description,
-                              onChanged: (_) => _syncJsonFromVarRows(),
-                              decoration: const PrismInputDecoration(
-                                labelText: '说明',
-                                hintText: '搜索关键词',
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: PrismTextField(
+                                controller: _varRows[i].description,
+                                onChanged: (_) => _syncJsonFromVarRows(),
+                                decoration: const PrismInputDecoration(
+                                  labelText: '说明',
+                                  hintText: '搜索关键词',
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          prism.Checkbox(
-                            value: _varRows[i].required,
-                            onChanged: (v) {
-                              setState(() => _varRows[i].required = v == true);
-                              _syncJsonFromVarRows();
-                            },
-                          ),
-                          const SizedBox(width: 12),
-                          const Text('必填'),
-                          const Spacer(),
-                          prism.TextButton.icon(
-                            onPressed: () {
-                              setState(() {
-                                final removed = _varRows.removeAt(i);
-                                removed.dispose();
-                              });
-                              _syncJsonFromVarRows();
-                            },
-                            icon: PrismGlyph(
-                              AntGlyphs.delete,
-                              size: 14,
-                              color: colors.error,
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            prism.Checkbox(
+                              value: _varRows[i].required,
+                              onChanged: (v) {
+                                setState(() => _varRows[i].required = v == true);
+                                _syncJsonFromVarRows();
+                              },
                             ),
-                            label: const Text('移除'),
-                          ),
-                        ],
-                      ),
-                    ],
+                            const SizedBox(width: 12),
+                            const Text('必填'),
+                            const Spacer(),
+                            prism.TextButton.icon(
+                              onPressed: () {
+                                setState(() {
+                                  final removed = _varRows.removeAt(i);
+                                  removed.dispose();
+                                });
+                                _syncJsonFromVarRows();
+                              },
+                              icon: PrismGlyph(
+                                AntGlyphs.delete,
+                                size: 14,
+                                color: colors.error,
+                              ),
+                              label: const Text('移除'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

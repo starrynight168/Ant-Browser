@@ -1035,23 +1035,26 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                               for (final tab in _tabs)
                                 Padding(
                                   padding: const EdgeInsets.only(bottom: 14),
-                                  child: prism.Surface(
-                                    color: colors.surfaceContainerLow,
-                                    shape: prism.AppShape.lg,
-                                    child: PrismListTile(
-                                      leading: const PrismGlyph(
-                                        AntGlyphs.globe,
-                                        size: 17,
-                                      ),
-                                      title: Text(
-                                        (tab['title'] ?? '新标签页').toString(),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      subtitle: Text(
-                                        (tab['url'] ?? '').toString(),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                                  child: PrismHoverGlow(
+                                    radius: prism.AppCorner.lg,
+                                    child: prism.Surface(
+                                      color: colors.surfaceContainerLow,
+                                      shape: prism.AppShape.lg,
+                                      child: PrismListTile(
+                                        leading: const PrismGlyph(
+                                          AntGlyphs.globe,
+                                          size: 17,
+                                        ),
+                                        title: Text(
+                                          (tab['title'] ?? '新标签页').toString(),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        subtitle: Text(
+                                          (tab['url'] ?? '').toString(),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
                                       ),
                                     ),
                                   ),

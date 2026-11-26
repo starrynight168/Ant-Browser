@@ -820,55 +820,58 @@ class _LogsPageState extends State<LogsPage> {
     final fields = entry['fields'] is Map
         ? Map<String, dynamic>.from(entry['fields'] as Map)
         : <String, dynamic>{};
-    return prism.Surface(
-      color: colors.surfaceContainerLow,
-      shape: prism.AppShape.lg,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Wrap(
-              spacing: 12,
-              runSpacing: 10,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                PrismBadge(label: level, tone: _levelTone(level)),
-                if (component.isNotEmpty)
+    return PrismHoverGlow(
+      radius: prism.AppCorner.lg,
+      child: prism.Surface(
+        color: colors.surfaceContainerLow,
+        shape: prism.AppShape.lg,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: 12,
+                runSpacing: 10,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  PrismBadge(label: level, tone: _levelTone(level)),
+                  if (component.isNotEmpty)
+                    Text(
+                      component,
+                      style: prism.AppTextStyle.caption1
+                          .of(context, emphasized: true)
+                          .copyWith(color: colors.onSurfaceVariant),
+                    ),
                   Text(
-                    component,
-                    style: prism.AppTextStyle.caption1
-                        .of(context, emphasized: true)
+                    '${entry['time'] ?? ''}',
+                    style: prism.AppTextStyle.caption2
+                        .of(context)
                         .copyWith(color: colors.onSurfaceVariant),
                   ),
-                Text(
-                  '${entry['time'] ?? ''}',
-                  style: prism.AppTextStyle.caption2
-                      .of(context)
-                      .copyWith(color: colors.onSurfaceVariant),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            prism.SelectableText(
-              '${entry['message'] ?? ''}',
-              style: prism.AppTextStyle.subheadline
-                  .of(context)
-                  .copyWith(height: 1.45),
-            ),
-            if (fields.isNotEmpty) ...[
+                ],
+              ),
               const SizedBox(height: 10),
               prism.SelectableText(
-                _formatFields(fields),
-                style: prism.AppTextStyle.caption2
+                '${entry['message'] ?? ''}',
+                style: prism.AppTextStyle.subheadline
                     .of(context)
-                    .copyWith(
-                      fontFamily: prismMonoFontFamily,
-                      color: colors.onSurfaceVariant,
-                    ),
+                    .copyWith(height: 1.45),
               ),
+              if (fields.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                prism.SelectableText(
+                  _formatFields(fields),
+                  style: prism.AppTextStyle.caption2
+                      .of(context)
+                      .copyWith(
+                        fontFamily: prismMonoFontFamily,
+                        color: colors.onSurfaceVariant,
+                      ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

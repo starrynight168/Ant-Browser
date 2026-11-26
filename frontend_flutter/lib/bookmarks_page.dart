@@ -230,82 +230,85 @@ class _BookmarksPageState extends State<BookmarksPage> {
     return Padding(
       key: ValueKey('bookmark-entry-${entry.id}'),
       padding: margin,
-      child: prism.Surface(
-        color: colors.surfaceContainerLow,
-        shape: prism.AppShape.lg,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              if (protected)
-                const Padding(
-                  padding: EdgeInsets.only(right: 10),
-                  child: PrismBadge(
-                    label: '内置',
-                    tone: PrismTone.info,
-                    glyph: AntGlyphs.shield,
+      child: PrismHoverGlow(
+        radius: prism.AppCorner.lg,
+        child: prism.Surface(
+          color: colors.surfaceContainerLow,
+          shape: prism.AppShape.lg,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                if (protected)
+                  const Padding(
+                    padding: EdgeInsets.only(right: 10),
+                    child: PrismBadge(
+                      label: '内置',
+                      tone: PrismTone.info,
+                      glyph: AntGlyphs.shield,
+                    ),
+                  )
+                else if (dragIndex != null) ...[
+                  prism.ReorderDragStartListener(
+                    index: dragIndex,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 5),
+                      child: PrismGlyph(
+                        AntGlyphs.dragHandle,
+                        size: 18,
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
                   ),
-                )
-              else if (dragIndex != null) ...[
-                prism.ReorderDragStartListener(
-                  index: dragIndex,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 5),
-                    child: PrismGlyph(
-                      AntGlyphs.dragHandle,
-                      size: 18,
-                      color: colors.onSurfaceVariant,
+                  const SizedBox(width: 6),
+                ],
+                Expanded(
+                  flex: 2,
+                  child: PrismTextField(
+                    controller: entry.nameController,
+                    readOnly: protected,
+                    decoration: const PrismInputDecoration(
+                      labelText: '名称',
+                      isDense: true,
                     ),
                   ),
                 ),
-                const SizedBox(width: 6),
-              ],
-              Expanded(
-                flex: 2,
-                child: PrismTextField(
-                  controller: entry.nameController,
-                  readOnly: protected,
-                  decoration: const PrismInputDecoration(
-                    labelText: '名称',
-                    isDense: true,
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 4,
+                  child: PrismTextField(
+                    controller: entry.urlController,
+                    readOnly: protected,
+                    decoration: const PrismInputDecoration(
+                      labelText: '网址',
+                      isDense: true,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 4,
-                child: PrismTextField(
-                  controller: entry.urlController,
-                  readOnly: protected,
-                  decoration: const PrismInputDecoration(
-                    labelText: '网址',
-                    isDense: true,
-                  ),
+                const SizedBox(width: 12),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    prism.Checkbox(
+                      value: entry.openOnStart,
+                      onChanged: (value) =>
+                          setState(() => entry.openOnStart = value == true),
+                    ),
+                    const SizedBox(width: 12),
+                    Text('启动时打开', style: prism.AppTextStyle.caption1.of(context)),
+                  ],
                 ),
-              ),
-              const SizedBox(width: 12),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  prism.Checkbox(
-                    value: entry.openOnStart,
-                    onChanged: (value) =>
-                        setState(() => entry.openOnStart = value == true),
+                if (!protected) ...[
+                  const SizedBox(width: 8),
+                  prism.IconButton(
+                    tooltip: '删除',
+                    onPressed: () => _removeEntry(entry),
+                    icon: const PrismGlyph(AntGlyphs.delete, size: 18),
                   ),
-                  const SizedBox(width: 12),
-                  Text('启动时打开', style: prism.AppTextStyle.caption1.of(context)),
                 ],
-              ),
-              if (!protected) ...[
-                const SizedBox(width: 8),
-                prism.IconButton(
-                  tooltip: '删除',
-                  onPressed: () => _removeEntry(entry),
-                  icon: const PrismGlyph(AntGlyphs.delete, size: 18),
-                ),
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -650,7 +653,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
                                             ),
                                             child: isFiltering
                                                 ? ListView.builder(
-                                                    padding: kPrismListPadding,
+                                                    padding: const EdgeInsets.fromLTRB(6, 10, 6, 20),
                                                     itemCount:
                                                         filteredRegular.length,
                                                     itemBuilder:
@@ -663,7 +666,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
                                                         ),
                                                   )
                                                 : prism.PrismReorderableListView(
-                                                    padding: kPrismListPadding,
+                                                    padding: const EdgeInsets.fromLTRB(6, 10, 6, 20),
                                                     proxyDecorator: (
                                                       child,
                                                       index,

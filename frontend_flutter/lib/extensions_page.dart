@@ -1899,122 +1899,125 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
               final msg = (result['message'] ?? '').toString().trim();
               final storeUrl = (result['storeUrl'] ?? '').toString().trim();
 
-              return prism.Surface(
-                color: colors.surfaceContainerLow,
-                shape: prism.AppShape.lg,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 10,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          Text(
-                            '${result['name'] ?? extId}'
-                            '${(result['version'] ?? '').toString().isNotEmpty ? '  v${result['version']}' : ''}',
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: prism.AppTextStyle.subheadline.of(
-                              context,
-                              emphasized: true,
-                            ),
-                          ),
-                          PrismBadge(
-                            label: installable ? '可安装' : '查询失败',
-                            tone: installable
-                                ? PrismTone.success
-                                : PrismTone.danger,
-                          ),
-                          if (alreadyInstalled)
-                            const PrismBadge(
-                              label: '已安装',
-                              tone: PrismTone.info,
-                            ),
-                          if (_lookupMethodLabel.isNotEmpty)
-                            PrismBadge(
-                              label: '查询方式：$_lookupMethodLabel',
-                              tone: PrismTone.neutral,
-                            ),
-                        ],
-                      ),
-                      if (extId.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        prism.SelectableText(
-                          '插件 ID：$extId',
-                          style: prism.AppTextStyle.caption1
-                              .of(context)
-                              .copyWith(color: colors.onSurfaceVariant),
-                        ),
-                      ],
-                      if (desc.isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          '插件简介：$desc',
-                          style: prism.AppTextStyle.caption1
-                              .of(context)
-                              .copyWith(color: colors.onSurfaceVariant),
-                        ),
-                      ],
-                      if (msg.isNotEmpty) ...[
-                        const SizedBox(height: 10),
-                        PrismBanner(
-                          tone: installable ? PrismTone.info : PrismTone.danger,
-                          message: msg,
-                        ),
-                      ],
-                      const SizedBox(height: 14),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: Wrap(
+              return PrismHoverGlow(
+                radius: prism.AppCorner.lg,
+                child: prism.Surface(
+                  color: colors.surfaceContainerLow,
+                  shape: prism.AppShape.lg,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
                           spacing: 12,
                           runSpacing: 10,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            if (!installable)
-                              prism.OutlinedButton.icon(
-                                onPressed: _busy.isEmpty
-                                    ? _lookupExtension
-                                    : null,
-                                icon: const PrismGlyph(
-                                  AntGlyphs.refresh,
-                                  size: 15,
-                                ),
-                                label: const Text('重新查询'),
-                              ),
-                            if (storeUrl.isNotEmpty)
-                              prism.OutlinedButton.icon(
-                                onPressed: () => _openExternalUrl(storeUrl),
-                                icon: const PrismGlyph(
-                                  AntGlyphs.openInNew,
-                                  size: 15,
-                                ),
-                                label: const Text('打开商店页'),
-                              ),
-                            PrismHoverMotion(
-                              enabled:
-                                  _busy.isEmpty &&
-                                  installable &&
-                                  !alreadyInstalled,
-                              child: prism.FilledButton(
-                                onPressed:
-                                    _busy.isEmpty &&
-                                        installable &&
-                                        !alreadyInstalled
-                                    ? _install
-                                    : null,
-                                child: Text(
-                                  alreadyInstalled
-                                      ? '已安装'
-                                      : (_busy == 'install' ? '安装中…' : '安装'),
-                                ),
+                            Text(
+                              '${result['name'] ?? extId}'
+                              '${(result['version'] ?? '').toString().isNotEmpty ? '  v${result['version']}' : ''}',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: prism.AppTextStyle.subheadline.of(
+                                context,
+                                emphasized: true,
                               ),
                             ),
+                            PrismBadge(
+                              label: installable ? '可安装' : '查询失败',
+                              tone: installable
+                                  ? PrismTone.success
+                                  : PrismTone.danger,
+                            ),
+                            if (alreadyInstalled)
+                              const PrismBadge(
+                                label: '已安装',
+                                tone: PrismTone.info,
+                              ),
+                            if (_lookupMethodLabel.isNotEmpty)
+                              PrismBadge(
+                                label: '查询方式：$_lookupMethodLabel',
+                                tone: PrismTone.neutral,
+                              ),
                           ],
                         ),
-                      ),
-                    ],
+                        if (extId.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          prism.SelectableText(
+                            '插件 ID：$extId',
+                            style: prism.AppTextStyle.caption1
+                                .of(context)
+                                .copyWith(color: colors.onSurfaceVariant),
+                          ),
+                        ],
+                        if (desc.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            '插件简介：$desc',
+                            style: prism.AppTextStyle.caption1
+                                .of(context)
+                                .copyWith(color: colors.onSurfaceVariant),
+                          ),
+                        ],
+                        if (msg.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          PrismBanner(
+                            tone: installable ? PrismTone.info : PrismTone.danger,
+                            message: msg,
+                          ),
+                        ],
+                        const SizedBox(height: 14),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Wrap(
+                            spacing: 12,
+                            runSpacing: 10,
+                            children: [
+                              if (!installable)
+                                prism.OutlinedButton.icon(
+                                  onPressed: _busy.isEmpty
+                                      ? _lookupExtension
+                                      : null,
+                                  icon: const PrismGlyph(
+                                    AntGlyphs.refresh,
+                                    size: 15,
+                                  ),
+                                  label: const Text('重新查询'),
+                                ),
+                              if (storeUrl.isNotEmpty)
+                                prism.OutlinedButton.icon(
+                                  onPressed: () => _openExternalUrl(storeUrl),
+                                  icon: const PrismGlyph(
+                                    AntGlyphs.openInNew,
+                                    size: 15,
+                                  ),
+                                  label: const Text('打开商店页'),
+                                ),
+                              PrismHoverMotion(
+                                enabled:
+                                    _busy.isEmpty &&
+                                    installable &&
+                                    !alreadyInstalled,
+                                child: prism.FilledButton(
+                                  onPressed:
+                                      _busy.isEmpty &&
+                                          installable &&
+                                          !alreadyInstalled
+                                      ? _install
+                                      : null,
+                                  child: Text(
+                                    alreadyInstalled
+                                        ? '已安装'
+                                        : (_busy == 'install' ? '安装中…' : '安装'),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );
