@@ -1041,26 +1041,17 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                       runSpacing: 10,
                       children: [
                         prism.OutlinedButton.icon(
-                          onPressed: () async {
-                            await Clipboard.setData(
-                              ClipboardData(
-                                text: (guide['downloadUrl'] ?? '').toString(),
-                              ),
-                            );
-                            showPrismNotice(context, '下载地址已复制');
-                          },
+                          onPressed: () => _copyToClipboard(
+                            (guide['downloadUrl'] ?? '').toString(),
+                            '下载地址已复制',
+                          ),
                           icon: const PrismGlyph(AntGlyphs.copy, size: 15),
                           label: const Text('复制下载地址'),
                         ),
                         prism.OutlinedButton.icon(
                           onPressed: downloadDir.isEmpty
                               ? null
-                              : () async {
-                                  await Clipboard.setData(
-                                    ClipboardData(text: downloadDir),
-                                  );
-                                  showPrismNotice(context, '文件夹路径已复制');
-                                },
+                              : () => _copyToClipboard(downloadDir, '文件夹路径已复制'),
                           icon: const PrismGlyph(AntGlyphs.copy, size: 15),
                           label: const Text('复制文件夹路径'),
                         ),
@@ -2324,6 +2315,11 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
     );
   }
 
+  Future<void> _copyToClipboard(String value, String message) async {
+    await Clipboard.setData(ClipboardData(text: value));
+    if (mounted) showPrismNotice(context, message);
+  }
+
   Widget _extensionCard(Map<String, dynamic> item) {
     final colors = prism.Theme.of(context).colorScheme;
     final id = (item['extensionId'] ?? '').toString();
@@ -2424,13 +2420,25 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                       ],
                     ),
                     const SizedBox(height: 6),
-                    Text(
-                      'v${item['version'] ?? '-'}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: prism.AppTextStyle.caption1
-                          .of(context)
-                          .copyWith(color: colors.onSurfaceVariant),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'v${item['version'] ?? '-'}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: prism.AppTextStyle.caption1
+                                .of(context)
+                                .copyWith(color: colors.onSurfaceVariant),
+                          ),
+                        ),
+                        if (id.isNotEmpty)
+                          prism.IconButton(
+                            tooltip: '复制扩展编号：$id',
+                            onPressed: () => _copyToClipboard(id, '扩展编号已复制'),
+                            icon: const PrismGlyph(AntGlyphs.copy, size: 14),
+                          ),
+                      ],
                     ),
                     if (description.isNotEmpty) ...[
                       const SizedBox(height: 6),
