@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -211,5 +213,60 @@ func TestNativeRPCServerCloseUnblocksSSEAndDialog(t *testing.T) {
 		}
 	case <-time.After(1 * time.Second):
 		t.Fatal("SSE handler did not terminate on Close()")
+	}
+}
+
+func TestNativeRPCServerClearPendingUpdatePreventsReplayOnReconnect(t *testing.T) {
+	app := NewApp(t.TempDir(), "1.9.7")
+	server, err := NewNativeRPCServer(app)
+	if err != nil {
+		t.Fatalf("NewNativeRPCServer failed: %v", err)
+	}
+	SetRuntimeHost(app, server)
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = server.Close(ctx)
+	}()
+
+	installerPath := filepath.Join(t.TempDir(), "setup.exe")
+	if err := os.WriteFile(installerPath, []byte("installer"), 0o644); err != nil {
+		t.Fatalf("write installer: %v", err)
+	}
+	if err := app.savePendingUpdate(UpdatePendingInfo{
+		Version:       "2.0.0",
+		InstallerPath: installerPath,
+		PID:           12345,
+		CreatedAt:     time.Now().Format(time.RFC3339),
+	}); err != nil {
+		t.Fatalf("savePendingUpdate failed: %v", err)
+	}
+
+	app.NotifyPendingAppUpdate()
+	server.EmitRuntimeEvent("app:ready")
+
+	// Initial SSE connection receives both app:update:pending and app:ready.
+	resp1, reader1 := openTestSSEStream(t, server)
+	ev1 := readNextSSEEvent(t, reader1, 2*time.Second)
+	ev2 := readNextSSEEvent(t, reader1, 2*time.Second)
+	_ = resp1.Body.Close()
+	if ev1.Name != updatePendingEvent || ev2.Name != "app:ready" {
+		t.Fatalf("initial SSE events = [%q, %q], want [%q, %q]", ev1.Name, ev2.Name, updatePendingEvent, "app:ready")
+	}
+
+	// Clearing pending update invalidates sticky cache and is idempotent on repeat calls.
+	if err := app.ClearPendingAppUpdate(); err != nil {
+		t.Fatalf("ClearPendingAppUpdate failed: %v", err)
+	}
+	if err := app.ClearPendingAppUpdate(); err != nil {
+		t.Fatalf("repeat ClearPendingAppUpdate should be idempotent, got %v", err)
+	}
+
+	// Reconnected SSE client must NOT receive stale app:update:pending.
+	resp2, reader2 := openTestSSEStream(t, server)
+	defer func() { _ = resp2.Body.Close() }()
+	reconnected := readNextSSEEvent(t, reader2, 2*time.Second)
+	if reconnected.Name != "app:ready" {
+		t.Fatalf("reconnected SSE first event = %q, want %q (stale %q must not replay)", reconnected.Name, "app:ready", updatePendingEvent)
 	}
 }

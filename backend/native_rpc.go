@@ -189,6 +189,12 @@ func (s *NativeRPCServer) EmitRuntimeEvent(name string, args ...interface{}) {
 	}
 }
 
+func (s *NativeRPCServer) ClearRuntimeEvent(name string) {
+	s.eventMu.Lock()
+	delete(s.stickyEvents, name)
+	s.eventMu.Unlock()
+}
+
 func (s *NativeRPCServer) QuitApplication() {
 	s.quitOnce.Do(func() { close(s.quit) })
 }

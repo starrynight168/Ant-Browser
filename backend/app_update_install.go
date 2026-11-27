@@ -393,9 +393,13 @@ func (a *App) GetPendingAppUpdate() *UpdatePendingInfo {
 	return &pending
 }
 
-// ClearPendingAppUpdate 清除未完成的安装标记。
+// ClearPendingAppUpdate 清除未完成的安装标记，并同步使进程内粘性事件缓存失效。
 func (a *App) ClearPendingAppUpdate() error {
-	return os.Remove(a.updateDataPath(updatePendingFile))
+	if err := os.Remove(a.updateDataPath(updatePendingFile)); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	a.clearStickyRuntimeEvent(updatePendingEvent)
+	return nil
 }
 
 // startupInitAutoUpdateCheck 启动后延迟做首次检查，然后按配置间隔检查并通知前端。

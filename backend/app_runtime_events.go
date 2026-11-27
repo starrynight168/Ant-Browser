@@ -165,6 +165,22 @@ func (a *App) emitRuntimeEventWithContext(ctx context.Context, eventName string,
 	host.EmitRuntimeEvent(eventName, optionalData...)
 }
 
+type stickyEventClearer interface {
+	ClearRuntimeEvent(string)
+}
+
+func (a *App) clearStickyRuntimeEvent(eventName string) {
+	if a == nil {
+		return
+	}
+	a.runtimeMu.RLock()
+	host := a.runtimeHost
+	a.runtimeMu.RUnlock()
+	if clearer, ok := host.(stickyEventClearer); ok {
+		clearer.ClearRuntimeEvent(eventName)
+	}
+}
+
 func (a *App) runtimeQuit() {
 	if a == nil {
 		return
