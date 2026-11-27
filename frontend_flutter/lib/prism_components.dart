@@ -2539,6 +2539,38 @@ Future<T?> showPrismDialog<T>({
   );
 }
 
+Future<bool> showPrismConfirmDialog({
+  required BuildContext context,
+  required String title,
+  String? message,
+  Widget? content,
+  String cancelLabel = '取消',
+  String confirmLabel = '确定',
+  bool destructive = false,
+  bool useRootNavigator = false,
+}) async {
+  final result = await showPrismDialog<bool>(
+    context: context,
+    useRootNavigator: useRootNavigator,
+    builder: (context) => PrismDialog(
+      title: Text(title),
+      destructive: destructive,
+      content: content ?? (message != null ? Text(message) : null),
+      actions: [
+        prism.TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: Text(cancelLabel),
+        ),
+        prism.FilledButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: Text(confirmLabel),
+        ),
+      ],
+    ),
+  );
+  return result == true;
+}
+
 void showPrismNotice(
   BuildContext context,
   String message, {
@@ -2884,4 +2916,59 @@ class PrismListTile extends StatelessWidget {
     semanticsLabel: text.semanticsLabel,
     selectionColor: text.selectionColor,
   );
+}
+
+class PrismMetricGrid extends StatelessWidget {
+  const PrismMetricGrid({
+    super.key,
+    required this.tiles,
+    this.breakpoint = 760,
+    this.spacing = 16,
+  });
+
+  final List<Widget> tiles;
+  final double breakpoint;
+  final double spacing;
+
+  @override
+  Widget build(BuildContext context) {
+    if (tiles.isEmpty) return const SizedBox.shrink();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= breakpoint) {
+          return Row(
+            children: [
+              for (var i = 0; i < tiles.length; i++) ...[
+                if (i > 0) SizedBox(width: spacing),
+                Expanded(child: tiles[i]),
+              ],
+            ],
+          );
+        }
+        final rows = <Widget>[];
+        for (var i = 0; i < tiles.length; i += 2) {
+          final hasSecond = i + 1 < tiles.length;
+          rows.add(
+            Row(
+              children: [
+                Expanded(child: tiles[i]),
+                SizedBox(width: spacing),
+                Expanded(
+                  child: hasSecond ? tiles[i + 1] : const SizedBox.shrink(),
+                ),
+              ],
+            ),
+          );
+        }
+        return Column(
+          children: [
+            for (var i = 0; i < rows.length; i++) ...[
+              if (i > 0) SizedBox(height: spacing),
+              rows[i],
+            ],
+          ],
+        );
+      },
+    );
+  }
 }

@@ -639,15 +639,6 @@ String _subscriptionHost(String url) {
   return trimmed;
 }
 
-String _formatShortTime(String iso) {
-  final raw = iso.trim();
-  if (raw.isEmpty) return '从未';
-  final dt = DateTime.tryParse(raw)?.toLocal();
-  if (dt == null) return raw;
-  String two(int n) => n.toString().padLeft(2, '0');
-  return '${two(dt.month)}-${two(dt.day)} ${two(dt.hour)}:${two(dt.minute)}';
-}
-
 String _formatNextRefreshCountdown(String lastIso, int intervalM) {
   if (intervalM <= 0) return '未开启';
   final last = DateTime.tryParse(lastIso.trim());
@@ -733,6 +724,7 @@ class ProxyPoolPage extends StatefulWidget {
 }
 
 class _ProxyPoolPageState extends State<ProxyPoolPage> {
+  static const _availableOnlyStorageKey = 'proxy_pool_available_only';
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> _proxies = [];
   List<Map<String, dynamic>> _virtualGroups = [];
@@ -758,9 +750,18 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
   String? _error;
   final List<void Function()> _eventUnsubscribers = [];
 
+  bool _readAvailableOnlyPreference() =>
+      AppBridge.readStorage(_availableOnlyStorageKey) == 'true';
+
+  void _setAvailableOnly(bool value) {
+    setState(() => _availableOnly = value);
+    AppBridge.writeStorage(_availableOnlyStorageKey, value ? 'true' : 'false');
+  }
+
   @override
   void initState() {
     super.initState();
+    _availableOnly = _readAvailableOnlyPreference();
     _refresh();
     _listenProxyEvents();
   }
@@ -889,7 +890,10 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
   Future<void> _refresh() async {
     if (_refreshing || !mounted) return;
     _refreshing = true;
-    setState(() => _loading = true);
+    setState(() {
+      _availableOnly = _readAvailableOnlyPreference();
+      _loading = true;
+    });
     try {
       final values = await Future.wait<dynamic>([
         AppBridge.call('BrowserProxyList'),
@@ -1112,13 +1116,33 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
     var secondProtocol = (secondHop['protocol'] ?? 'http').toString();
     var preferredKernel = _normalizeKernel(proxy?['preferredKernel']);
     final groupSuggestions = _allGroupSuggestions;
+    final controllers = <TextEditingController>[
+      name,
+      config,
+      group,
+      dns,
+      directServer,
+      directPort,
+      directUsername,
+      directPassword,
+      localPort,
+      firstServer,
+      firstPort,
+      firstUsername,
+      firstPassword,
+      secondServer,
+      secondPort,
+      secondUsername,
+      secondPassword,
+    ];
 
-    final result = await showPrismDialog<bool>(
-      context: context,
-      useRootNavigator: false,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialog) => PrismDialog(
-          title: Text(proxy == null ? '添加代理' : '编辑代理'),
+    try {
+      final result = await showPrismDialog<bool>(
+        context: context,
+        useRootNavigator: false,
+        builder: (context) => StatefulBuilder(
+          builder: (context, setDialog) => PrismDialog(
+            title: Text(proxy == null ? '添加代理' : '编辑代理'),
           content: SizedBox(
             width: 520,
             child: SingleChildScrollView(
@@ -1484,102 +1508,76 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
         ),
       ),
     );
-    if (result == true && name.text.trim().isNotEmpty) {
-      String proxyConfig;
-      try {
-        if (chainConfig != null) {
-          proxyConfig = _encodeChainProxyConfig(
-            localPort: localPort.text,
-            first: {
-              'protocol': firstProtocol,
-              'server': firstServer.text,
-              'port': firstPort.text,
-              'username': firstUsername.text,
-              'password': firstPassword.text,
-            },
-            second: {
-              'protocol': secondProtocol,
-              'server': secondServer.text,
-              'port': secondPort.text,
-              'username': secondUsername.text,
-              'password': secondPassword.text,
-            },
-          );
-        } else if (directEditMode) {
-          proxyConfig = _encodeDirectProxyUrl(
-            protocol: directProtocol,
-            server: directServer.text,
-            port: directPort.text,
-            username: directUsername.text,
-            password: directPassword.text,
-          );
-        } else {
-          proxyConfig = config.text.trim();
+      if (result == true && name.text.trim().isNotEmpty) {
+        final proxyName = name.text.trim();
+        final groupName = group.text.trim();
+        final dnsServers = dns.text.trim();
+        String proxyConfig;
+        try {
+          if (chainConfig != null) {
+            proxyConfig = _encodeChainProxyConfig(
+              localPort: localPort.text,
+              first: {
+                'protocol': firstProtocol,
+                'server': firstServer.text,
+                'port': firstPort.text,
+                'username': firstUsername.text,
+                'password': firstPassword.text,
+              },
+              second: {
+                'protocol': secondProtocol,
+                'server': secondServer.text,
+                'port': secondPort.text,
+                'username': secondUsername.text,
+                'password': secondPassword.text,
+              },
+            );
+          } else if (directEditMode) {
+            proxyConfig = _encodeDirectProxyUrl(
+              protocol: directProtocol,
+              server: directServer.text,
+              port: directPort.text,
+              username: directUsername.text,
+              password: directPassword.text,
+            );
+          } else {
+            proxyConfig = config.text.trim();
+          }
+          if (proxyConfig.isEmpty) throw const FormatException('请填写代理地址');
+        } catch (error) {
+          if (mounted) showPrismNotice(context, error.toString());
+          return;
         }
-        if (proxyConfig.isEmpty) throw const FormatException('请填写代理地址');
-      } catch (error) {
-        if (mounted) showPrismNotice(context, error.toString());
-        _disposeEditControllers([
-          name,
-          config,
-          group,
-          dns,
-          directServer,
-          directPort,
-          directUsername,
-          directPassword,
-          localPort,
-          firstServer,
-          firstPort,
-          firstUsername,
-          firstPassword,
-          secondServer,
-          secondPort,
-          secondUsername,
-          secondPassword,
-        ]);
-        return;
+        final id =
+            (proxy?['proxyId'] ??
+                    'proxy-${DateTime.now().millisecondsSinceEpoch}')
+                .toString();
+        final row = <String, dynamic>{
+          ...?proxy,
+          'proxyId': id,
+          'proxyName': proxyName,
+          'proxyConfig': proxyConfig,
+          'groupName': groupName,
+          'dnsServers': dnsServers,
+        };
+        _applyPreferredKernel(row, preferredKernel);
+        try {
+          await _save(
+            proxy == null
+                ? [..._proxies, row]
+                : _proxies
+                      .map((item) => item['proxyId'] == id ? row : item)
+                      .toList(),
+          );
+        } catch (error) {
+          if (mounted) {
+            showPrismNotice(context, '保存代理失败：$error');
+          }
+        }
       }
-      final id =
-          (proxy?['proxyId'] ??
-                  'proxy-${DateTime.now().millisecondsSinceEpoch}')
-              .toString();
-      final row = <String, dynamic>{
-        ...?proxy,
-        'proxyId': id,
-        'proxyName': name.text.trim(),
-        'proxyConfig': proxyConfig,
-        'groupName': group.text.trim(),
-        'dnsServers': dns.text.trim(),
-      };
-      _applyPreferredKernel(row, preferredKernel);
-      await _save(
-        proxy == null
-            ? [..._proxies, row]
-            : _proxies
-                  .map((item) => item['proxyId'] == id ? row : item)
-                  .toList(),
-      );
+    } finally {
+      _disposeEditControllers(controllers);
     }
-    _disposeEditControllers([
-      name,
-      config,
-      group,
-      dns,
-      directServer,
-      directPort,
-      directUsername,
-      directPassword,
-      localPort,
-      firstServer,
-      firstPort,
-      firstUsername,
-      firstPassword,
-      secondServer,
-      secondPort,
-      secondUsername,
-      secondPassword,
-    ]);
   }
 
   void _disposeEditControllers(List<TextEditingController> list) {
@@ -2265,27 +2263,21 @@ socks5://user:password@proxy.example.com:1080''',
 
   Future<void> _delete(Map<String, dynamic> proxy) async {
     final id = (proxy['proxyId'] ?? '').toString();
-    final ok = await showPrismDialog<bool>(
+    final ok = await showPrismConfirmDialog(
       context: context,
-      useRootNavigator: false,
-      builder: (context) => PrismDialog(
-        title: const Text('删除代理？'),
-        content: Text((proxy['proxyName'] ?? id).toString()),
-        destructive: true,
-        actions: [
-          prism.TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          prism.FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
+      title: '删除代理？',
+      message: (proxy['proxyName'] ?? id).toString(),
+      destructive: true,
+      confirmLabel: '删除',
     );
-    if (ok == true) {
-      await _save(_proxies.where((item) => item['proxyId'] != id).toList());
+    if (ok) {
+      try {
+        await _save(_proxies.where((item) => item['proxyId'] != id).toList());
+      } catch (error) {
+        if (mounted) {
+          showPrismNotice(context, '删除代理失败：$error');
+        }
+      }
     }
   }
 
@@ -2789,26 +2781,14 @@ socks5://user:password@proxy.example.com:1080''',
   Future<void> _deleteSelected() async {
     final selected = _selectedIds.toList();
     if (selected.isEmpty) return;
-    final confirmed = await showPrismDialog<bool>(
+    final confirmed = await showPrismConfirmDialog(
       context: context,
-      useRootNavigator: false,
-      builder: (context) => PrismDialog(
-        title: const Text('删除所选代理？'),
-        content: Text('将从代理池删除 ${selected.length} 个代理。'),
-        destructive: true,
-        actions: [
-          prism.TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          prism.FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
+      title: '删除所选代理？',
+      message: '将从代理池删除 ${selected.length} 个代理。',
+      destructive: true,
+      confirmLabel: '删除',
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
     setState(() => _busy = 'delete-selected');
     try {
       await _save(
@@ -2897,6 +2877,7 @@ socks5://user:password@proxy.example.com:1080''',
       _sortDescending = false;
       _availableOnly = false;
     });
+    AppBridge.writeStorage(_availableOnlyStorageKey, 'false');
   }
 
   Future<void> _editCheckSettings() async {
@@ -2927,136 +2908,151 @@ socks5://user:password@proxy.example.com:1080''',
             .convert(settings['targets'] ?? []),
       );
       var filterAvailableOnly =
-          settings['filterAvailableOnly'] == true || _availableOnly;
-      final result = await showPrismDialog<Map<String, dynamic>>(
-        context: context,
-        useRootNavigator: false,
-        builder: (context) => StatefulBuilder(
-          builder: (context, setDialog) => PrismDialog(
-            title: const Text('代理检测设置'),
-            content: SizedBox(
-              width: 620,
-              height: 580,
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    PrismSwitchTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('仅显示可选'),
-                      subtitle: const Text('在代理池和代理选择器中默认隐藏不可用节点'),
-                      value: filterAvailableOnly,
-                      onChanged: (value) =>
-                          setDialog(() => filterAvailableOnly = value),
-                    ),
-                    const SizedBox(height: 12),
-                    PrismTextField(
-                      controller: bridgeTimeout,
-                      keyboardType: TextInputType.number,
-                      decoration: const PrismInputDecoration(
-                        labelText: '代理启动等待（毫秒）',
+          _readAvailableOnlyPreference() || _availableOnly;
+      final ({Map<String, dynamic> settings, bool availableOnly})? result;
+      try {
+        result = await showPrismDialog<({Map<String, dynamic> settings, bool availableOnly})>(
+          context: context,
+          useRootNavigator: false,
+          builder: (context) => StatefulBuilder(
+            builder: (context, setDialog) => PrismDialog(
+              title: const Text('代理检测设置'),
+              content: SizedBox(
+                width: 620,
+                height: 580,
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      PrismSwitchTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('仅显示可选'),
+                        subtitle: const Text('在代理池和代理选择器中默认隐藏不可用节点'),
+                        value: filterAvailableOnly,
+                        onChanged: (value) =>
+                            setDialog(() => filterAvailableOnly = value),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    PrismTextField(
-                      controller: interval,
-                      keyboardType: TextInputType.number,
-                      decoration: const PrismInputDecoration(
-                        labelText: '成功节点重测间隔（分钟）',
+                      const SizedBox(height: 12),
+                      PrismTextField(
+                        controller: bridgeTimeout,
+                        keyboardType: TextInputType.number,
+                        decoration: const PrismInputDecoration(
+                          labelText: '代理启动等待（毫秒）',
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    PrismTextField(
-                      controller: retry,
-                      keyboardType: TextInputType.number,
-                      decoration: const PrismInputDecoration(
-                        labelText: '失败重试间隔（分钟）',
+                      const SizedBox(height: 12),
+                      PrismTextField(
+                        controller: interval,
+                        keyboardType: TextInputType.number,
+                        decoration: const PrismInputDecoration(
+                          labelText: '成功节点重测间隔（分钟）',
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    PrismTextField(
-                      controller: concurrency,
-                      keyboardType: TextInputType.number,
-                      decoration: const PrismInputDecoration(
-                        labelText: '测速并发上限（1 到 10）',
+                      const SizedBox(height: 12),
+                      PrismTextField(
+                        controller: retry,
+                        keyboardType: TextInputType.number,
+                        decoration: const PrismInputDecoration(
+                          labelText: '失败重试间隔（分钟）',
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    PrismTextField(
-                      controller: speedTarget,
-                      decoration: const PrismInputDecoration(
-                        labelText: '测速目标 ID',
+                      const SizedBox(height: 12),
+                      PrismTextField(
+                        controller: concurrency,
+                        keyboardType: TextInputType.number,
+                        decoration: const PrismInputDecoration(
+                          labelText: '测速并发上限（1 到 10）',
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    PrismTextField(
-                      controller: healthTarget,
-                      decoration: const PrismInputDecoration(
-                        labelText: 'IP 健康目标 ID',
+                      const SizedBox(height: 12),
+                      PrismTextField(
+                        controller: speedTarget,
+                        decoration: const PrismInputDecoration(
+                          labelText: '测速目标 ID',
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    PrismTextField(
-                      controller: targets,
-                      minLines: 8,
-                      maxLines: 16,
-                      decoration: const PrismInputDecoration(
-                        labelText: '检测目标列表 JSON',
+                      const SizedBox(height: 12),
+                      PrismTextField(
+                        controller: healthTarget,
+                        decoration: const PrismInputDecoration(
+                          labelText: 'IP 健康目标 ID',
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 12),
+                      PrismTextField(
+                        controller: targets,
+                        minLines: 8,
+                        maxLines: 16,
+                        decoration: const PrismInputDecoration(
+                          labelText: '检测目标列表 JSON',
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            actions: [
-              prism.TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('取消'),
-              ),
-              prism.FilledButton(
-                onPressed: () {
-                  try {
-                    final parsedTargets = jsonDecode(targets.text);
-                    if (parsedTargets is! List) {
-                      throw const FormatException('目标列表必须是 JSON 数组');
+              actions: [
+                prism.TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('取消'),
+                ),
+                prism.FilledButton(
+                  onPressed: () {
+                    try {
+                      final parsedTargets = jsonDecode(targets.text);
+                      if (parsedTargets is! List) {
+                        throw const FormatException('目标列表必须是 JSON 数组');
+                      }
+                      final nextSettings = Map<String, dynamic>.from(settings)
+                        ..remove('filterAvailableOnly')
+                        ..addAll({
+                          'bridgeStartTimeoutMs':
+                              int.tryParse(bridgeTimeout.text) ?? 15000,
+                          'speedIntervalMinutes':
+                              int.tryParse(interval.text) ?? 30,
+                          'failureRetryMinutes': int.tryParse(retry.text) ?? 5,
+                          'speedConcurrency':
+                              (int.tryParse(concurrency.text) ?? 5)
+                                  .clamp(1, 10),
+                          'speedTargetId': speedTarget.text.trim(),
+                          'ipHealthTargetId': healthTarget.text.trim(),
+                          'targets': parsedTargets,
+                        });
+                      Navigator.pop(context, (
+                        settings: nextSettings,
+                        availableOnly: filterAvailableOnly,
+                      ));
+                    } catch (error) {
+                      showPrismNotice(context, '检测目标 JSON 无效：$error');
                     }
-                    Navigator.pop(context, {
-                      ...settings,
-                      'filterAvailableOnly': filterAvailableOnly,
-                      'bridgeStartTimeoutMs':
-                          int.tryParse(bridgeTimeout.text) ?? 15000,
-                      'speedIntervalMinutes': int.tryParse(interval.text) ?? 30,
-                      'failureRetryMinutes': int.tryParse(retry.text) ?? 5,
-                      'speedConcurrency': (int.tryParse(concurrency.text) ?? 5)
-                          .clamp(1, 10),
-                      'speedTargetId': speedTarget.text.trim(),
-                      'ipHealthTargetId': healthTarget.text.trim(),
-                      'targets': parsedTargets,
-                    });
-                  } catch (error) {
-                    showPrismNotice(context, '检测目标 JSON 无效：$error');
-                  }
-                },
-                child: const Text('保存'),
-              ),
-            ],
+                  },
+                  child: const Text('保存'),
+                ),
+              ],
+            ),
           ),
-        ),
+        );
+      } finally {
+        _disposeEditControllers([
+          bridgeTimeout,
+          interval,
+          retry,
+          concurrency,
+          speedTarget,
+          healthTarget,
+          targets,
+        ]);
+      }
+      final saved = result;
+      if (saved == null) return;
+      await AppBridge.call('SaveProxyCheckSettings', [saved.settings]);
+      AppBridge.writeStorage(
+        _availableOnlyStorageKey,
+        saved.availableOnly ? 'true' : 'false',
       );
-      _disposeEditControllers([
-        bridgeTimeout,
-        interval,
-        retry,
-        concurrency,
-        speedTarget,
-        healthTarget,
-        targets,
-      ]);
-      if (result == null) return;
-      await AppBridge.call('SaveProxyCheckSettings', [result]);
       if (mounted) {
         setState(() {
-          _availableOnly = result['filterAvailableOnly'] == true;
+          _availableOnly = saved.availableOnly;
         });
         await _refresh();
         if (mounted) showPrismNotice(context, '代理检测设置已保存');
@@ -3513,7 +3509,7 @@ socks5://user:password@proxy.example.com:1080''',
         tone: _availableOnly
             ? PrismTone.primary
             : (availableCount > 0 ? PrismTone.success : PrismTone.neutral),
-        onPressed: () => setState(() => _availableOnly = !_availableOnly),
+        onPressed: () => _setAvailableOnly(!_availableOnly),
         staggerIndex: 1,
         staggerDelay: const Duration(milliseconds: 45),
       ),
@@ -3540,39 +3536,7 @@ socks5://user:password@proxy.example.com:1080''',
       ),
     ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth >= 760) {
-          return Row(
-            children: [
-              for (var i = 0; i < tiles.length; i++) ...[
-                if (i > 0) const SizedBox(width: 16),
-                Expanded(child: tiles[i]),
-              ],
-            ],
-          );
-        }
-        return Column(
-          children: [
-            Row(
-              children: [
-                Expanded(child: tiles[0]),
-                const SizedBox(width: 16),
-                Expanded(child: tiles[1]),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(child: tiles[2]),
-                const SizedBox(width: 16),
-                Expanded(child: tiles[3]),
-              ],
-            ),
-          ],
-        );
-      },
-    );
+    return PrismMetricGrid(tiles: tiles);
   }
 
   Widget _buildToolbar(
@@ -3593,8 +3557,7 @@ socks5://user:password@proxy.example.com:1080''',
       width: 136,
       child: prism.SegmentedControl<String>(
         value: _availableOnly ? 'available' : 'all',
-        onChanged: (value) =>
-            setState(() => _availableOnly = value == 'available'),
+        onChanged: (value) => _setAvailableOnly(value == 'available'),
         segments: const [('all', '全部'), ('available', '可用')],
       ),
     );
@@ -4748,7 +4711,7 @@ class _ProxySourceRefreshModalState extends State<_ProxySourceRefreshModal> {
                               )
                             else
                               Text(
-                                '上次刷新：${_formatShortTime(lastAt)}',
+                                '上次刷新：${formatShortDateTime(lastAt, fallback: '从未', returnRawOnInvalid: true)}',
                                 style: prism.AppTextStyle.caption1
                                     .of(context)
                                     .copyWith(color: colors.onSurfaceVariant),
@@ -4932,8 +4895,10 @@ class _ProxySourceAbnormalModalState extends State<_ProxySourceAbnormalModal> {
                 separatorBuilder: (_, __) => const SizedBox(height: 14),
                 itemBuilder: (context, index) {
                   final node = widget.abnormalNodes[index];
-                  final missingSince = _formatShortTime(
-                    (node['sourceMissingSince'] ?? '').toString(),
+                  final missingSince = formatShortDateTime(
+                    node['sourceMissingSince'],
+                    fallback: '从未',
+                    returnRawOnInvalid: true,
                   );
                   return PrismCard(
                     margin: EdgeInsets.zero,
@@ -6052,7 +6017,7 @@ class _ProxyAlignPageState extends State<ProxyAlignPage> {
                             children: [
                               const SizedBox(height: 6),
                               Text(
-                                '${_formatShortTime((record['at'] ?? '').toString())} · 新增 ${record['added'] ?? 0} · 保留异常 ${record['keptMissing'] ?? 0}',
+                                '${formatShortDateTime(record['at'], fallback: '从未', returnRawOnInvalid: true)} · 新增 ${record['added'] ?? 0} · 保留异常 ${record['keptMissing'] ?? 0}',
                               ),
                               for (final pair
                                   in (record['pairs'] as List? ?? [])
@@ -6373,7 +6338,10 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
             .toList()
           ..sort();
 
-    final result = await showPrismDialog<bool>(
+    final bool? result;
+    final String groupName;
+    try {
+      result = await showPrismDialog<bool>(
       context: context,
       useRootNavigator: false,
       builder: (context) => StatefulBuilder(
@@ -6645,8 +6613,13 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
           );
         },
       ),
-    );
-    if (result == true && name.text.trim().isNotEmpty && selected.isNotEmpty) {
+      );
+      groupName = name.text.trim();
+    } finally {
+      name.dispose();
+      search.dispose();
+    }
+    if (result == true && groupName.isNotEmpty && selected.isNotEmpty) {
       final id =
           (group?['groupId'] ??
                   'group-${DateTime.now().millisecondsSinceEpoch}')
@@ -6654,19 +6627,26 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
       final value = <String, dynamic>{
         ...?group,
         'groupId': id,
-        'groupName': name.text.trim(),
+        'groupName': groupName,
         'strategy': strategy,
         'memberProxyIds': selected.toList(),
-        'memberGroupNames': <String>[],
+        'memberGroupNames': ((group?['memberGroupNames'] as List?) ?? const [])
+            .map((e) => e.toString().trim())
+            .where((e) => e.isNotEmpty)
+            .toList(),
       };
       if (strategy != 'sticky') {
         value['selectedProxyId'] = '';
       }
-      await AppBridge.call('SaveBrowserProxyVirtualGroup', [value]);
-      await _refresh();
+      try {
+        await AppBridge.call('SaveBrowserProxyVirtualGroup', [value]);
+        await _refresh();
+      } catch (error) {
+        if (mounted) {
+          showPrismNotice(context, '保存虚拟分组失败：$error');
+        }
+      }
     }
-    name.dispose();
-    search.dispose();
   }
 
   Future<void> _probe(Map<String, dynamic> group) async {
@@ -6698,25 +6678,13 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
   Future<void> _resetHealth(Map<String, dynamic> group) async {
     final id = (group['groupId'] ?? '').toString();
     if (id.isEmpty) return;
-    final confirmed = await showPrismDialog<bool>(
+    final confirmed = await showPrismConfirmDialog(
       context: context,
-      useRootNavigator: false,
-      builder: (context) => PrismDialog(
-        title: Text('重置健康 · ${group['groupName'] ?? id}'),
-        content: const Text('将清除该分组的降级与异常记录，恢复全部成员参与调度。'),
-        actions: [
-          prism.TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          prism.FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('重置'),
-          ),
-        ],
-      ),
+      title: '重置健康 · ${group['groupName'] ?? id}',
+      message: '将清除该分组的降级与异常记录，恢复全部成员参与调度。',
+      confirmLabel: '重置',
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
     setState(() => _busy = id);
     try {
       await AppBridge.call('BrowserProxyVirtualGroupResetHealth', [id]);
@@ -6857,30 +6825,24 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
   }
 
   Future<void> _delete(Map<String, dynamic> group) async {
-    final yes = await showPrismDialog<bool>(
+    final yes = await showPrismConfirmDialog(
       context: context,
-      useRootNavigator: false,
-      builder: (context) => PrismDialog(
-        title: const Text('删除虚拟分组？'),
-        content: Text((group['groupName'] ?? '').toString()),
-        destructive: true,
-        actions: [
-          prism.TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          prism.FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
+      title: '删除虚拟分组？',
+      message: (group['groupName'] ?? '').toString(),
+      destructive: true,
+      confirmLabel: '删除',
     );
-    if (yes == true) {
-      await AppBridge.call('DeleteBrowserProxyVirtualGroup', [
-        group['groupId'],
-      ]);
-      await _refresh();
+    if (yes) {
+      try {
+        await AppBridge.call('DeleteBrowserProxyVirtualGroup', [
+          group['groupId'],
+        ]);
+        await _refresh();
+      } catch (error) {
+        if (mounted) {
+          showPrismNotice(context, '删除虚拟分组失败：$error');
+        }
+      }
     }
   }
 
@@ -7000,39 +6962,7 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
       ),
     ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth >= 760) {
-          return Row(
-            children: [
-              for (var i = 0; i < tiles.length; i++) ...[
-                if (i > 0) const SizedBox(width: 16),
-                Expanded(child: tiles[i]),
-              ],
-            ],
-          );
-        }
-        return Column(
-          children: [
-            Row(
-              children: [
-                Expanded(child: tiles[0]),
-                const SizedBox(width: 16),
-                Expanded(child: tiles[1]),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(child: tiles[2]),
-                const SizedBox(width: 16),
-                Expanded(child: tiles[3]),
-              ],
-            ),
-          ],
-        );
-      },
-    );
+    return PrismMetricGrid(tiles: tiles);
   }
 
   Widget _buildToolbar(BuildContext context, VoidCallback? backAction) {

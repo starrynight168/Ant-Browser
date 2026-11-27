@@ -428,6 +428,29 @@ class _AboutPageState extends State<AboutPage> {
     }
   }
 
+  Future<void> _clearPendingUpdate() async {
+    try {
+      await AppBridge.call('ClearPendingAppUpdate');
+      if (!mounted) return;
+      setState(() => _pendingUpdate = null);
+      showPrismNotice(context, '已忽略待安装更新');
+    } catch (error) {
+      if (mounted) showPrismNotice(context, '忽略失败：$error');
+    }
+  }
+
+  Future<void> _clearDownloadedUpdate() async {
+    try {
+      await AppBridge.call('ClearDownloadedAppUpdate');
+      if (!mounted) return;
+      setState(() => _downloadedUpdate = null);
+      widget.onUpdateStatusChanged?.call(false);
+      showPrismNotice(context, '已忽略已下载的更新');
+    } catch (error) {
+      if (mounted) showPrismNotice(context, '忽略失败：$error');
+    }
+  }
+
   Future<void> _confirmAndApplyUpdate({bool fromPending = false}) async {
     if (_installing) return;
     final confirmed = await showPrismDialog<bool>(
@@ -897,18 +920,48 @@ class _AboutPageState extends State<AboutPage> {
                   : '上次已下载更新包，可点击右侧按钮立即退出并安装。',
               trailing: _pendingUpdate!['missing'] == true
                   ? prism.OutlinedButton(
-                      onPressed: () async {
-                        await AppBridge.call('ClearPendingAppUpdate');
-                        if (mounted) setState(() => _pendingUpdate = null);
-                      },
+                      onPressed: _clearPendingUpdate,
                       child: const Text('忽略'),
                     )
-                  : prism.FilledButton(
-                      onPressed: _installing
-                          ? null
-                          : () => _confirmAndApplyUpdate(fromPending: true),
-                      child: const Text('退出并安装'),
+                  : Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        prism.OutlinedButton(
+                          onPressed: _installing ? null : _clearPendingUpdate,
+                          child: const Text('忽略'),
+                        ),
+                        prism.FilledButton(
+                          onPressed: _installing
+                              ? null
+                              : () => _confirmAndApplyUpdate(fromPending: true),
+                          child: const Text('退出并安装'),
+                        ),
+                      ],
                     ),
+            ),
+          ] else if (_downloadedUpdate != null) ...[
+            const SizedBox(height: 16),
+            PrismBanner(
+              tone: PrismTone.info,
+              title: '已下载新版本 v${_downloadedUpdate!['version'] ?? ''}',
+              message: '安装包已就绪，可点击右侧按钮立即退出并安装。',
+              trailing: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  prism.OutlinedButton(
+                    onPressed: _installing ? null : _clearDownloadedUpdate,
+                    child: const Text('忽略'),
+                  ),
+                  prism.FilledButton(
+                    onPressed: _installing
+                        ? null
+                        : () => _confirmAndApplyUpdate(),
+                    child: const Text('退出并安装'),
+                  ),
+                ],
+              ),
             ),
           ],
           if (_updateProgress != null &&

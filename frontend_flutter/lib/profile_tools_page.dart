@@ -204,42 +204,20 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
     }
   }
 
-  String _formatDateTime(dynamic raw) {
-    final text = '${raw ?? ''}'.trim();
-    if (text.isEmpty) return '-';
-    final parsed = DateTime.tryParse(text);
-    if (parsed == null) return text;
-    final local = parsed.toLocal();
-    String two(int n) => n.toString().padLeft(2, '0');
-    return '${local.year}-${two(local.month)}-${two(local.day)} '
-        '${two(local.hour)}:${two(local.minute)}:${two(local.second)}';
-  }
-
   String _cookieExpiry(dynamic value) {
     final expires = double.tryParse(value?.toString() ?? '') ?? 0;
     if (expires <= 0) return '会话 Cookie';
     final local = DateTime.fromMillisecondsSinceEpoch((expires * 1000).round())
         .toLocal();
-    String two(int n) => n.toString().padLeft(2, '0');
-    return '到期 ${local.year}-${two(local.month)}-${two(local.day)} '
-        '${two(local.hour)}:${two(local.minute)}';
+    return '到期 ${formatDateTime(local, includeSeconds: false)}';
   }
 
   String _defaultSnapshotName() {
-    final now = DateTime.now();
-    String two(int n) => n.toString().padLeft(2, '0');
-    return '快照_${now.year}-${two(now.month)}-${two(now.day)}_'
-        '${two(now.hour)}:${two(now.minute)}';
-  }
-
-  String _formatSnapshotSize(dynamic rawSizeMB) {
-    final mb = (rawSizeMB is num)
-        ? rawSizeMB.toDouble()
-        : double.tryParse('${rawSizeMB ?? ''}') ?? 0.0;
-    if (mb < 1.0) {
-      return '${(mb * 1024).round()} KB';
-    }
-    return '${mb.toStringAsFixed(1)} MB';
+    final formatted = formatDateTime(
+      DateTime.now(),
+      includeSeconds: false,
+    ).replaceFirst(' ', '_');
+    return '快照_$formatted';
   }
 
   String _resolveGroupName(Map<String, dynamic> profile) {
@@ -327,25 +305,13 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
   }
 
   Future<void> _regenerateLaunchCode() async {
-    final accepted = await showPrismDialog<bool>(
+    final accepted = await showPrismConfirmDialog(
       context: context,
-      useRootNavigator: false,
-      builder: (context) => PrismDialog(
-        title: const Text('重新生成启动码？'),
-        content: const Text('旧启动码将立即失效，使用旧码的接口或脚本需要更新。'),
-        actions: [
-          prism.TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          prism.FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('重新生成'),
-          ),
-        ],
-      ),
+      title: '重新生成启动码？',
+      message: '旧启动码将立即失效，使用旧码的接口或脚本需要更新。',
+      confirmLabel: '重新生成',
     );
-    if (accepted != true) return;
+    if (!accepted) return;
     setState(() => _busy = 'launch-code');
     try {
       await AppBridge.call('BrowserProfileRegenerateCode', [widget.profileId]);
@@ -397,25 +363,13 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
   }
 
   Future<void> _restoreSnapshot(Map<String, dynamic> snapshot) async {
-    final yes = await showPrismDialog<bool>(
+    final yes = await showPrismConfirmDialog(
       context: context,
-      useRootNavigator: false,
-      builder: (context) => PrismDialog(
-        title: const Text('恢复快照？'),
-        content: Text('将用“${snapshot['name'] ?? ''}”替换此实例的浏览器数据。请先关闭实例。'),
-        actions: [
-          prism.TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          prism.FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('恢复'),
-          ),
-        ],
-      ),
+      title: '恢复快照？',
+      message: '将用“${snapshot['name'] ?? ''}”替换此实例的浏览器数据。请先关闭实例。',
+      confirmLabel: '恢复',
     );
-    if (yes != true) return;
+    if (!yes) return;
     await _perform(
       'snapshot',
       () => AppBridge.call('BrowserSnapshotRestore', [
@@ -426,26 +380,14 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
   }
 
   Future<void> _deleteSnapshot(Map<String, dynamic> snapshot) async {
-    final yes = await showPrismDialog<bool>(
+    final yes = await showPrismConfirmDialog(
       context: context,
-      useRootNavigator: false,
-      builder: (context) => PrismDialog(
-        title: const Text('删除快照？'),
-        destructive: true,
-        content: Text('将删除“${snapshot['name'] ?? ''}”的本地备份文件。'),
-        actions: [
-          prism.TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          prism.FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
+      title: '删除快照？',
+      message: '将删除“${snapshot['name'] ?? ''}”的本地备份文件。',
+      confirmLabel: '删除',
+      destructive: true,
     );
-    if (yes != true) return;
+    if (!yes) return;
     await _perform(
       'snapshot',
       () => AppBridge.call('BrowserSnapshotDelete', [
@@ -577,26 +519,14 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
 
   Future<void> _clearCookies() async {
     if (!_debugReady) return;
-    final yes = await showPrismDialog<bool>(
+    final yes = await showPrismConfirmDialog(
       context: context,
-      useRootNavigator: false,
-      builder: (context) => PrismDialog(
-        title: const Text('清除全部 Cookie？'),
-        destructive: true,
-        content: const Text('此操作会退出相关网站账号。'),
-        actions: [
-          prism.TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          prism.FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('清除'),
-          ),
-        ],
-      ),
+      title: '清除全部 Cookie？',
+      message: '此操作会退出相关网站账号。',
+      confirmLabel: '清除',
+      destructive: true,
     );
-    if (yes != true) return;
+    if (!yes) return;
     await _perform(
       'cookies',
       () => AppBridge.call('BrowserClearCookies', [widget.profileId]),
@@ -770,81 +700,52 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                         ),
                         const SizedBox(height: 14),
                       ],
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final tiles = [
-                            PrismMetricTile(
-                              label: '运行状态',
-                              value: statusInfo.label,
-                              glyph: AntGlyphs.browser,
-                              tone: statusInfo.tone,
-                              staggerIndex: 0,
-                              staggerDelay: const Duration(milliseconds: 45),
+                      PrismMetricGrid(
+                        tiles: [
+                          PrismMetricTile(
+                            label: '运行状态',
+                            value: statusInfo.label,
+                            glyph: AntGlyphs.browser,
+                            tone: statusInfo.tone,
+                            staggerIndex: 0,
+                            staggerDelay: const Duration(milliseconds: 45),
+                          ),
+                          PrismMetricTile(
+                            label: '进程 PID',
+                            value: pid > 0 ? '$pid' : '-',
+                            glyph: AntGlyphs.cpu,
+                            tone: pid > 0 ? PrismTone.info : PrismTone.neutral,
+                            staggerIndex: 1,
+                            staggerDelay: const Duration(milliseconds: 45),
+                          ),
+                          PrismMetricTile(
+                            label: '调试端口',
+                            value: debugPort > 0 ? '$debugPort' : '-',
+                            subtitle: _running
+                                ? (_debugReady ? 'CDP 已就绪' : '等待 CDP 就绪')
+                                : null,
+                            glyph: AntGlyphs.api,
+                            tone: _debugReady
+                                ? PrismTone.success
+                                : _running
+                                ? PrismTone.warning
+                                : PrismTone.neutral,
+                            staggerIndex: 2,
+                            staggerDelay: const Duration(milliseconds: 45),
+                          ),
+                          PrismMetricTile(
+                            label: '最近启动',
+                            value: formatDateTime(
+                              profile['lastStartAt'],
+                              includeSeconds: false,
+                              returnRawOnInvalid: true,
                             ),
-                            PrismMetricTile(
-                              label: '进程 PID',
-                              value: pid > 0 ? '$pid' : '-',
-                              glyph: AntGlyphs.cpu,
-                              tone: pid > 0
-                                  ? PrismTone.info
-                                  : PrismTone.neutral,
-                              staggerIndex: 1,
-                              staggerDelay: const Duration(milliseconds: 45),
-                            ),
-                            PrismMetricTile(
-                              label: '调试端口',
-                              value: debugPort > 0 ? '$debugPort' : '-',
-                              subtitle: _running
-                                  ? (_debugReady ? 'CDP 已就绪' : '等待 CDP 就绪')
-                                  : null,
-                              glyph: AntGlyphs.api,
-                              tone: _debugReady
-                                  ? PrismTone.success
-                                  : _running
-                                  ? PrismTone.warning
-                                  : PrismTone.neutral,
-                              staggerIndex: 2,
-                              staggerDelay: const Duration(milliseconds: 45),
-                            ),
-                            PrismMetricTile(
-                              label: '最近启动',
-                              value: _formatDateTime(profile['lastStartAt']),
-                              glyph: AntGlyphs.schedule,
-                              tone: PrismTone.neutral,
-                              staggerIndex: 3,
-                              staggerDelay: const Duration(milliseconds: 45),
-                            ),
-                          ];
-                          if (constraints.maxWidth >= 760) {
-                            return Row(
-                              children: [
-                                for (var i = 0; i < tiles.length; i++) ...[
-                                  if (i > 0) const SizedBox(width: 16),
-                                  Expanded(child: tiles[i]),
-                                ],
-                              ],
-                            );
-                          }
-                          return Column(
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(child: tiles[0]),
-                                  const SizedBox(width: 16),
-                                  Expanded(child: tiles[1]),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              Row(
-                                children: [
-                                  Expanded(child: tiles[2]),
-                                  const SizedBox(width: 16),
-                                  Expanded(child: tiles[3]),
-                                ],
-                              ),
-                            ],
-                          );
-                        },
+                            glyph: AntGlyphs.schedule,
+                            tone: PrismTone.neutral,
+                            staggerIndex: 3,
+                            staggerDelay: const Duration(milliseconds: 45),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 18),
                       PrismSectionCard(
@@ -1097,8 +998,8 @@ class _BrowserProfileToolsPageState extends State<BrowserProfileToolsPage> {
                                               .of(context, emphasized: true),
                                         ),
                                         subtitle: Text(
-                                          '${_formatDateTime(snapshot['createdAt'])} · '
-                                          '${_formatSnapshotSize(snapshot['sizeMB'])}',
+                                          '${formatDateTime(snapshot['createdAt'], includeSeconds: false, returnRawOnInvalid: true)} · '
+                                          '${formatByteSize(((snapshot['sizeMB'] is num) ? (snapshot['sizeMB'] as num).toDouble() : double.tryParse('${snapshot['sizeMB'] ?? ''}') ?? 0.0) * 1024 * 1024)}',
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),

@@ -727,9 +727,7 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
                               ),
                           child: KeyedSubtree(
                             key: ValueKey(_activePath),
-                            child:
-                                _activePath == '/browser/list' ||
-                                    _activePath == '/browser/monitor'
+                            child: _activePath == '/browser/list'
                                 ? BrowserListPage(
                                     onOpenDetails: (id) => setState(
                                       () => _activePath = '/browser/detail/$id',
@@ -871,12 +869,8 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
                                       () => _activePath = '/system/backup',
                                     ),
                                   )
-                                : _activePath == '/system/docs' ||
-                                      _activePath == '/browser/launch-api' ||
-                                      _activePath == '/system/tutorial'
+                                : _activePath == '/system/docs'
                                 ? const DocsPage()
-                                : _activePath == '/charts'
-                                ? const ChartsPage()
                                 : const BrowserListPage(),
                           ),
                         ),
@@ -919,8 +913,7 @@ class _Sidebar extends StatelessWidget {
     var selectedPath = activePath;
     if (selectedPath.startsWith('/browser/detail/') ||
         selectedPath.startsWith('/browser/edit/') ||
-        selectedPath.startsWith('/browser/copy/') ||
-        selectedPath == '/browser/monitor') {
+        selectedPath.startsWith('/browser/copy/')) {
       selectedPath = '/browser/list';
     } else if (selectedPath.startsWith('/browser/automation/')) {
       selectedPath = '/browser/automation';
@@ -928,9 +921,6 @@ class _Sidebar extends StatelessWidget {
       selectedPath = '/browser/proxy-pool';
     } else if (selectedPath.startsWith('/system/backup/')) {
       selectedPath = '/system/backup';
-    } else if (selectedPath == '/browser/launch-api' ||
-        selectedPath == '/system/tutorial') {
-      selectedPath = '/system/docs';
     }
     final selectedIndex = items.indexWhere((item) => item.path == selectedPath);
     final color = prism.ColorScheme.of(context).surfaceContainerLow;
@@ -2171,215 +2161,263 @@ class _BrowserListPageState extends State<BrowserListPage> {
   Future<void> _manageGroups() async {
     final name = TextEditingController();
     var parentId = '';
-    await showPrismDialog<void>(
-      context: context,
-      useRootNavigator: false,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialog) => PrismDialog(
-          title: const Text('实例分组'),
-          content: SizedBox(
-            width: 460,
-            height: 440,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Expanded(
-                      child: PrismTextField(
-                        controller: name,
-                        decoration: const PrismInputDecoration(
-                          labelText: '新分组名称',
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    SizedBox(
-                      width: 150,
-                      child: PrismDropdownField<String>(
-                        initialValue: parentId,
-                        decoration: const PrismInputDecoration(
-                          labelText: '上级分组',
-                        ),
-                        items: [
-                          const PrismDropdownItem(
-                            value: '',
-                            child: Text('顶层分组'),
+    try {
+      await showPrismDialog<void>(
+        context: context,
+        useRootNavigator: false,
+        builder: (context) => StatefulBuilder(
+          builder: (context, setDialog) => PrismDialog(
+            title: const Text('实例分组'),
+            content: SizedBox(
+              width: 460,
+              height: 440,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: PrismTextField(
+                          controller: name,
+                          decoration: const PrismInputDecoration(
+                            labelText: '新分组名称',
                           ),
-                          for (final g in _groups)
-                            PrismDropdownItem(
-                              value: (g['groupId'] ?? '').toString(),
-                              child: Text((g['groupName'] ?? '').toString()),
-                            ),
-                        ],
-                        onChanged: (v) => setDialog(() => parentId = v ?? ''),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    prism.IconButton(
-                      tooltip: '新建分组',
-                      onPressed: () async {
-                        if (name.text.trim().isEmpty) return;
-                        await AppBridge.call('CreateGroup', [
-                          {
-                            'groupName': name.text.trim(),
-                            'parentId': parentId,
-                            'sortOrder': _groups.length,
-                          },
-                        ]);
-                        name.clear();
-                        final groups = await AppBridge.call('ListGroups');
-                        _groups = (groups as List? ?? [])
-                            .whereType<Map>()
-                            .map((row) => Map<String, dynamic>.from(row))
-                            .toList();
-                        setDialog(() {});
-                      },
-                      icon: const PrismGlyph(AntGlyphs.add, size: 18),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Expanded(
-                  child: _groups.isEmpty
-                      ? const PrismEmptyState(
-                          title: '暂无实例分组',
-                          glyph: AntGlyphs.folder,
-                        )
-                      : ListView(
-                          children: [
-                            for (final group in _groups)
-                              PrismListTile(
-                                leading: const PrismGlyph(
-                                  AntGlyphs.folder,
-                                  size: 18,
-                                ),
-                                title: Text(
-                                  '${(group['parentId'] ?? '').toString().isNotEmpty ? '└ ' : ''}${(group['groupName'] ?? '').toString()}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                subtitle: Text(
-                                  '${group['instanceCount'] ?? 0} 个实例',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                trailing: PrismPopupMenuButton<String>(
-                                  onSelected: (action) async {
-                                    final groupId = (group['groupId'] ?? '')
-                                        .toString();
-                                    if (action == 'rename') {
-                                      name.text = (group['groupName'] ?? '')
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: 150,
+                        child: PrismDropdownField<String>(
+                          initialValue: parentId,
+                          decoration: const PrismInputDecoration(
+                            labelText: '上级分组',
+                          ),
+                          items: [
+                            const PrismDropdownItem(
+                              value: '',
+                              child: Text('顶层分组'),
+                            ),
+                            for (final g in _groups)
+                              PrismDropdownItem(
+                                value: (g['groupId'] ?? '').toString(),
+                                child: Text((g['groupName'] ?? '').toString()),
+                              ),
+                          ],
+                          onChanged: (v) => setDialog(() => parentId = v ?? ''),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      prism.IconButton(
+                        tooltip: '新建分组',
+                        onPressed: () async {
+                          if (name.text.trim().isEmpty) return;
+                          try {
+                            await AppBridge.call('CreateGroup', [
+                              {
+                                'groupName': name.text.trim(),
+                                'parentId': parentId,
+                                'sortOrder': _groups.length,
+                              },
+                            ]);
+                            name.clear();
+                            final groups = await AppBridge.call('ListGroups');
+                            _groups = (groups as List? ?? [])
+                                .whereType<Map>()
+                                .map((row) => Map<String, dynamic>.from(row))
+                                .toList();
+                            if (!context.mounted) return;
+                            setDialog(() {});
+                          } catch (error) {
+                            if (context.mounted) {
+                              showPrismNotice(context, error.toString());
+                            }
+                          }
+                        },
+                        icon: const PrismGlyph(AntGlyphs.add, size: 18),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Expanded(
+                    child: _groups.isEmpty
+                        ? const PrismEmptyState(
+                            title: '暂无实例分组',
+                            glyph: AntGlyphs.folder,
+                          )
+                        : ListView(
+                            children: [
+                              for (final group in _groups)
+                                PrismListTile(
+                                  leading: const PrismGlyph(
+                                    AntGlyphs.folder,
+                                    size: 18,
+                                  ),
+                                  title: Text(
+                                    '${(group['parentId'] ?? '').toString().isNotEmpty ? '└ ' : ''}${(group['groupName'] ?? '').toString()}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  subtitle: Text(
+                                    '${group['instanceCount'] ?? 0} 个实例',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  trailing: PrismPopupMenuButton<String>(
+                                    onSelected: (action) async {
+                                      final groupId = (group['groupId'] ?? '')
                                           .toString();
-                                      final next =
-                                          await showPrismDialog<String>(
+                                      var mutated = false;
+                                      if (action == 'rename') {
+                                        final renameController =
+                                            TextEditingController(
+                                          text: (group['groupName'] ?? '')
+                                              .toString(),
+                                        );
+                                        String? next;
+                                        try {
+                                          next = await showPrismDialog<String>(
                                             context: context,
                                             useRootNavigator: false,
-                                            builder: (context) => PrismDialog(
+                                            builder: (dialogContext) =>
+                                                PrismDialog(
                                               title: const Text('重命名分组'),
                                               content: PrismTextField(
-                                                controller: name,
+                                                controller: renameController,
                                               ),
                                               actions: [
                                                 prism.TextButton(
                                                   onPressed: () =>
-                                                      Navigator.pop(context),
+                                                      Navigator.pop(
+                                                        dialogContext,
+                                                      ),
                                                   child: const Text('取消'),
                                                 ),
                                                 prism.FilledButton(
                                                   onPressed: () =>
                                                       Navigator.pop(
-                                                        context,
-                                                        name.text.trim(),
+                                                        dialogContext,
+                                                        renameController.text
+                                                            .trim(),
                                                       ),
                                                   child: const Text('保存'),
                                                 ),
                                               ],
                                             ),
                                           );
-                                      if (next != null && next.isNotEmpty) {
-                                        await AppBridge.call('UpdateGroup', [
-                                          groupId,
-                                          {
-                                            'groupName': next,
-                                            'parentId': group['parentId'] ?? '',
-                                            'sortOrder':
-                                                group['sortOrder'] ?? 0,
-                                          },
-                                        ]);
-                                      }
-                                    } else {
-                                      final yes = await showPrismDialog<bool>(
-                                        context: context,
-                                        useRootNavigator: false,
-                                        builder: (context) => PrismDialog(
-                                          title: const Text('删除分组？'),
+                                        } finally {
+                                          renameController.dispose();
+                                        }
+                                        if (next != null && next.isNotEmpty) {
+                                          try {
+                                            await AppBridge.call(
+                                              'UpdateGroup',
+                                              [
+                                                groupId,
+                                                {
+                                                  'groupName': next,
+                                                  'parentId':
+                                                      group['parentId'] ?? '',
+                                                  'sortOrder':
+                                                      group['sortOrder'] ?? 0,
+                                                },
+                                              ],
+                                            );
+                                            mutated = true;
+                                          } catch (error) {
+                                            if (context.mounted) {
+                                              showPrismNotice(
+                                                context,
+                                                error.toString(),
+                                              );
+                                            }
+                                            return;
+                                          }
+                                        }
+                                      } else {
+                                        final yes =
+                                            await showPrismConfirmDialog(
+                                          context: context,
+                                          title: '删除分组？',
+                                          message: '分组内的实例会变为未分组。',
+                                          confirmLabel: '删除',
                                           destructive: true,
-                                          content: const Text('分组内的实例会变为未分组。'),
-                                          actions: [
-                                            prism.TextButton(
-                                              onPressed: () =>
-                                                  Navigator.pop(context, false),
-                                              child: const Text('取消'),
-                                            ),
-                                            prism.FilledButton(
-                                              onPressed: () =>
-                                                  Navigator.pop(context, true),
-                                              child: const Text('删除'),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                      if (yes == true) {
-                                        await AppBridge.call('DeleteGroup', [
-                                          groupId,
-                                        ]);
+                                        );
+                                        if (yes) {
+                                          try {
+                                            await AppBridge.call(
+                                              'DeleteGroup',
+                                              [groupId],
+                                            );
+                                            mutated = true;
+                                          } catch (error) {
+                                            if (context.mounted) {
+                                              showPrismNotice(
+                                                context,
+                                                error.toString(),
+                                              );
+                                            }
+                                            return;
+                                          }
+                                        }
                                       }
-                                    }
-                                    final groups = await AppBridge.call(
-                                      'ListGroups',
-                                    );
-                                    _groups = (groups as List? ?? [])
-                                        .whereType<Map>()
-                                        .map(
-                                          (row) =>
-                                              Map<String, dynamic>.from(row),
-                                        )
-                                        .toList();
-                                    await _reload();
-                                    setDialog(() {});
-                                  },
-                                  itemBuilder: (_) => const [
-                                    PrismMenuItem(
-                                      value: 'rename',
-                                      child: Text('重命名'),
-                                    ),
-                                    PrismMenuItem(
-                                      value: 'delete',
-                                      danger: true,
-                                      child: Text('删除'),
-                                    ),
-                                  ],
+                                      if (!mutated) return;
+                                      try {
+                                        final groups = await AppBridge.call(
+                                          'ListGroups',
+                                        );
+                                        _groups = (groups as List? ?? [])
+                                            .whereType<Map>()
+                                            .map(
+                                              (row) => Map<String, dynamic>.from(
+                                                row,
+                                              ),
+                                            )
+                                            .toList();
+                                        await _reload();
+                                        if (!context.mounted) return;
+                                        setDialog(() {});
+                                      } catch (error) {
+                                        if (context.mounted) {
+                                          showPrismNotice(
+                                            context,
+                                            error.toString(),
+                                          );
+                                        }
+                                      }
+                                    },
+                                    itemBuilder: (_) => const [
+                                      PrismMenuItem(
+                                        value: 'rename',
+                                        child: Text('重命名'),
+                                      ),
+                                      PrismMenuItem(
+                                        value: 'delete',
+                                        danger: true,
+                                        child: Text('删除'),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                          ],
-                        ),
-                ),
-              ],
+                            ],
+                          ),
+                  ),
+                ],
+              ),
             ),
+            actions: [
+              prism.TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('完成'),
+              ),
+            ],
           ),
-          actions: [
-            prism.TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('完成'),
-            ),
-          ],
         ),
-      ),
-    );
-    name.dispose();
-    await _reload();
+      );
+    } finally {
+      name.dispose();
+    }
+    if (mounted) await _reload();
   }
 
   Future<void> _editProfile([Map<String, dynamic>? profile]) async {
@@ -2410,7 +2448,8 @@ class _BrowserListPageState extends State<BrowserListPage> {
     final proxyGroupName = TextEditingController(
       text: (profile?['proxyGroupName'] ?? '').toString(),
     );
-    List<Map<String, dynamic>> cores = [];
+    try {
+      List<Map<String, dynamic>> cores = [];
     List<Map<String, dynamic>> proxies = [];
     List<Map<String, dynamic>> virtualGroups = [];
     String? optionsError;
@@ -2469,6 +2508,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
     if (optionsError != null && mounted) {
       showPrismNotice(context, ('部分选项加载失败，仍可打开配置窗口：$optionsError').toString());
     }
+    if (!mounted) return;
     String? coreId = (profile?['coreId'] ?? '').toString();
     if (!cores.any((core) => core['coreId'] == coreId)) {
       final defaultCore = cores.where((core) => core['isDefault'] == true);
@@ -2942,7 +2982,13 @@ class _BrowserListPageState extends State<BrowserListPage> {
               child: const Text('取消'),
             ),
             prism.FilledButton(
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: () {
+                if (name.text.trim().isEmpty) {
+                  showPrismNotice(context, '请填写实例名称');
+                  return;
+                }
+                Navigator.pop(context, true);
+              },
               child: const Text('保存'),
             ),
           ],
@@ -3029,15 +3075,17 @@ class _BrowserListPageState extends State<BrowserListPage> {
         if (mounted) setState(() => _busyProfile = null);
       }
     }
-    name.dispose();
-    tags.dispose();
-    keywords.dispose();
-    userDataDir.dispose();
-    memoryLimit.dispose();
-    fingerprintArgs.dispose();
-    launchArgs.dispose();
-    localProxyConfig.dispose();
-    proxyGroupName.dispose();
+    } finally {
+      name.dispose();
+      tags.dispose();
+      keywords.dispose();
+      userDataDir.dispose();
+      memoryLimit.dispose();
+      fingerprintArgs.dispose();
+      launchArgs.dispose();
+      localProxyConfig.dispose();
+      proxyGroupName.dispose();
+    }
   }
 
   Future<void> _editFingerprintArgs(TextEditingController source) async {
@@ -3513,23 +3561,6 @@ class _BrowserListPageState extends State<BrowserListPage> {
       final matrix = results[1] is Map
           ? Map<String, dynamic>.from(results[1] as Map)
           : <String, dynamic>{};
-      final versions = (table['versions'] as List? ?? [])
-          .whereType<Map>()
-          .map((e) => Map<String, dynamic>.from(e))
-          .toList();
-      final groups = (table['groups'] as List? ?? [])
-          .whereType<Map>()
-          .map((e) => Map<String, dynamic>.from(e))
-          .toList();
-      final currentKey = (table['currentVersionKey'] ?? '').toString();
-      final notes = (table['notes'] as List? ?? [])
-          .map((e) => e.toString())
-          .where((e) => e.trim().isNotEmpty)
-          .toList();
-      final currentLabel = versions
-          .where((v) => v['key'] == currentKey)
-          .map((v) => (v['label'] ?? '').toString())
-          .firstOrNull;
       final matrixItems =
           ((matrix['items'] ?? matrix['rows'] ?? matrix['checks']) as List? ??
                   const [])
@@ -3537,197 +3568,62 @@ class _BrowserListPageState extends State<BrowserListPage> {
               .map((e) => Map<String, dynamic>.from(e))
               .toList();
 
-      await showPrismDialog<void>(
+      await showFingerprintCapabilityDialog(
         context: context,
-        useRootNavigator: false,
-        builder: (context) => PrismDialog(
-          title: const Text('内核能力表与参数适配矩阵'),
-          content: SizedBox(
-            width: 820,
-            height: 600,
-            child: ListView(
-              children: [
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 10,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    PrismBadge(
-                      label: currentLabel != null && currentLabel.isNotEmpty
-                          ? '当前内核：$currentLabel'
-                          : '当前内核：未识别',
-                      tone: currentLabel != null
-                          ? PrismTone.primary
-                          : PrismTone.neutral,
-                    ),
-                    PrismBadge(
-                      label: '能力表更新：${table['updatedAt'] ?? '-'}',
-                      tone: PrismTone.neutral,
+        title: '内核能力表与参数适配矩阵',
+        kernelBadgePrefix: '当前内核',
+        table: table,
+        extraSections: [
+          if (matrixItems.isNotEmpty)
+            PrismSectionCard(
+              title: '当前配置参数检测结论',
+              glyph: AntGlyphs.factCheck,
+              child: Column(
+                children: [
+                  for (var i = 0; i < matrixItems.length; i++) ...[
+                    if (i > 0) const prism.Divider(height: 1),
+                    Builder(
+                      builder: (context) {
+                        final row = matrixItems[i];
+                        final status = (row['status'] ?? '').toString();
+                        final tone = status == 'match' || status == 'ok'
+                            ? PrismTone.success
+                            : status == 'compatible' || status == 'warn'
+                            ? PrismTone.warning
+                            : PrismTone.danger;
+                        return PrismListTile(
+                          dense: true,
+                          title: Text(
+                            (row['label'] ??
+                                    row['key'] ??
+                                    row['name'] ??
+                                    '')
+                                .toString(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: Text(
+                            '配置：${row['configured'] ?? row['expected'] ?? '—'}  →  实际：${row['actual'] ?? row['value'] ?? '—'}',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: PrismBadge(
+                            label: status.isEmpty ? '已检' : status,
+                            tone: tone,
+                          ),
+                        );
+                      },
                     ),
                   ],
-                ),
-                if (notes.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  PrismBanner(tone: PrismTone.info, message: notes.join(' ')),
                 ],
-                const SizedBox(height: 16),
-                for (final group in groups) ...[
-                  PrismSectionCard(
-                    title: (group['label'] ?? group['key'] ?? '').toString(),
-                    glyph: AntGlyphs.tune,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        for (
-                          var i = 0;
-                          i < (group['items'] as List? ?? []).length;
-                          i++
-                        ) ...[
-                          if (i > 0) ...[
-                            const SizedBox(height: 10),
-                            const prism.Divider(height: 1),
-                            const SizedBox(height: 10),
-                          ],
-                          _buildCapabilityRow(
-                            context,
-                            Map<String, dynamic>.from(
-                              (group['items'] as List)[i] as Map,
-                            ),
-                            versions,
-                            currentKey,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                ],
-                if (matrixItems.isNotEmpty)
-                  PrismSectionCard(
-                    title: '当前配置参数检测结论',
-                    glyph: AntGlyphs.factCheck,
-                    child: Column(
-                      children: [
-                        for (var i = 0; i < matrixItems.length; i++) ...[
-                          if (i > 0) const prism.Divider(height: 1),
-                          Builder(
-                            builder: (context) {
-                              final row = matrixItems[i];
-                              final status = (row['status'] ?? '').toString();
-                              final tone = status == 'match' || status == 'ok'
-                                  ? PrismTone.success
-                                  : status == 'compatible' || status == 'warn'
-                                  ? PrismTone.warning
-                                  : PrismTone.danger;
-                              return PrismListTile(
-                                dense: true,
-                                title: Text(
-                                  (row['label'] ??
-                                          row['key'] ??
-                                          row['name'] ??
-                                          '')
-                                      .toString(),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                subtitle: Text(
-                                  '配置：${row['configured'] ?? row['expected'] ?? '—'}  →  实际：${row['actual'] ?? row['value'] ?? '—'}',
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                trailing: PrismBadge(
-                                  label: status.isEmpty ? '已检' : status,
-                                  tone: tone,
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-              ],
+              ),
             ),
-          ),
-          actions: [
-            prism.TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('关闭'),
-            ),
-          ],
-        ),
+        ],
       );
     } catch (error) {
       if (mounted) showPrismNotice(context, error.toString());
     }
   }
-
-  Widget _buildCapabilityRow(
-    BuildContext context,
-    Map<String, dynamic> item,
-    List<Map<String, dynamic>> versions,
-    String currentKey,
-  ) {
-    final colors = prism.Theme.of(context).colorScheme;
-    final support = item['support'] is Map
-        ? Map<String, dynamic>.from(item['support'] as Map)
-        : const <String, dynamic>{};
-    final note = (item['note'] ?? '').toString().trim();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '${item['label'] ?? ''} · ${item['arg'] ?? ''}',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: prism.AppTextStyle.subheadline.of(context, emphasized: true),
-        ),
-        if (note.isNotEmpty) ...[
-          const SizedBox(height: 4),
-          Text(
-            note,
-            style: prism.AppTextStyle.caption1
-                .of(context)
-                .copyWith(color: colors.onSurfaceVariant),
-          ),
-        ],
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final v in versions)
-              PrismBadge(
-                label:
-                    '${v['key'] == currentKey ? '★ ' : ''}${v['label'] ?? v['key'] ?? ''}: ${_capabilityMark((support[v['key']] ?? 'unknown').toString())}',
-                tone: _capabilityTone(
-                  (support[v['key']] ?? 'unknown').toString(),
-                ),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  static String _capabilityMark(String status) => switch (status) {
-    'supported' || 'supported_measured' => '✓ 实测',
-    'supported_documented' => '✓ 文档',
-    'supported_policy' => '✓ 策略',
-    'unsupported' || 'unsupported_measured' => '✗ 实测',
-    'unsupported_documented' => '✗ 文档',
-    'unsupported_policy' => '✗ 策略',
-    'converted' => '转 兼容',
-    _ => '? 未验',
-  };
-
-  static PrismTone _capabilityTone(String status) => switch (status) {
-    'supported' || 'supported_measured' => PrismTone.success,
-    'supported_documented' => PrismTone.info,
-    'unsupported' || 'unsupported_measured' => PrismTone.danger,
-    'unsupported_documented' || 'converted' => PrismTone.warning,
-    _ => PrismTone.neutral,
-  };
 
   Future<void> _showFingerprintReport(
     String title,
@@ -4741,8 +4637,8 @@ class _BrowserListPageState extends State<BrowserListPage> {
     await showPrismDialog<void>(
       context: context,
       useRootNavigator: false,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialog) => PrismDialog(
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialog) => PrismDialog(
           title: const Text('实例回收站'),
           content: SizedBox(
             width: 560,
@@ -4788,12 +4684,14 @@ class _BrowserListPageState extends State<BrowserListPage> {
                                           [row['profileId']],
                                         );
                                         rows.remove(row);
-                                        setDialog(() {});
+                                        if (dialogContext.mounted) {
+                                          setDialog(() {});
+                                        }
                                         await _reload();
                                       } catch (error) {
-                                        if (mounted) {
+                                        if (dialogContext.mounted) {
                                           showPrismNotice(
-                                            context,
+                                            dialogContext,
                                             error.toString(),
                                           );
                                         }
@@ -4807,41 +4705,27 @@ class _BrowserListPageState extends State<BrowserListPage> {
                                   prism.IconButton(
                                     tooltip: '彻底删除',
                                     onPressed: () async {
-                                      final yes = await showPrismDialog<bool>(
-                                        context: context,
-                                        useRootNavigator: false,
-                                        builder: (context) => PrismDialog(
-                                          title: const Text('彻底删除实例？'),
-                                          destructive: true,
-                                          content: const Text(
+                                      final yes = await showPrismConfirmDialog(
+                                        context: dialogContext,
+                                        title: '彻底删除实例？',
+                                        message:
                                             '将永久删除该实例的配置、用户数据目录、快照、启动码与插件绑定，此操作无法撤销。',
-                                          ),
-                                          actions: [
-                                            prism.TextButton(
-                                              onPressed: () =>
-                                                  Navigator.pop(context, false),
-                                              child: const Text('取消'),
-                                            ),
-                                            prism.FilledButton(
-                                              onPressed: () =>
-                                                  Navigator.pop(context, true),
-                                              child: const Text('彻底删除'),
-                                            ),
-                                          ],
-                                        ),
+                                        confirmLabel: '彻底删除',
+                                        destructive: true,
                                       );
-                                      if (yes != true) return;
+                                      if (!yes) return;
                                       try {
                                         await AppBridge.call(
                                           'BrowserProfilePermanentlyDelete',
                                           [row['profileId']],
                                         );
                                         rows.remove(row);
+                                        if (!dialogContext.mounted) return;
                                         setDialog(() {});
                                       } catch (error) {
-                                        if (mounted) {
+                                        if (dialogContext.mounted) {
                                           showPrismNotice(
-                                            context,
+                                            dialogContext,
                                             error.toString(),
                                           );
                                         }
@@ -4862,40 +4746,35 @@ class _BrowserListPageState extends State<BrowserListPage> {
           ),
           actions: [
             prism.TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('关闭'),
             ),
             if (rows.isNotEmpty)
               prism.TextButton(
                 onPressed: () async {
-                  final yes = await showPrismDialog<bool>(
-                    context: context,
-                    useRootNavigator: false,
-                    builder: (context) => PrismDialog(
-                      title: const Text('清理过期实例？'),
-                      content: const Text('只会永久删除已超过保留期的实例。'),
-                      actions: [
-                        prism.TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('取消'),
-                        ),
-                        prism.FilledButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('清理'),
-                        ),
-                      ],
-                    ),
+                  final yes = await showPrismConfirmDialog(
+                    context: dialogContext,
+                    title: '清理过期实例？',
+                    message: '只会永久删除已超过保留期的实例。',
+                    confirmLabel: '清理',
                   );
-                  if (yes == true) {
-                    await AppBridge.call('BrowserProfileTrashCleanup');
-                    final refreshed = await AppBridge.call(
-                      'BrowserProfileTrashList',
-                    );
-                    rows = (refreshed as List? ?? [])
-                        .whereType<Map>()
-                        .map((item) => Map<String, dynamic>.from(item))
-                        .toList();
-                    setDialog(() {});
+                  if (yes) {
+                    try {
+                      await AppBridge.call('BrowserProfileTrashCleanup');
+                      final refreshed = await AppBridge.call(
+                        'BrowserProfileTrashList',
+                      );
+                      rows = (refreshed as List? ?? [])
+                          .whereType<Map>()
+                          .map((item) => Map<String, dynamic>.from(item))
+                          .toList();
+                      if (!dialogContext.mounted) return;
+                      setDialog(() {});
+                    } catch (error) {
+                      if (dialogContext.mounted) {
+                        showPrismNotice(dialogContext, error.toString());
+                      }
+                    }
                   }
                 },
                 child: const Text('清理过期实例'),
@@ -5206,39 +5085,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              if (constraints.maxWidth >= 760) {
-                return Row(
-                  children: [
-                    for (var i = 0; i < kpiTiles.length; i++) ...[
-                      if (i > 0) const SizedBox(width: 16),
-                      Expanded(child: kpiTiles[i]),
-                    ],
-                  ],
-                );
-              }
-              return Column(
-                children: [
-                  Row(
-                    children: [
-                      Expanded(child: kpiTiles[0]),
-                      const SizedBox(width: 16),
-                      Expanded(child: kpiTiles[1]),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(child: kpiTiles[2]),
-                      const SizedBox(width: 16),
-                      Expanded(child: kpiTiles[3]),
-                    ],
-                  ),
-                ],
-              );
-            },
-          ),
+          PrismMetricGrid(tiles: kpiTiles),
           const SizedBox(height: 16),
           PrismHoverCard(
             staggerIndex: 4,

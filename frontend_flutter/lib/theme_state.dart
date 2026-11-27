@@ -35,7 +35,6 @@ void setAppMotionIntensity(num? value) {
 /// - `250%`：极限反例级夸张幅度。
 class PrismMotionSpec {
   const PrismMotionSpec({
-    required this.intensity,
     required this.enabled,
     required this.springCurve,
     required this.liftCurve,
@@ -71,8 +70,6 @@ class PrismMotionSpec {
     required this.hoverRimAlpha,
     required this.railDuration,
     required this.railNudgePx,
-    required this.railHoverScale,
-    required this.railPressScale,
     required this.railPaddingDuration,
     required this.hoverScaleFactor,
     required this.pressScaleFactor,
@@ -83,7 +80,6 @@ class PrismMotionSpec {
     required this.collapsibleDuration,
   });
 
-  final int intensity;
   final bool enabled;
   final Curve springCurve;
   final Curve liftCurve;
@@ -119,8 +115,6 @@ class PrismMotionSpec {
   final double hoverRimAlpha;
   final Duration railDuration;
   final double railNudgePx;
-  final double railHoverScale;
-  final double railPressScale;
   final Duration railPaddingDuration;
   final double hoverScaleFactor;
   final double pressScaleFactor;
@@ -142,7 +136,6 @@ class PrismMotionSpec {
     );
     if (intensity <= 0) {
       return const PrismMotionSpec(
-        intensity: 0,
         enabled: false,
         springCurve: Curves.linear,
         liftCurve: Curves.linear,
@@ -178,8 +171,6 @@ class PrismMotionSpec {
         hoverRimAlpha: 0,
         railDuration: Duration.zero,
         railNudgePx: 0,
-        railHoverScale: 1.0,
-        railPressScale: 1.0,
         railPaddingDuration: Duration.zero,
         hoverScaleFactor: 0,
         pressScaleFactor: 0,
@@ -194,7 +185,6 @@ class PrismMotionSpec {
     if (intensity <= 100) {
       final u = intensity / 100.0;
       return PrismMotionSpec(
-        intensity: intensity,
         enabled: true,
         springCurve: Cubic(
           _lerp(0.22, 0.29, u),
@@ -240,8 +230,6 @@ class PrismMotionSpec {
         hoverRimAlpha: _lerp(0, 0.50, u),
         railDuration: Duration(milliseconds: _lerpInt(100, 440, u)),
         railNudgePx: _lerp(0, 8.0, u),
-        railHoverScale: _lerp(1.0, 1.02, u),
-        railPressScale: _lerp(1.0, 0.95, u),
         railPaddingDuration: Duration(milliseconds: _lerpInt(80, 260, u)),
         hoverScaleFactor: u,
         pressScaleFactor: u,
@@ -255,7 +243,6 @@ class PrismMotionSpec {
 
     final u = (intensity - 100) / 150.0;
     return PrismMotionSpec(
-      intensity: intensity,
       enabled: true,
       springCurve: Cubic(
         _lerp(0.29, 0.34, u),
@@ -301,8 +288,6 @@ class PrismMotionSpec {
       hoverRimAlpha: _lerp(0.50, 0.92, u),
       railDuration: Duration(milliseconds: _lerpInt(440, 820, u)),
       railNudgePx: _lerp(8.0, 22.0, u),
-      railHoverScale: _lerp(1.02, 1.06, u),
-      railPressScale: _lerp(0.95, 0.84, u),
       railPaddingDuration: Duration(milliseconds: _lerpInt(260, 420, u)),
       hoverScaleFactor: _lerp(1.0, 0.15 / 0.056, u),
       pressScaleFactor: _lerp(1.0, 0.18 / 0.075, u),

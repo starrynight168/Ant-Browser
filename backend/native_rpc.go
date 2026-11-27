@@ -29,8 +29,24 @@ type NativeRPCServer struct {
 	eventMu      sync.Mutex
 	nextEventID  uint64
 	eventClients map[uint64]chan nativeRuntimeEvent
+	stickyEvents map[string]nativeRuntimeEvent
 	dialogMu     sync.Mutex
 	dialogs      map[string]chan nativeDialogResult
+}
+
+var stickyStartupEvents = []string{
+	"app:db-recovered",
+	"app:update:pending",
+	"app:ready",
+}
+
+func isStickyStartupEvent(name string) bool {
+	for _, sticky := range stickyStartupEvents {
+		if name == sticky {
+			return true
+		}
+	}
+	return false
 }
 
 type nativeRuntimeEvent struct {
@@ -70,6 +86,7 @@ func NewNativeRPCServer(app *App) (*NativeRPCServer, error) {
 		quit:         make(chan struct{}),
 		readyCh:      readyCh,
 		eventClients: make(map[uint64]chan nativeRuntimeEvent),
+		stickyEvents: make(map[string]nativeRuntimeEvent),
 		dialogs:      make(map[string]chan nativeDialogResult),
 	}
 	mux := http.NewServeMux()
@@ -105,6 +122,7 @@ func (s *NativeRPCServer) Close(ctx context.Context) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	s.quitOnce.Do(func() { close(s.quit) })
 	return s.httpServer.Shutdown(ctx)
 }
 
@@ -150,9 +168,19 @@ func (s *NativeRPCServer) waitReady(ctx context.Context) error {
 }
 
 func (s *NativeRPCServer) EmitRuntimeEvent(name string, args ...interface{}) {
-	event := nativeRuntimeEvent{Name: name, Args: args}
+	var argsCopy []interface{}
+	if len(args) > 0 {
+		argsCopy = append([]interface{}(nil), args...)
+	}
+	event := nativeRuntimeEvent{Name: name, Args: argsCopy}
 	s.eventMu.Lock()
 	defer s.eventMu.Unlock()
+	if isStickyStartupEvent(name) {
+		if s.stickyEvents == nil {
+			s.stickyEvents = make(map[string]nativeRuntimeEvent)
+		}
+		s.stickyEvents[name] = event
+	}
 	for _, client := range s.eventClients {
 		select {
 		case client <- event:
@@ -185,6 +213,11 @@ func (s *NativeRPCServer) requestDialog(ctx context.Context, kind string, option
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	select {
+	case <-s.quit:
+		return "", fmt.Errorf("原生界面接口已关闭")
+	default:
+	}
 	requestID, err := newNativeRequestID()
 	if err != nil {
 		return "", err
@@ -198,17 +231,35 @@ func (s *NativeRPCServer) requestDialog(ctx context.Context, kind string, option
 		delete(s.dialogs, requestID)
 		s.dialogMu.Unlock()
 	}()
-	s.EmitRuntimeEvent("native:dialog", map[string]interface{}{
-		"requestId": requestID,
-		"kind":      kind,
-		"options":   options,
-	})
+	event := nativeRuntimeEvent{
+		Name: "native:dialog",
+		Args: []interface{}{map[string]interface{}{
+			"requestId": requestID,
+			"kind":      kind,
+			"options":   options,
+		}},
+	}
+	delivered := false
+	s.eventMu.Lock()
+	for _, client := range s.eventClients {
+		select {
+		case client <- event:
+			delivered = true
+		default:
+		}
+	}
+	s.eventMu.Unlock()
+	if !delivered {
+		return "", fmt.Errorf("桌面界面未连接")
+	}
 	select {
 	case response := <-result:
 		if response.err != "" {
 			return "", fmt.Errorf("%s", response.err)
 		}
 		return response.value, nil
+	case <-s.quit:
+		return "", fmt.Errorf("原生界面接口已关闭")
 	case <-ctx.Done():
 		return "", ctx.Err()
 	}
@@ -258,14 +309,18 @@ func (s *NativeRPCServer) handleInvoke(w http.ResponseWriter, r *http.Request) {
 func (s *NativeRPCServer) writeInvokeResult(w http.ResponseWriter, value interface{}, err error) {
 	w.Header().Set("Content-Type", "application/json")
 	if err != nil {
+		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error()})
 		return
 	}
-	if _, marshalErr := json.Marshal(value); marshalErr != nil {
+	payload, marshalErr := json.Marshal(map[string]interface{}{"value": value})
+	if marshalErr != nil {
+		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": marshalErr.Error()})
 		return
 	}
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{"value": value})
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(payload)
 }
 
 func invokeBackendMethod(app *App, methodName string, rawArgs []json.RawMessage) (value interface{}, err error) {
@@ -340,11 +395,24 @@ func (s *NativeRPCServer) handleEvents(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
 		return
 	}
+	select {
+	case <-s.quit:
+		return
+	default:
+	}
 	client := make(chan nativeRuntimeEvent, 256)
 	s.eventMu.Lock()
 	s.nextEventID++
 	clientID := s.nextEventID
 	s.eventClients[clientID] = client
+	for _, name := range stickyStartupEvents {
+		if event, exists := s.stickyEvents[name]; exists {
+			select {
+			case client <- event:
+			default:
+			}
+		}
+	}
 	s.eventMu.Unlock()
 	defer func() {
 		s.eventMu.Lock()
@@ -357,6 +425,8 @@ func (s *NativeRPCServer) handleEvents(w http.ResponseWriter, r *http.Request) {
 	flusher.Flush()
 	for {
 		select {
+		case <-s.quit:
+			return
 		case <-r.Context().Done():
 			return
 		case event := <-client:

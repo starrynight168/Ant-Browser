@@ -15,26 +15,6 @@ const _refreshableSourceTypes = {
   'git',
 };
 
-String _twoDigits(int n) => n.toString().padLeft(2, '0');
-
-String _formatDateTime(dynamic raw) {
-  final text = '${raw ?? ''}'.trim();
-  if (text.isEmpty) return '-';
-  final parsed = DateTime.tryParse(text);
-  if (parsed == null) return text;
-  final local = parsed.toLocal();
-  return '${local.year}-${_twoDigits(local.month)}-${_twoDigits(local.day)} '
-      '${_twoDigits(local.hour)}:${_twoDigits(local.minute)}:${_twoDigits(local.second)}';
-}
-
-String _formatDuration(dynamic rawMs) {
-  final ms = (rawMs is num)
-      ? rawMs.toInt()
-      : int.tryParse('${rawMs ?? ''}') ?? 0;
-  if (ms < 1000) return '$ms ms';
-  return '${(ms / 1000).toStringAsFixed(2)} s';
-}
-
 String _normalizePublicApiPath(String value) {
   var source = value.trim().replaceAll('\\', '/');
   const basePath = '/api/automation/hooks';
@@ -921,7 +901,7 @@ class _AutomationScriptRunModalState extends State<AutomationScriptRunModal> {
                     ),
                     if (result != null)
                       PrismBadge(
-                        label: _formatDuration(result['durationMs']),
+                        label: formatDurationMs(result['durationMs']),
                         glyph: AntGlyphs.schedule,
                         tone: PrismTone.neutral,
                       ),
@@ -1337,26 +1317,14 @@ class _AutomationPageState extends State<AutomationPage> {
   }
 
   Future<void> _deleteScript(String id, String name) async {
-    final confirmed = await showPrismDialog<bool>(
+    final confirmed = await showPrismConfirmDialog(
       context: context,
-      useRootNavigator: false,
-      builder: (context) => PrismDialog(
-        title: const Text('删除脚本？'),
-        destructive: true,
-        content: Text('将删除“$name”及其本地文件。'),
-        actions: [
-          prism.TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          prism.FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
+      title: '删除脚本？',
+      message: '将删除“$name”及其本地文件。',
+      destructive: true,
+      confirmLabel: '删除',
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
     setState(() => _busy = id);
     try {
       await AppBridge.call('AutomationScriptDelete', [id]);
@@ -1441,14 +1409,14 @@ class _AutomationPageState extends State<AutomationPage> {
                     dot: true,
                   ),
                   PrismBadge(
-                    label: '耗时 ${_formatDuration(run['durationMs'])}',
+                    label: '耗时 ${formatDurationMs(run['durationMs'])}',
                     glyph: AntGlyphs.schedule,
                   ),
                 ],
               ),
               const SizedBox(height: 14),
               Text(
-                '开始时间：${_formatDateTime(run['startedAt'])}',
+                '开始时间：${formatDateTime(run['startedAt'], returnRawOnInvalid: true)}',
                 style: prism.AppTextStyle.footnote.of(context),
               ),
               if (summary.isNotEmpty) ...[
@@ -1639,7 +1607,10 @@ class _AutomationPageState extends State<AutomationPage> {
                           label: '最近调用',
                           value: runs.isEmpty
                               ? '暂无'
-                              : _formatDateTime(runs.first['startedAt']),
+                              : formatDateTime(
+                                  runs.first['startedAt'],
+                                  returnRawOnInvalid: true,
+                                ),
                           glyph: AntGlyphs.schedule,
                           tone: PrismTone.info,
                         ),
@@ -1716,7 +1687,7 @@ class _AutomationPageState extends State<AutomationPage> {
                                           ),
                                           const SizedBox(width: 8),
                                           PrismBadge(
-                                            label: _formatDuration(
+                                            label: formatDurationMs(
                                               run['durationMs'],
                                             ),
                                             tone: PrismTone.neutral,
@@ -1725,7 +1696,10 @@ class _AutomationPageState extends State<AutomationPage> {
                                       ),
                                       subtitle: Text(
                                         [
-                                          _formatDateTime(run['startedAt']),
+                                          formatDateTime(
+                                            run['startedAt'],
+                                            returnRawOnInvalid: true,
+                                          ),
                                           if (summary.isNotEmpty)
                                             summary
                                           else if (errorMsg.isNotEmpty)
@@ -2100,39 +2074,7 @@ class _AutomationPageState extends State<AutomationPage> {
       ),
     ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth >= 760) {
-          return Row(
-            children: [
-              for (var i = 0; i < tiles.length; i++) ...[
-                if (i > 0) const SizedBox(width: 16),
-                Expanded(child: tiles[i]),
-              ],
-            ],
-          );
-        }
-        return Column(
-          children: [
-            Row(
-              children: [
-                Expanded(child: tiles[0]),
-                const SizedBox(width: 16),
-                Expanded(child: tiles[1]),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(child: tiles[2]),
-                const SizedBox(width: 16),
-                Expanded(child: tiles[3]),
-              ],
-            ),
-          ],
-        );
-      },
-    );
+    return PrismMetricGrid(tiles: tiles);
   }
 
   Widget _buildToolbar(BuildContext context) {
@@ -2420,8 +2362,8 @@ class _AutomationPageState extends State<AutomationPage> {
                           ),
                         ),
                         subtitle: Text(
-                          '${_formatDateTime(run['startedAt'])} · '
-                          '${_formatDuration(run['durationMs'])}'
+                          '${formatDateTime(run['startedAt'], returnRawOnInvalid: true)} · '
+                          '${formatDurationMs(run['durationMs'])}'
                           '${'${run['summary'] ?? run['error'] ?? ''}'.trim().isNotEmpty ? '\n${run['summary'] ?? run['error']}' : ''}',
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -2891,25 +2833,14 @@ class _AutomationScriptDetailPageState
       widget.onBack();
       return;
     }
-    final leave = await showPrismDialog<bool>(
+    final leave = await showPrismConfirmDialog(
       context: context,
-      useRootNavigator: false,
-      builder: (context) => PrismDialog(
-        title: const Text('有未保存的修改'),
-        content: const Text('离开后，这些脚本修改会丢失。仍要离开吗？'),
-        actions: [
-          prism.TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('继续编辑'),
-          ),
-          prism.FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('放弃修改并离开'),
-          ),
-        ],
-      ),
+      title: '有未保存的修改',
+      message: '离开后，这些脚本修改会丢失。仍要离开吗？',
+      cancelLabel: '继续编辑',
+      confirmLabel: '放弃修改并离开',
     );
-    if (leave == true) widget.onBack();
+    if (leave) widget.onBack();
   }
 
   Future<void> _showParamsHelp() async {
@@ -3557,26 +3488,14 @@ class _AutomationScriptDetailPageState
                           }
                         }
                       } else if (action == 'delete') {
-                        final yes = await showPrismDialog<bool>(
+                        final yes = await showPrismConfirmDialog(
                           context: context,
-                          useRootNavigator: false,
-                          builder: (context) => PrismDialog(
-                            title: const Text('删除脚本？'),
-                            destructive: true,
-                            content: Text('将删除“${_name.text}”及其本地文件。'),
-                            actions: [
-                              prism.TextButton(
-                                onPressed: () => Navigator.pop(context, false),
-                                child: const Text('取消'),
-                              ),
-                              prism.FilledButton(
-                                onPressed: () => Navigator.pop(context, true),
-                                child: const Text('删除'),
-                              ),
-                            ],
-                          ),
+                          title: '删除脚本？',
+                          message: '将删除“${_name.text}”及其本地文件。',
+                          destructive: true,
+                          confirmLabel: '删除',
                         );
-                        if (yes == true) {
+                        if (yes) {
                           try {
                             await AppBridge.call('AutomationScriptDelete', [
                               widget.scriptId,

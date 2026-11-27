@@ -105,25 +105,13 @@ class _LogsPageState extends State<LogsPage> {
   }
 
   Future<void> _clear() async {
-    final confirmed = await showPrismDialog<bool>(
+    final confirmed = await showPrismConfirmDialog(
       context: context,
-      useRootNavigator: false,
-      builder: (context) => PrismDialog(
-        title: const Text('清空日志？'),
-        content: const Text('这会清空当前应用的运行日志。'),
-        actions: [
-          prism.TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          prism.FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('清空'),
-          ),
-        ],
-      ),
+      title: '清空日志？',
+      message: '这会清空当前应用的运行日志。',
+      confirmLabel: '清空',
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
     setState(() => _clearing = true);
     try {
       await AppBridge.call('ClearAppLogs');
@@ -341,10 +329,9 @@ class _LogsPageState extends State<LogsPage> {
       showPrismNotice(context, '当前没有可导出的日志');
       return;
     }
-    final now = DateTime.now();
-    String two(int v) => v.toString().padLeft(2, '0');
-    final stamp =
-        '${now.year}${two(now.month)}${two(now.day)}_${two(now.hour)}${two(now.minute)}${two(now.second)}';
+    final stamp = formatDateTime(
+      DateTime.now(),
+    ).replaceAll('-', '').replaceAll(':', '').replaceAll(' ', '_');
     final ext = asJson ? 'json' : 'log';
     final defaultPath =
         '${Directory.systemTemp.path}${Platform.pathSeparator}ant_browser_logs_$stamp.$ext';
@@ -462,39 +449,7 @@ class _LogsPageState extends State<LogsPage> {
       ),
     ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth >= 760) {
-          return Row(
-            children: [
-              for (var i = 0; i < tiles.length; i++) ...[
-                if (i > 0) const SizedBox(width: 16),
-                Expanded(child: tiles[i]),
-              ],
-            ],
-          );
-        }
-        return Column(
-          children: [
-            Row(
-              children: [
-                Expanded(child: tiles[0]),
-                const SizedBox(width: 16),
-                Expanded(child: tiles[1]),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(child: tiles[2]),
-                const SizedBox(width: 16),
-                Expanded(child: tiles[3]),
-              ],
-            ),
-          ],
-        );
-      },
-    );
+    return PrismMetricGrid(tiles: tiles);
   }
 
   Widget _buildToolbar(

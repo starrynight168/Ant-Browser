@@ -21,6 +21,12 @@ var appVersion = "1.9.7"
 
 func main() {
 	appRoot := resolveAppRoot()
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			lifecycle.LogPanic(appRoot, "process.panic", recovered)
+			panic(recovered)
+		}
+	}()
 	lifecycle.Log(appRoot, "process.start", map[string]interface{}{"native": true})
 	defer lifecycle.Log(appRoot, "process.defer_exit", map[string]interface{}{"native": true})
 	if err := os.Chdir(appRoot); err != nil {
@@ -75,7 +81,8 @@ func main() {
 	}
 	rpc.SetStartupDeferred()
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	startupDone := make(chan error, 1)
 	go func() {
 		startErr := backend.Start(app, ctx)
@@ -106,6 +113,7 @@ func main() {
 	if _, err := os.Stat(uiPath); err != nil {
 		log.Printf("找不到 Flutter 界面程序 %q: %v", uiPath, err)
 		lifecycle.Log(appRoot, "flutter_ui.missing", map[string]interface{}{"path": uiPath, "error": err.Error()})
+		cancel()
 		<-startupDone
 		backend.Stop(app, ctx)
 		_ = rpc.Close(context.Background())
@@ -125,6 +133,7 @@ func main() {
 	if err := ui.Start(); err != nil {
 		log.Printf("启动 Flutter 界面失败: %v", err)
 		lifecycle.Log(appRoot, "flutter_ui.start.error", map[string]interface{}{"path": uiPath, "error": err.Error()})
+		cancel()
 		<-startupDone
 		backend.Stop(app, ctx)
 		_ = rpc.Close(context.Background())
@@ -172,13 +181,14 @@ func main() {
 		<-uiExited
 	}
 
+	cancel()
 	backend.QuitTray()
 	<-startupDone
 	lifecycle.Log(appRoot, "backend.stop.begin", nil)
 	backend.Stop(app, ctx)
 	lifecycle.Log(appRoot, "backend.stop.complete", nil)
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer shutdownCancel()
 	if err := rpc.Close(shutdownCtx); err != nil {
 		log.Printf("关闭本地界面接口失败: %v", err)
 		lifecycle.Log(appRoot, "native_rpc.stop.error", map[string]interface{}{"error": err.Error()})

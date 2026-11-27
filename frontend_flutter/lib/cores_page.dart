@@ -68,7 +68,7 @@ class _CoresPageState extends State<CoresPage> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    if (mounted) setState(() => _loading = true);
     try {
       final values = await Future.wait([
         AppBridge.call('BrowserCoreList'),
@@ -571,25 +571,14 @@ class _CoresPageState extends State<CoresPage> {
       _message(deleteReason);
       return;
     }
-    final confirmed = await showPrismDialog<bool>(
+    final confirmed = await showPrismConfirmDialog(
       context: context,
-      useRootNavigator: false,
-      builder: (context) => PrismDialog(
-        title: const Text('删除内核？'),
-        content: Text('确定删除“${core['coreName'] ?? ''}”吗？'),
-        actions: [
-          prism.TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          prism.FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
+      title: '删除内核？',
+      message: '确定删除“${core['coreName'] ?? ''}”吗？',
+      confirmLabel: '删除',
+      destructive: true,
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
     setState(() => _busy = true);
     try {
       await AppBridge.call('BrowserCoreDelete', ['${core['coreId'] ?? ''}']);
@@ -1184,39 +1173,7 @@ class _CoresPageState extends State<CoresPage> {
       ),
     ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth >= 760) {
-          return Row(
-            children: [
-              for (var i = 0; i < tiles.length; i++) ...[
-                if (i > 0) const SizedBox(width: 16),
-                Expanded(child: tiles[i]),
-              ],
-            ],
-          );
-        }
-        return Column(
-          children: [
-            Row(
-              children: [
-                Expanded(child: tiles[0]),
-                const SizedBox(width: 16),
-                Expanded(child: tiles[1]),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(child: tiles[2]),
-                const SizedBox(width: 16),
-                Expanded(child: tiles[3]),
-              ],
-            ),
-          ],
-        );
-      },
-    );
+    return PrismMetricGrid(tiles: tiles);
   }
 
   Widget _buildToolbar(BuildContext context) {
@@ -1365,73 +1322,6 @@ class _CoresPageState extends State<CoresPage> {
     );
   }
 
-  static String _capabilityMark(String status) => switch (status) {
-    'supported' || 'supported_measured' => '✓ 实测',
-    'supported_documented' => '✓ 文档',
-    'supported_policy' => '✓ 策略',
-    'unsupported' || 'unsupported_measured' => '✗ 实测',
-    'unsupported_documented' => '✗ 文档',
-    'unsupported_policy' => '✗ 策略',
-    'converted' => '转 兼容',
-    _ => '? 未验',
-  };
-
-  static PrismTone _capabilityTone(String status) => switch (status) {
-    'supported' || 'supported_measured' => PrismTone.success,
-    'supported_documented' => PrismTone.info,
-    'unsupported' || 'unsupported_measured' => PrismTone.danger,
-    'unsupported_documented' || 'converted' => PrismTone.warning,
-    _ => PrismTone.neutral,
-  };
-
-  Widget _buildCapabilityRow(
-    BuildContext context,
-    Map<String, dynamic> item,
-    List<Map<String, dynamic>> versions,
-    String currentKey,
-  ) {
-    final colors = prism.Theme.of(context).colorScheme;
-    final support = item['support'] is Map
-        ? Map<String, dynamic>.from(item['support'] as Map)
-        : const <String, dynamic>{};
-    final note = (item['note'] ?? '').toString().trim();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '${item['label'] ?? ''} · ${item['arg'] ?? ''}',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: prism.AppTextStyle.subheadline.of(context, emphasized: true),
-        ),
-        if (note.isNotEmpty) ...[
-          const SizedBox(height: 4),
-          Text(
-            note,
-            style: prism.AppTextStyle.caption1
-                .of(context)
-                .copyWith(color: colors.onSurfaceVariant),
-          ),
-        ],
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final v in versions)
-              PrismBadge(
-                label:
-                    '${v['key'] == currentKey ? '★ ' : ''}${v['label'] ?? v['key'] ?? ''}: ${_capabilityMark((support[v['key']] ?? 'unknown').toString())}',
-                tone: _capabilityTone(
-                  (support[v['key']] ?? 'unknown').toString(),
-                ),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-
   Future<void> _showCapabilityTableModal() async {
     final defaultCore = _cores.firstWhere(
       (core) => core['isDefault'] == true,
@@ -1447,108 +1337,12 @@ class _CoresPageState extends State<CoresPage> {
       final table = raw is Map
           ? Map<String, dynamic>.from(raw)
           : const <String, dynamic>{};
-      final versions = (table['versions'] as List? ?? const [])
-          .whereType<Map>()
-          .map((e) => Map<String, dynamic>.from(e))
-          .toList();
-      final groups = (table['groups'] as List? ?? const [])
-          .whereType<Map>()
-          .map((e) => Map<String, dynamic>.from(e))
-          .toList();
-      final currentKey = (table['currentVersionKey'] ?? '').toString();
-      final notes = (table['notes'] as List? ?? const [])
-          .map((e) => e.toString())
-          .where((e) => e.trim().isNotEmpty)
-          .toList();
-      final warnings = (table['warnings'] as List? ?? const [])
-          .map((e) => e.toString())
-          .where((e) => e.trim().isNotEmpty)
-          .toList();
-      final currentLabel = versions
-          .where((v) => v['key'] == currentKey)
-          .map((v) => (v['label'] ?? '').toString())
-          .firstOrNull;
 
-      await showPrismDialog<void>(
+      await showFingerprintCapabilityDialog(
         context: context,
-        useRootNavigator: false,
-        builder: (context) => PrismDialog(
-          title: const Text('内核能力表'),
-          content: SizedBox(
-            width: 820,
-            height: 600,
-            child: ListView(
-              children: [
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 10,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    PrismBadge(
-                      label: currentLabel != null && currentLabel.isNotEmpty
-                          ? '默认内核：$currentLabel'
-                          : '默认内核：未识别',
-                      tone: currentLabel != null
-                          ? PrismTone.primary
-                          : PrismTone.neutral,
-                    ),
-                    PrismBadge(
-                      label: '能力表更新：${table['updatedAt'] ?? '-'}',
-                      tone: PrismTone.neutral,
-                    ),
-                  ],
-                ),
-                if (warnings.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  PrismBanner(
-                    tone: PrismTone.warning,
-                    message: warnings.join(' '),
-                  ),
-                ],
-                if (notes.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  PrismBanner(tone: PrismTone.info, message: notes.join(' ')),
-                ],
-                const SizedBox(height: 16),
-                for (final group in groups) ...[
-                  PrismSectionCard(
-                    title: (group['label'] ?? group['key'] ?? '').toString(),
-                    glyph: AntGlyphs.tune,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        for (var i = 0;
-                            i < (group['items'] as List? ?? const []).length;
-                            i++) ...[
-                          if (i > 0) ...[
-                            const SizedBox(height: 10),
-                            const prism.Divider(height: 1),
-                            const SizedBox(height: 10),
-                          ],
-                          _buildCapabilityRow(
-                            context,
-                            Map<String, dynamic>.from(
-                              (group['items'] as List)[i] as Map,
-                            ),
-                            versions,
-                            currentKey,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                ],
-              ],
-            ),
-          ),
-          actions: [
-            prism.TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('关闭'),
-            ),
-          ],
-        ),
+        title: '内核能力表',
+        kernelBadgePrefix: '默认内核',
+        table: table,
       );
     } catch (error) {
       if (mounted) _message('读取内核能力表失败：$error');

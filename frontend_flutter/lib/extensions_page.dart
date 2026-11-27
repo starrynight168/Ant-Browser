@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:prism_ui/prism_ui.dart' as prism;
@@ -7,31 +8,17 @@ import 'package:prism_ui/prism_ui.dart' as prism;
 import 'app_bridge.dart';
 import 'prism_widgets.dart';
 
-String _formatExtensionFileSize(dynamic rawBytes) {
-  final bytes = (rawBytes is num)
-      ? rawBytes.toDouble()
-      : double.tryParse('$rawBytes') ?? 0;
-  if (bytes <= 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB'];
-  var value = bytes;
-  var index = 0;
-  while (value >= 1024 && index < units.length - 1) {
-    value /= 1024;
-    index++;
+Uint8List? _decodeExtensionIcon(String icon) {
+  if (!icon.startsWith('data:image')) return null;
+  final markerIndex = icon.indexOf(';base64,');
+  if (markerIndex < 0) return null;
+  final payload = icon.substring(markerIndex + ';base64,'.length).trim();
+  if (payload.isEmpty) return null;
+  try {
+    return base64Decode(payload);
+  } catch (_) {
+    return null;
   }
-  final digits = index == 0 ? 0 : (value >= 100 ? 0 : (value >= 10 ? 1 : 2));
-  return '${value.toStringAsFixed(digits)} ${units[index]}';
-}
-
-String _formatExtensionTime(dynamic raw) {
-  final text = (raw ?? '').toString().trim();
-  if (text.isEmpty) return '';
-  final parsed = DateTime.tryParse(text);
-  if (parsed == null) return text;
-  final local = parsed.toLocal();
-  String two(int v) => v.toString().padLeft(2, '0');
-  return '${local.year}-${two(local.month)}-${two(local.day)} '
-      '${two(local.hour)}:${two(local.minute)}';
 }
 
 class _ParsedManifestInfo {
@@ -159,6 +146,10 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
     _query.dispose();
     _filterQuery.dispose();
     super.dispose();
+  }
+
+  void _message(String value) {
+    if (mounted) showPrismNotice(context, value);
   }
 
   String get _selectedProxyConfig {
@@ -483,8 +474,11 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                     Text(
                                       [
                                         if (extId.isNotEmpty) 'ID: $extId',
-                                        _formatExtensionTime(
+                                        formatDateTime(
                                           record['createdAt'],
+                                          includeSeconds: false,
+                                          fallback: '',
+                                          returnRawOnInvalid: true,
                                         ),
                                       ].where((s) => s.isNotEmpty).join(' · '),
                                       maxLines: 1,
@@ -582,7 +576,9 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
   Future<void> _openDownloadDirectoryInstallModal() async {
     try {
       await AppBridge.call('BrowserExtensionOpenManualDownloadDir');
-    } catch (_) {}
+    } catch (error) {
+      _message('打开目录失败：$error');
+    }
     List<Map<String, dynamic>> files = [];
     try {
       final value = await AppBridge.call(
@@ -655,8 +651,9 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                               final file = files[index];
                               final fileName = (file['fileName'] ?? '')
                                   .toString();
-                              final sizeText = _formatExtensionFileSize(
+                              final sizeText = formatByteSize(
                                 file['sizeBytes'],
+                                fallback: '0 B',
                               );
                               final updatedAt = (file['updatedAt'] ?? '')
                                   .toString();
@@ -728,8 +725,13 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
             ),
             actions: [
               prism.TextButton.icon(
-                onPressed: () =>
-                    AppBridge.call('BrowserExtensionOpenManualDownloadDir'),
+                onPressed: () async {
+                  try {
+                    await AppBridge.call('BrowserExtensionOpenManualDownloadDir');
+                  } catch (error) {
+                    _message('打开目录失败：$error');
+                  }
+                },
                 icon: const PrismGlyph(AntGlyphs.folder, size: 15),
                 label: const Text('打开目录'),
               ),
@@ -1068,9 +1070,13 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                           ),
                         prism.OutlinedButton.icon(
                           onPressed: () async {
-                            await AppBridge.call(
-                              'BrowserExtensionOpenManualDownloadDir',
-                            );
+                            try {
+                              await AppBridge.call(
+                                'BrowserExtensionOpenManualDownloadDir',
+                              );
+                            } catch (error) {
+                              _message('打开目录失败：$error');
+                            }
                           },
                           icon: const PrismGlyph(AntGlyphs.folder, size: 15),
                           label: const Text('打开下载目录'),
@@ -1105,8 +1111,9 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                                 final file = files[index];
                                 final name = (file['fileName'] ?? '')
                                     .toString();
-                                final sizeText = _formatExtensionFileSize(
+                                final sizeText = formatByteSize(
                                   file['sizeBytes'],
+                                  fallback: '0 B',
                                 );
                                 return PrismCard(
                                   child: PrismListTile(
@@ -1787,39 +1794,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
       ),
     ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth >= 760) {
-          return Row(
-            children: [
-              for (var i = 0; i < tiles.length; i++) ...[
-                if (i > 0) const SizedBox(width: 16),
-                Expanded(child: tiles[i]),
-              ],
-            ],
-          );
-        }
-        return Column(
-          children: [
-            Row(
-              children: [
-                Expanded(child: tiles[0]),
-                const SizedBox(width: 16),
-                Expanded(child: tiles[1]),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(child: tiles[2]),
-                const SizedBox(width: 16),
-                Expanded(child: tiles[3]),
-              ],
-            ),
-          ],
-        );
-      },
-    );
+    return PrismMetricGrid(tiles: tiles);
   }
 
   Widget _buildStoreInstallPanel(BuildContext context) {
@@ -2323,7 +2298,9 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
   Widget _extensionCard(Map<String, dynamic> item) {
     final colors = prism.Theme.of(context).colorScheme;
     final id = (item['extensionId'] ?? '').toString();
-    final icon = (item['iconDataUrl'] ?? '').toString();
+    final iconBytes = _decodeExtensionIcon(
+      (item['iconDataUrl'] ?? '').toString(),
+    );
     final enabled = item['enabled'] == true;
     final defaultInstall = item['defaultInstall'] == true;
     final busy = _busy == id;
@@ -2360,13 +2337,13 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (icon.startsWith('data:image') && icon.contains(','))
+              if (iconBytes != null)
                 SizedBox(
                   width: 40,
                   height: 40,
                   child: ClipOval(
                     child: Image.memory(
-                      base64Decode(icon.substring(icon.indexOf(',') + 1)),
+                      iconBytes,
                       width: 40,
                       height: 40,
                       fit: BoxFit.cover,

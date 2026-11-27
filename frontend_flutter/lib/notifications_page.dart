@@ -36,25 +36,13 @@ class _NotificationsPageState extends State<NotificationsPage> {
   }
 
   Future<void> _clear() async {
-    final confirmed = await showPrismDialog<bool>(
+    final confirmed = await showPrismConfirmDialog(
       context: context,
-      useRootNavigator: false,
-      builder: (context) => PrismDialog(
-        title: const Text('清空通知？'),
-        content: const Text('清空后无法恢复。'),
-        actions: [
-          prism.TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          prism.FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('清空'),
-          ),
-        ],
-      ),
+      title: '清空通知？',
+      message: '清空后无法恢复。',
+      confirmLabel: '清空',
     );
-    if (confirmed == true) widget.store.clear();
+    if (confirmed) widget.store.clear();
   }
 
   String _sourceLabel(dynamic rawSource) =>
@@ -62,6 +50,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
         'operation' => '操作',
         'runtime' => '运行状态',
         'frontend' => '前端',
+        'backup' => '备份',
+        'settings' => '设置',
         _ => '系统',
       };
 
@@ -113,39 +103,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
       ),
     ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth >= 760) {
-          return Row(
-            children: [
-              for (var i = 0; i < tiles.length; i++) ...[
-                if (i > 0) const SizedBox(width: 16),
-                Expanded(child: tiles[i]),
-              ],
-            ],
-          );
-        }
-        return Column(
-          children: [
-            Row(
-              children: [
-                Expanded(child: tiles[0]),
-                const SizedBox(width: 16),
-                Expanded(child: tiles[1]),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(child: tiles[2]),
-                const SizedBox(width: 16),
-                Expanded(child: tiles[3]),
-              ],
-            ),
-          ],
-        );
-      },
-    );
+    return PrismMetricGrid(tiles: tiles);
   }
 
   Widget _buildToolbar({

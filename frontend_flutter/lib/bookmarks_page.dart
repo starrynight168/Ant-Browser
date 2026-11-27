@@ -186,26 +186,13 @@ class _BookmarksPageState extends State<BookmarksPage> {
     }
   }
 
-  Future<bool> _confirm(String title, String message) async =>
-      await showPrismDialog<bool>(
+  Future<bool> _confirm(String title, String message) =>
+      showPrismConfirmDialog(
         context: context,
-        useRootNavigator: false,
-        builder: (context) => PrismDialog(
-          title: Text(title),
-          content: Text(message),
-          actions: [
-            prism.TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('取消'),
-            ),
-            prism.FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('继续'),
-            ),
-          ],
-        ),
-      ) ==
-      true;
+        title: title,
+        message: message,
+        confirmLabel: '继续',
+      );
 
   String _syncMessage(dynamic result, {required String prefix}) {
     if (result is! Map) return prefix;
@@ -367,39 +354,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
       ),
     ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth >= 760) {
-          return Row(
-            children: [
-              for (var i = 0; i < tiles.length; i++) ...[
-                if (i > 0) const SizedBox(width: 16),
-                Expanded(child: tiles[i]),
-              ],
-            ],
-          );
-        }
-        return Column(
-          children: [
-            Row(
-              children: [
-                Expanded(child: tiles[0]),
-                const SizedBox(width: 16),
-                Expanded(child: tiles[1]),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(child: tiles[2]),
-                const SizedBox(width: 16),
-                Expanded(child: tiles[3]),
-              ],
-            ),
-          ],
-        );
-      },
-    );
+    return PrismMetricGrid(tiles: tiles);
   }
 
   Widget _buildToolbar() {

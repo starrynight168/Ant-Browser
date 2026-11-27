@@ -5,41 +5,12 @@ import 'package:prism_ui/prism_ui.dart' as prism;
 import 'app_bridge.dart';
 import 'prism_widgets.dart';
 
-String _formatFileSize(dynamic rawBytes) {
-  final bytes = (rawBytes is num)
-      ? rawBytes.toDouble()
-      : double.tryParse('$rawBytes') ?? 0;
-  if (bytes <= 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  var value = bytes;
-  var unitIndex = 0;
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024;
-    unitIndex++;
-  }
-  final digits = unitIndex == 0
-      ? 0
-      : (value >= 100 ? 0 : (value >= 10 ? 1 : 2));
-  return '${value.toStringAsFixed(digits)} ${units[unitIndex]}';
-}
-
 String _formatTransferRate(dynamic rawBps) {
   final bps = (rawBps is num)
       ? rawBps.toDouble()
       : double.tryParse('$rawBps') ?? 0;
   if (bps <= 0) return '';
-  return '${_formatFileSize(bps)}/s';
-}
-
-String _formatTimestamp(dynamic raw) {
-  final text = (raw ?? '').toString().trim();
-  if (text.isEmpty) return '';
-  final parsed = DateTime.tryParse(text);
-  if (parsed == null) return text;
-  final local = parsed.toLocal();
-  String two(int v) => v.toString().padLeft(2, '0');
-  return '${local.year}-${two(local.month)}-${two(local.day)} '
-      '${two(local.hour)}:${two(local.minute)}:${two(local.second)}';
+  return '${formatByteSize(bps, fallback: '0 B')}/s';
 }
 
 String _formatBackupResultSummary(Map<String, dynamic> result) {
@@ -837,13 +808,23 @@ class _BackupPageState extends State<BackupPage>
           final authConfigured = schedule['authConfigured'] == true;
           final status = (schedule['status'] ?? 'never').toString();
           final (statusLabel, statusTone) = _scheduleStatusInfo(status);
-          final lastSuccessAt = _formatTimestamp(schedule['lastSuccessAt']);
+          final lastSuccessAt = formatDateTime(
+            schedule['lastSuccessAt'],
+            fallback: '',
+            returnRawOnInvalid: true,
+          );
           final lastError = (schedule['lastError'] ?? '').toString().trim();
           final lastRemoteName = (schedule['lastRemoteName'] ?? '')
               .toString()
               .trim();
           final recentTimes = (schedule['recentBackupTimes'] as List? ?? [])
-              .map(_formatTimestamp)
+              .map(
+                (item) => formatDateTime(
+                  item,
+                  fallback: '',
+                  returnRawOnInvalid: true,
+                ),
+              )
               .where((item) => item.isNotEmpty)
               .toList();
           final colors = prism.Theme.of(dialogContext).colorScheme;
@@ -1041,25 +1022,13 @@ class _BackupPageState extends State<BackupPage>
   }
 
   Future<void> _restoreLocal(Map<String, dynamic> backup) async {
-    final accepted = await showPrismDialog<bool>(
+    final accepted = await showPrismConfirmDialog(
       context: context,
-      useRootNavigator: false,
-      builder: (context) => PrismDialog(
-        title: const Text('合并恢复本地备份？'),
-        content: Text('将从「${backup['name'] ?? ''}」合并恢复数据。建议先关闭浏览器实例。'),
-        actions: [
-          prism.TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          prism.FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('继续恢复'),
-          ),
-        ],
-      ),
+      title: '合并恢复本地备份？',
+      message: '将从「${backup['name'] ?? ''}」合并恢复数据。建议先关闭浏览器实例。',
+      confirmLabel: '继续恢复',
     );
-    if (accepted == true) {
+    if (accepted) {
       await _run('restore', () async {
         final value = await AppBridge.call('BackupRestoreLocalPackage', [
           backup['path'],
@@ -1074,25 +1043,13 @@ class _BackupPageState extends State<BackupPage>
 
   Future<void> _restoreRemote(String channel, String fileName) async {
     final label = channel == 'openlist' ? 'OpenList' : 'S3';
-    final accepted = await showPrismDialog<bool>(
+    final accepted = await showPrismConfirmDialog(
       context: context,
-      useRootNavigator: false,
-      builder: (context) => PrismDialog(
-        title: Text('从 $label 合并恢复？'),
-        content: Text('将从 $label 合并恢复「$fileName」中的数据；已有数据会保留。'),
-        actions: [
-          prism.TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          prism.FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('合并恢复'),
-          ),
-        ],
-      ),
+      title: '从 $label 合并恢复？',
+      message: '将从 $label 合并恢复「$fileName」中的数据；已有数据会保留。',
+      confirmLabel: '合并恢复',
     );
-    if (accepted != true) return;
+    if (!accepted) return;
     await _run('restore', () async {
       final result = await AppBridge.call(
         channel == 'openlist' ? 'BackupOpenListRestore' : 'BackupS3Restore',
@@ -1527,25 +1484,13 @@ class _BackupPageState extends State<BackupPage>
   }
 
   Future<void> _importBackup() async {
-    final yes = await showPrismDialog<bool>(
+    final yes = await showPrismConfirmDialog(
       context: context,
-      useRootNavigator: false,
-      builder: (context) => PrismDialog(
-        title: const Text('导入备份？'),
-        content: const Text('导入会更改当前应用数据，请先确认选择了正确的备份文件。'),
-        actions: [
-          prism.TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          prism.FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('继续'),
-          ),
-        ],
-      ),
+      title: '导入备份？',
+      message: '导入会更改当前应用数据，请先确认选择了正确的备份文件。',
+      confirmLabel: '继续',
     );
-    if (yes != true) return;
+    if (!yes) return;
     await _run('import', () async {
       final value = await AppBridge.call('BackupImportPackage');
       if (value is! Map) return value;
@@ -1575,7 +1520,7 @@ class _BackupPageState extends State<BackupPage>
       if (message.isNotEmpty) message,
       if (entryIndex > 0 && entryTotal > 0) '条目 $entryIndex / $entryTotal',
       if (transferred > 0 && totalBytes > 0)
-        '${_formatFileSize(transferred)} / ${_formatFileSize(totalBytes)}',
+        '${formatByteSize(transferred, fallback: '0 B')} / ${formatByteSize(totalBytes, fallback: '0 B')}',
       if (rate.isNotEmpty) '速度 $rate',
     ];
 
@@ -1638,8 +1583,12 @@ class _BackupPageState extends State<BackupPage>
     final colors = prism.Theme.of(context).colorScheme;
     final name = (backup['name'] ?? '').toString();
     final path = (backup['path'] ?? '').toString();
-    final sizeText = _formatFileSize(backup['size']);
-    final modifiedAt = _formatTimestamp(backup['modifiedAt']);
+    final sizeText = formatByteSize(backup['size'], fallback: '0 B');
+    final modifiedAt = formatDateTime(
+      backup['modifiedAt'],
+      fallback: '',
+      returnRawOnInvalid: true,
+    );
     final (badgeLabel, badgeTone) = _backupPackageBadge(
       backup,
       isLocal: isLocal,
@@ -1871,7 +1820,7 @@ class _BackupPageState extends State<BackupPage>
         value: '${_localBackups.length}',
         subtitle: _localBackups.isEmpty
             ? null
-            : '共 ${_formatFileSize(localTotalBytes)}',
+            : '共 ${formatByteSize(localTotalBytes, fallback: '0 B')}',
         glyph: AntGlyphs.archive,
         tone: PrismTone.primary,
         onPressed: () => _selectHistoryTab(0),
@@ -1918,39 +1867,7 @@ class _BackupPageState extends State<BackupPage>
       ),
     ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth >= 760) {
-          return Row(
-            children: [
-              for (var i = 0; i < tiles.length; i++) ...[
-                if (i > 0) const SizedBox(width: 16),
-                Expanded(child: tiles[i]),
-              ],
-            ],
-          );
-        }
-        return Column(
-          children: [
-            Row(
-              children: [
-                Expanded(child: tiles[0]),
-                const SizedBox(width: 16),
-                Expanded(child: tiles[1]),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(child: tiles[2]),
-                const SizedBox(width: 16),
-                Expanded(child: tiles[3]),
-              ],
-            ),
-          ],
-        );
-      },
-    );
+    return PrismMetricGrid(tiles: tiles);
   }
 
   Widget _buildToolbar(BuildContext context) {
@@ -2357,25 +2274,13 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
   }
 
   Future<void> _restore(String fileName) async {
-    final yes = await showPrismDialog<bool>(
+    final yes = await showPrismConfirmDialog(
       context: context,
-      useRootNavigator: false,
-      builder: (context) => PrismDialog(
-        title: const Text('从 OpenList 恢复？'),
-        content: Text('将合并恢复「$fileName」中的数据；已有数据会保留。'),
-        actions: [
-          prism.TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          prism.FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('恢复'),
-          ),
-        ],
-      ),
+      title: '从 OpenList 恢复？',
+      message: '将合并恢复「$fileName」中的数据；已有数据会保留。',
+      confirmLabel: '恢复',
     );
-    if (yes != true) return;
+    if (!yes) return;
     setState(() => _busy = 'restore');
     try {
       final result = await AppBridge.call('BackupOpenListRestore', [
@@ -2605,7 +2510,7 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
                 overflow: TextOverflow.ellipsis,
               ),
               subtitle: Text(
-                '${_formatFileSize(file['size'])} · ${_formatTimestamp(file['modifiedAt'])}',
+                '${formatByteSize(file['size'], fallback: '0 B')} · ${formatDateTime(file['modifiedAt'], fallback: '', returnRawOnInvalid: true)}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -2876,25 +2781,13 @@ class _S3ConfigPageState extends State<S3ConfigPage>
   }
 
   Future<void> _restoreS3(String name) async {
-    final yes = await showPrismDialog<bool>(
+    final yes = await showPrismConfirmDialog(
       context: context,
-      useRootNavigator: false,
-      builder: (context) => PrismDialog(
-        title: const Text('从 S3 恢复？'),
-        content: Text('将合并恢复「$name」中的数据；已有数据会保留。'),
-        actions: [
-          prism.TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          prism.FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('恢复'),
-          ),
-        ],
-      ),
+      title: '从 S3 恢复？',
+      message: '将合并恢复「$name」中的数据；已有数据会保留。',
+      confirmLabel: '恢复',
     );
-    if (yes != true) return;
+    if (!yes) return;
     setState(() => _busy = 'restore');
     try {
       final result = await AppBridge.call('BackupS3Restore', [_payload, name]);
@@ -3116,7 +3009,7 @@ class _S3ConfigPageState extends State<S3ConfigPage>
                 overflow: TextOverflow.ellipsis,
               ),
               subtitle: Text(
-                '${_formatFileSize(file['size'])} · ${_formatTimestamp(file['modifiedAt'])}',
+                '${formatByteSize(file['size'], fallback: '0 B')} · ${formatDateTime(file['modifiedAt'], fallback: '', returnRawOnInvalid: true)}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),

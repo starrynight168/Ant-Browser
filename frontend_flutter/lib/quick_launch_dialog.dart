@@ -179,11 +179,12 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
   GlobalKey _profileKey(Map<String, dynamic> profile) =>
       _profileKeys.putIfAbsent(_profileIdentity(profile), GlobalKey.new);
 
-  void _selectProfile(int index, List<Map<String, dynamic>> filtered) {
+  void _selectProfile(int index, List<Map<String, dynamic>> ordered) {
     setState(() => _selectedIndex = index);
-    if (index < 0 || index >= filtered.length) return;
-    final key = _profileKey(filtered[index]);
+    if (index < 0 || index >= ordered.length) return;
+    final key = _profileKey(ordered[index]);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       final target = key.currentContext;
       if (target != null) {
         final spec = PrismMotionSpec.current;
@@ -260,7 +261,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
     await _startByCode(code, profileId: _profileIdentity(profile));
   }
 
-  Future<void> _onSubmit(List<Map<String, dynamic>> filtered) async {
+  Future<void> _onSubmit(List<Map<String, dynamic>> ordered) async {
     final query = _query.text.trim();
     if (query.isNotEmpty) {
       final exactName = _profiles.any(
@@ -272,9 +273,9 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
         return;
       }
     }
-    if (filtered.isNotEmpty) {
+    if (ordered.isNotEmpty) {
       await _startProfile(
-        filtered[_selectedIndex.clamp(0, filtered.length - 1)],
+        ordered[_selectedIndex.clamp(0, ordered.length - 1)],
       );
     } else {
       showPrismNotice(context, query.isEmpty ? '暂无可启动的实例' : '没有匹配“$query”的实例');
@@ -286,25 +287,26 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
     final colors = prism.Theme.of(context).colorScheme;
     final filtered = _filtered;
     final sections = _tagSections(filtered);
+    final ordered = [for (final s in sections) ...s.value];
     return CallbackShortcuts(
       bindings: {
         const SingleActivator(LogicalKeyboardKey.escape): () =>
             Navigator.of(context).maybePop(),
         const SingleActivator(LogicalKeyboardKey.arrowDown): () {
-          if (filtered.isNotEmpty) {
-            _selectProfile((_selectedIndex + 1) % filtered.length, filtered);
+          if (ordered.isNotEmpty) {
+            _selectProfile((_selectedIndex + 1) % ordered.length, ordered);
           }
         },
         const SingleActivator(LogicalKeyboardKey.arrowUp): () {
-          if (filtered.isNotEmpty) {
+          if (ordered.isNotEmpty) {
             _selectProfile(
-              (_selectedIndex - 1 + filtered.length) % filtered.length,
-              filtered,
+              (_selectedIndex - 1 + ordered.length) % ordered.length,
+              ordered,
             );
           }
         },
         const SingleActivator(LogicalKeyboardKey.enter): () =>
-            _onSubmit(filtered),
+            _onSubmit(ordered),
       },
       child: Focus(
         autofocus: true,
@@ -322,7 +324,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                   autofocus: true,
                   hintText: '搜索名称、启动码、标签或关键词…',
                   onChanged: (_) => setState(() => _selectedIndex = 0),
-                  onSubmitted: () => _onSubmit(filtered),
+                  onSubmitted: () => _onSubmit(ordered),
                 ),
                 const SizedBox(height: 14),
                 SizedBox(
@@ -385,7 +387,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                               ),
                             ),
                           )
-                        : filtered.isEmpty
+                        : ordered.isEmpty
                         ? PrismEmptyState(
                             glyph: AntGlyphs.browser,
                             title: _profiles.isEmpty ? '暂无实例' : '没有匹配的实例',
@@ -413,7 +415,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
                                   ),
                                 ),
                                 for (final profile in section.value)
-                                  _buildProfileCard(context, profile, filtered),
+                                  _buildProfileCard(context, profile, ordered),
                               ],
                             ],
                           ),
@@ -437,12 +439,12 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
               child: const Text('按启动码启动'),
             ),
             PrismHoverMotion(
-              enabled: !(_starting || filtered.isEmpty),
+              enabled: !(_starting || ordered.isEmpty),
               child: prism.FilledButton.icon(
-                onPressed: _starting || filtered.isEmpty
+                onPressed: _starting || ordered.isEmpty
                     ? null
                     : () => _startProfile(
-                        filtered[_selectedIndex.clamp(0, filtered.length - 1)],
+                        ordered[_selectedIndex.clamp(0, ordered.length - 1)],
                       ),
                 icon: const PrismGlyph(AntGlyphs.play, size: 15),
                 label: const Text('启动选中实例'),
@@ -461,12 +463,12 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
   Widget _buildProfileCard(
     BuildContext context,
     Map<String, dynamic> profile,
-    List<Map<String, dynamic>> filtered,
+    List<Map<String, dynamic>> ordered,
   ) {
     final colors = prism.Theme.of(context).colorScheme;
     final successTone = PrismToneColors.of(context, PrismTone.success);
     final primaryTone = PrismToneColors.of(context, PrismTone.primary);
-    final index = filtered.indexOf(profile);
+    final index = ordered.indexOf(profile);
     final selected = index == _selectedIndex;
     final running = profile['running'] == true;
     final tags = _profileTags(profile);
@@ -502,7 +504,7 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
               ),
             ),
             child: prism.PressRegion(
-              onTap: _starting ? null : () => _selectProfile(index, filtered),
+              onTap: _starting ? null : () => _selectProfile(index, ordered),
               shape: prism.AppShape.lg,
               child: Padding(
                 padding: const EdgeInsets.symmetric(

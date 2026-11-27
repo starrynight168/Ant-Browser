@@ -262,11 +262,26 @@ void FlutterWindow::HandleHostMethod(
     return;
   }
   if (method == "dialog.message") {
+    const auto type = StringValue(FindValue(arguments, "type"));
     const auto title = ToWide(StringValue(FindValue(arguments, "title")));
     const auto message = ToWide(StringValue(FindValue(arguments, "message")));
-    const int selection = MessageBoxW(GetHandle(), message.c_str(), title.c_str(),
-                                      MB_YESNO | MB_ICONQUESTION);
-    result->Success(EncodableValue(selection == IDYES ? "yes" : "no"));
+    UINT flags = MB_YESNO | MB_ICONQUESTION;
+    if (type == "info") {
+      flags = MB_OK | MB_ICONINFORMATION;
+    } else if (type == "warning") {
+      flags = MB_OK | MB_ICONWARNING;
+    } else if (type == "error") {
+      flags = MB_OK | MB_ICONERROR;
+    }
+    const int selection =
+        MessageBoxW(GetHandle(), message.c_str(), title.c_str(), flags);
+    if (selection == IDYES) {
+      result->Success(EncodableValue("yes"));
+    } else if (selection == IDOK) {
+      result->Success(EncodableValue("ok"));
+    } else {
+      result->Success(EncodableValue("no"));
+    }
     return;
   }
   result->NotImplemented();

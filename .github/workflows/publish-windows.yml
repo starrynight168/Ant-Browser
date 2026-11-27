@@ -81,6 +81,7 @@ jobs:
           New-Item -ItemType Directory -Path $stage -Force | Out-Null
           Copy-Item -Path (Join-Path $native "*") -Destination $stage -Recurse -Force
           Copy-Item "publish\config.init.yaml" (Join-Path $stage "config.yaml") -Force
+          Copy-Item "build\windows\icon.ico" (Join-Path $stage "AntBrowser.ico") -Force
           New-Item -ItemType Directory -Path (Join-Path $stage "chrome") -Force | Out-Null
           New-Item -ItemType Directory -Path (Join-Path $stage "data\diagnostics") -Force | Out-Null
           Copy-Item "chrome\README.md" (Join-Path $stage "chrome\README.md") -Force
@@ -88,6 +89,7 @@ jobs:
           Copy-Item "tools\install-ant-chrome-diagnostics-watcher.ps1" (Join-Path $stage "data\diagnostics") -Force
           $required = @(
             "ant-chrome.exe",
+            "AntBrowser.ico",
             "ui\ant-browser-ui.exe",
             "ui\flutter_windows.dll",
             "ui\data\flutter_assets",

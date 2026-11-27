@@ -8,7 +8,6 @@ abstract final class AntGlyphs {
   static const chevronBack = prism_icons.Glyphs.chevronBack;
   static const chevronForward = prism_icons.Glyphs.chevronForward;
   static const chevronDown = prism_icons.Glyphs.chevronDown;
-  static const picker = prism_icons.Glyphs.picker;
   static const close = prism_icons.Glyphs.close;
   static const check = prism_icons.Glyphs.check;
   static const more = prism_icons.Glyphs.more;
@@ -190,10 +189,6 @@ abstract final class AntGlyphs {
     prism_icons.GlyphPath('M3 5H21L14 13V19L10 21V13Z M4 4L20 20', role: prism_icons.GlyphRole.line),
   ]);
 
-  static const viewList = prism_icons.Glyph([
-    prism_icons.GlyphPath('M4 7H6 M9 7H20 M4 12H6 M9 12H20 M4 17H6 M9 17H20', role: prism_icons.GlyphRole.line),
-  ]);
-
   static const gridView = prism_icons.Glyph([
     prism_icons.GlyphPath('M4 4H10V10H4Z M14 4H20V10H14Z M4 14H10V20H4Z M14 14H20V20H14Z', role: prism_icons.GlyphRole.line),
   ]);
@@ -270,10 +265,6 @@ abstract final class AntGlyphs {
     prism_icons.GlyphPath('M12 3L14 9L20 11L14 13L12 19L10 13L4 11L10 9Z', role: prism_icons.GlyphRole.line),
   ]);
 
-  static const exit = prism_icons.Glyph([
-    prism_icons.GlyphPath('M10 4H5V20H10 M14 8L19 12L14 16 M9 12H19', role: prism_icons.GlyphRole.line),
-  ]);
-
   static const deselect = prism_icons.Glyph([
     prism_icons.GlyphPath('M5 5H19V19H5Z M4 4L20 20', role: prism_icons.GlyphRole.line),
   ]);
@@ -304,10 +295,6 @@ abstract final class AntGlyphs {
 
   static const circle = prism_icons.Glyph([
     prism_icons.GlyphCircle(12, 12, 5.5, role: prism_icons.GlyphRole.line),
-  ]);
-
-  static const circleSolid = prism_icons.Glyph([
-    prism_icons.GlyphCircle(12, 12, 5.5, role: prism_icons.GlyphRole.line, solid: true),
   ]);
 
   static const browser = prism_icons.Glyph([
