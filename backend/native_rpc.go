@@ -444,6 +444,13 @@ func (s *NativeRPCServer) handleEvents(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			flusher.Flush()
+			if event.Name == "app:db-recovered" {
+				s.eventMu.Lock()
+				if sticky, exists := s.stickyEvents[event.Name]; exists && reflect.DeepEqual(sticky, event) {
+					delete(s.stickyEvents, event.Name)
+				}
+				s.eventMu.Unlock()
+			}
 		}
 	}
 }

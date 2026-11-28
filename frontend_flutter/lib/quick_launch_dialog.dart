@@ -180,8 +180,8 @@ class _QuickLaunchDialogState extends State<QuickLaunchDialog> {
       _profileKeys.putIfAbsent(_profileIdentity(profile), GlobalKey.new);
 
   void _selectProfile(int index, List<Map<String, dynamic>> ordered) {
-    setState(() => _selectedIndex = index);
     if (index < 0 || index >= ordered.length) return;
+    setState(() => _selectedIndex = index);
     final key = _profileKey(ordered[index]);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
