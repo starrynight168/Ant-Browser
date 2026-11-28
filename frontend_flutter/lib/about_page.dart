@@ -106,6 +106,7 @@ class _AboutPageState extends State<AboutPage> {
         }
       });
       if (phase == 'done') {
+        unawaited(_clearPendingAfterDownload());
         _refreshDownloadedUpdate();
       }
     });
@@ -429,6 +430,15 @@ class _AboutPageState extends State<AboutPage> {
     }
   }
 
+  Future<void> _clearPendingAfterDownload() async {
+    try {
+      await AppBridge.call('ClearPendingAppUpdate');
+    } catch (_) {}
+    if (mounted && _pendingUpdate != null) {
+      setState(() => _pendingUpdate = null);
+    }
+  }
+
   Future<void> _clearPendingUpdate() async {
     try {
       await AppBridge.call('ClearPendingAppUpdate');
@@ -445,7 +455,6 @@ class _AboutPageState extends State<AboutPage> {
       await AppBridge.call('ClearDownloadedAppUpdate');
       if (!mounted) return;
       setState(() => _downloadedUpdate = null);
-      widget.onUpdateStatusChanged?.call(false);
       showPrismNotice(context, '已忽略已下载的更新');
     } catch (error) {
       if (mounted) showPrismNotice(context, '忽略失败：$error');

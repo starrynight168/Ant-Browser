@@ -1487,7 +1487,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
                     minLines: 3,
                     maxLines: 6,
                     decoration: const PrismInputDecoration(
-                      labelText: 'DNS 服务器（可选）',
+                      labelText: 'DNS 服务器（可选，全局自定义 DNS 优先，留空回退公共 DNS）',
                       hintText: 'dns:\n  enable: true\n  nameserver:\n    - 119.29.29.29',
                     ),
                   ),
@@ -3114,7 +3114,7 @@ socks5://user:password@proxy.example.com:1080''',
                         minLines: 2,
                         maxLines: 5,
                         decoration: const PrismInputDecoration(
-                          labelText: '批量 DNS 配置（可选）',
+                          labelText: '批量 DNS 配置（可选，刷新订阅自动同步；全局自定义 DNS 优先）',
                           hintText: 'dns:\n  enable: true\n  nameserver:\n    - 119.29.29.29',
                         ),
                       ),

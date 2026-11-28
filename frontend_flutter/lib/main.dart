@@ -505,6 +505,7 @@ const _navGlyphs = <String, prism_icons.Glyph>{
   '/system/docs': AntGlyphs.docs,
   '/browser/logs': AntGlyphs.logs,
   '/notifications': AntGlyphs.bell,
+  '/update-check': AntGlyphs.download,
   '/profile': AntGlyphs.user,
 };
 
@@ -552,6 +553,126 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
         });
       }
     } catch (_) {}
+  }
+
+  Future<void> _showQuickUpdateDialog() async {
+    if (!mounted) return;
+    var checking = true;
+    var version = '读取中';
+    Map<String, dynamic>? result;
+    var initialized = false;
+
+    await showPrismDialog<void>(
+      context: context,
+      useRootNavigator: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialog) {
+          Future<void> runCheck() async {
+            setDialog(() => checking = true);
+            try {
+              final results = await Future.wait<dynamic>([
+                AppBridge.call('GetAppVersion'),
+                AppBridge.call('CheckAppUpdate'),
+              ]);
+              final ver = '${results[0] ?? ''}'.trim();
+              final map = results[1] is Map
+                  ? Map<String, dynamic>.from(results[1] as Map)
+                  : <String, dynamic>{'ok': false, 'error': '检查更新返回格式异常'};
+              final available =
+                  map['ok'] == true && map['updateAvailable'] == true;
+              if (mounted) setState(() => _updateAvailable = available);
+              if (dialogContext.mounted) {
+                setDialog(() {
+                  if (ver.isNotEmpty) version = ver;
+                  result = map;
+                  checking = false;
+                });
+              }
+            } catch (error) {
+              if (dialogContext.mounted) {
+                setDialog(() {
+                  result = {'ok': false, 'error': error.toString()};
+                  checking = false;
+                });
+              }
+            }
+          }
+
+          if (!initialized) {
+            initialized = true;
+            unawaited(runCheck());
+          }
+
+          final available =
+              result?['ok'] == true && result?['updateAvailable'] == true;
+          final latest = '${result?['latestVersion'] ?? ''}'.trim();
+          final errorText = '${result?['error'] ?? ''}'.trim();
+
+          return PrismDialog(
+            title: const Text('检测更新'),
+            content: SizedBox(
+              width: 420,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    '当前版本：$version',
+                    style: prism.AppTextStyle.subheadline.of(
+                      dialogContext,
+                      emphasized: true,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  if (checking)
+                    const Row(
+                      children: [
+                        SizedBox.square(
+                          dimension: 18,
+                          child: PrismProgressIndicator(size: 18),
+                        ),
+                        SizedBox(width: 10),
+                        Text('正在检查最新版本…'),
+                      ],
+                    )
+                  else if (available)
+                    PrismBanner(
+                      tone: PrismTone.info,
+                      title: '发现新版本 v$latest',
+                      message: '可前往「关于」页面选择代理下载并自动安装。',
+                    )
+                  else if (errorText.isNotEmpty)
+                    PrismBanner(tone: PrismTone.danger, message: errorText)
+                  else
+                    const PrismBanner(
+                      tone: PrismTone.success,
+                      message: '当前已是最新版本',
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              prism.TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('关闭'),
+              ),
+              prism.OutlinedButton(
+                onPressed: checking ? null : runCheck,
+                child: const Text('重新检查'),
+              ),
+              if (available)
+                prism.FilledButton(
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                    if (mounted) setState(() => _activePath = '/profile');
+                  },
+                  child: const Text('前往更新'),
+                ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -695,7 +816,13 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
                   compact: _compactSidebar,
                   unreadCount: _notificationStore.unreadCount,
                   updateAvailable: _updateAvailable,
-                  onSelect: (path) => setState(() => _activePath = path),
+                  onSelect: (path) {
+                    if (path == '/update-check') {
+                      _showQuickUpdateDialog();
+                      return;
+                    }
+                    setState(() => _activePath = path);
+                  },
                   onToggle: () =>
                       setState(() => _compactSidebar = !_compactSidebar),
                 ),
@@ -908,6 +1035,7 @@ class _Sidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = [
       for (final section in _navSections) ...section.items,
+      const _NavItem('检测更新', '/update-check'),
       const _NavItem('关于', '/profile'),
     ];
     var selectedPath = activePath;
@@ -937,10 +1065,10 @@ class _Sidebar extends StatelessWidget {
                   item.path == '/browser/proxy-pool' ||
                   item.path == '/browser/bookmarks' ||
                   item.path == '/settings' ||
-                  item.path == '/profile',
+                  item.path == '/update-check',
               label: item.path == '/notifications' && unreadCount > 0
                   ? '${item.title} (${unreadCount > 99 ? '99+' : unreadCount})'
-                  : item.path == '/profile' && updateAvailable
+                  : item.path == '/update-check' && updateAvailable
                   ? '${item.title} · 新版本'
                   : item.title,
             ),
@@ -3179,11 +3307,39 @@ class _BrowserListPageState extends State<BrowserListPage> {
           Widget field(String key, String label, {String? hint}) =>
               PrismTextField(
                 controller: controllers[key],
+                onChanged: (_) => setDialog(() {}),
                 decoration: PrismInputDecoration(
                   labelText: label,
                   hintText: hint,
                 ),
               );
+          List<String> validateFields() {
+            final errors = <String>[];
+            final seedText = controllers['seed']!.text.trim();
+            if (seedText.isNotEmpty) {
+              final parsed = int.tryParse(seedText);
+              if (parsed == null || parsed < 0 || parsed > 4294967295) {
+                errors.add('指纹种子须为 0 – 4294967295 的整数');
+              }
+            }
+            final cpuText = controllers['cpu']!.text.trim();
+            if (cpuText.isNotEmpty) {
+              final parsed = int.tryParse(cpuText);
+              if (parsed == null || parsed < 1 || parsed > 128) {
+                errors.add('CPU 核心数须为 1 – 128 的整数');
+              }
+            }
+            final sizeText = controllers['windowSize']!.text.trim();
+            if (sizeText.isNotEmpty &&
+                !RegExp(r'^\d{3,5}[,xX]\d{3,5}$').hasMatch(sizeText)) {
+              errors.add('窗口分辨率格式应为 宽,高（如 1920,1080）');
+            }
+            final tzText = controllers['timezone']!.text.trim();
+            if (tzText.isNotEmpty && RegExp(r'\s').hasMatch(tzText)) {
+              errors.add('时区不能包含空白字符（如 America/New_York）');
+            }
+            return errors;
+          }
           Widget toggle(String label, String key, Set<String> values) =>
               SizedBox(
                 width: 160,
@@ -3237,6 +3393,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
             rectNoise = '1';
           }
 
+          final validationErrors = validateFields();
           return PrismDialog(
             title: const Text('图形化指纹设置'),
             content: SizedBox(
@@ -3244,6 +3401,14 @@ class _BrowserListPageState extends State<BrowserListPage> {
               height: 600,
               child: ListView(
                 children: [
+                  if (validationErrors.isNotEmpty) ...[
+                    PrismBanner(
+                      tone: PrismTone.danger,
+                      title: '配置需要修正',
+                      message: validationErrors.take(4).join('；'),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   const Text('快速预设'),
                   const SizedBox(height: 6),
                   Wrap(
