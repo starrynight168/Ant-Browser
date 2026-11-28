@@ -692,11 +692,41 @@ class _LaunchApiDemoPanel extends StatefulWidget {
 }
 
 class _LaunchApiDemoPanelState extends State<_LaunchApiDemoPanel> {
+  static const _storageKey = 'docs:launchApiDemoSession';
+
   final List<String> _logs = [];
   String _demoProfileId = '';
   String _demoLaunchCode = '';
   String _cdpUrl = '';
   bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    try {
+      final raw = AppBridge.readStorage(_storageKey);
+      if (raw.isEmpty) return;
+      final saved = jsonDecode(raw);
+      if (saved is! Map) return;
+      _demoProfileId = '${saved['profileId'] ?? ''}';
+      _demoLaunchCode = '${saved['launchCode'] ?? ''}';
+      _cdpUrl = '${saved['cdpUrl'] ?? ''}';
+      final logs = saved['logs'];
+      if (logs is List) _logs.addAll(logs.whereType<String>().take(200));
+    } catch (_) {}
+  }
+
+  void _persistSession() {
+    AppBridge.writeStorage(
+      _storageKey,
+      jsonEncode({
+        'profileId': _demoProfileId,
+        'launchCode': _demoLaunchCode,
+        'cdpUrl': _cdpUrl,
+        'logs': _logs,
+      }),
+    );
+  }
 
   void _log(String message) {
     if (!mounted) return;
@@ -705,6 +735,7 @@ class _LaunchApiDemoPanelState extends State<_LaunchApiDemoPanel> {
       _logs.add('[$time] $message');
       if (_logs.length > 200) _logs.removeRange(0, _logs.length - 200);
     });
+    _persistSession();
   }
 
   String _extractCdpUrl(dynamic value) {
@@ -815,6 +846,7 @@ class _LaunchApiDemoPanelState extends State<_LaunchApiDemoPanel> {
           _demoLaunchCode = '';
           _cdpUrl = '';
         });
+        _persistSession();
       }
     } catch (_) {
     } finally {

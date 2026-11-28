@@ -132,6 +132,13 @@ Widget _buildCapabilityRow(
       ? Map<String, dynamic>.from(item['support'] as Map)
       : const <String, dynamic>{};
   final note = (item['note'] ?? '').toString().trim();
+  final runtimeArg = (item['runtimeArg'] ?? '').toString().trim();
+  final hasConverted = support.values.any((value) => value == 'converted');
+  String versionLabel(Map<String, dynamic> version) {
+    final key = version['key'];
+    final source = '${version['source'] ?? ''}'.trim();
+    return '${key == currentKey ? '★ ' : ''}${version['label'] ?? key ?? ''}${source.isEmpty ? '' : ' · $source'}: ${_capabilityMark((support[key] ?? 'unknown').toString())}';
+  }
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
@@ -157,14 +164,22 @@ Widget _buildCapabilityRow(
         children: [
           for (final v in versions)
             PrismBadge(
-              label:
-                  '${v['key'] == currentKey ? '★ ' : ''}${v['label'] ?? v['key'] ?? ''}: ${_capabilityMark((support[v['key']] ?? 'unknown').toString())}',
+              label: versionLabel(v),
               tone: _capabilityTone(
                 (support[v['key']] ?? 'unknown').toString(),
               ),
             ),
         ],
       ),
+      if (hasConverted && runtimeArg.isNotEmpty) ...[
+        const SizedBox(height: 6),
+        prism.SelectableText(
+          '转换后的运行参数：$runtimeArg',
+          style: prism.AppTextStyle.caption1
+              .of(context)
+              .copyWith(color: colors.onSurfaceVariant),
+        ),
+      ],
     ],
   );
 }

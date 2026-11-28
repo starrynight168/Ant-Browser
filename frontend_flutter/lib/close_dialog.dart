@@ -3,9 +3,18 @@ import 'package:prism_ui/prism_ui.dart' as prism;
 import 'prism_widgets.dart';
 
 class CloseDialog extends StatelessWidget {
-  const CloseDialog({required this.isWindows, super.key});
+  const CloseDialog({
+    required this.isWindows,
+    this.backupImportInProgress = false,
+    this.backupImportProgress = 0,
+    this.backupImportMessage = '',
+    super.key,
+  });
 
   final bool isWindows;
+  final bool backupImportInProgress;
+  final int backupImportProgress;
+  final String backupImportMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -28,20 +37,51 @@ class CloseDialog extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                '关闭 Ant Browser？',
+                backupImportInProgress ? '正在导入备份' : '关闭 Ant Browser？',
                 textAlign: TextAlign.center,
                 style: prism.AppTextStyle.title3.of(context, emphasized: true),
               ),
               const SizedBox(height: 8),
               Text(
-                '可仅退出应用，或连同浏览器一起关闭。',
+                backupImportInProgress
+                    ? '关闭应用可能中断备份导入，导致数据不完整。'
+                    : '可仅退出应用，或连同浏览器一起关闭。',
                 textAlign: TextAlign.center,
                 style: prism.AppTextStyle.footnote
                     .of(context)
                     .copyWith(color: colors.onSurfaceVariant, height: 1.45),
               ),
+              if (backupImportInProgress) ...[
+                const SizedBox(height: 14),
+                PrismBanner(
+                  tone: PrismTone.warning,
+                  title: backupImportProgress > 0
+                      ? '导入进度：$backupImportProgress%'
+                      : '备份导入进行中',
+                  message: backupImportMessage.isEmpty
+                      ? '建议等待导入完成后再关闭应用。'
+                      : backupImportMessage,
+                ),
+              ],
               const SizedBox(height: 22),
-              if (isWindows) ...[
+              if (backupImportInProgress) ...[
+                PrismHoverMotion(
+                  hoverScale: 1.025,
+                  pressScale: 0.975,
+                  child: prism.FilledButton(
+                    style: prism.ButtonStyle.from(
+                      backgroundColor: neutralBg,
+                      foregroundColor: colors.onSurfaceVariant,
+                      minimumSize: pillSize,
+                      shape: prism.AppShape.full,
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('继续导入'),
+                  ),
+                ),
+                const SizedBox(height: 14),
+              ],
+              if (isWindows && !backupImportInProgress) ...[
                 PrismHoverMotion(
                   hoverScale: 1.025,
                   pressScale: 0.975,
@@ -59,7 +99,7 @@ class CloseDialog extends StatelessWidget {
                 ),
                 const SizedBox(height: 14),
               ],
-              PrismHoverMotion(
+              if (!backupImportInProgress) PrismHoverMotion(
                 hoverScale: 1.025,
                 pressScale: 0.975,
                 child: prism.FilledButton(
@@ -85,11 +125,14 @@ class CloseDialog extends StatelessWidget {
                     shape: prism.AppShape.full,
                   ),
                   onPressed: () => Navigator.pop(context, 'quit-all'),
-                  child: const Text('退出应用与浏览器'),
+                  child: Text(
+                    backupImportInProgress ? '仍要关闭' : '退出应用与浏览器',
+                  ),
                 ),
               ),
-              const SizedBox(height: 14),
-              PrismHoverMotion(
+              if (!backupImportInProgress) ...[
+                const SizedBox(height: 14),
+                PrismHoverMotion(
                 hoverScale: 1.025,
                 pressScale: 0.975,
                 child: prism.FilledButton(
@@ -102,7 +145,8 @@ class CloseDialog extends StatelessWidget {
                   onPressed: () => Navigator.pop(context),
                   child: const Text('取消'),
                 ),
-              ),
+                ),
+              ],
             ],
           ),
         ),
