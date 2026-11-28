@@ -44,6 +44,9 @@ external void _storageSet(JSString key, JSString value);
 @JS('antWailsBridge.storageRemove')
 external void _storageRemove(JSString key);
 
+@JS('window.history.replaceState')
+external void _replaceHistoryState(JSAny? data, JSString title, JSString url);
+
 class AppBridge {
   static Future<void> initialize() async {}
 
@@ -76,6 +79,9 @@ class AppBridge {
 
   static Future<String> systemTimezone() async =>
       _DateTimeFormat().resolvedOptions().timeZone.toDart;
+
+  static void replaceBrowserUrl(Uri uri) =>
+      _replaceHistoryState(null, ''.toJS, uri.toString().toJS);
 
   static String readStorage(String key) => _storageGet(key.toJS).toDart;
 

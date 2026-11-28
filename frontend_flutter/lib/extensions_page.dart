@@ -168,12 +168,10 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
     return name.isNotEmpty ? name : _selectedProxyId;
   }
 
-  Duration _downloadProxySpeedMaxAge = const Duration(minutes: 30);
-
   String _downloadProxySpeedLabel(Map<String, dynamic> proxy) {
     final testedAt = DateTime.tryParse('${proxy['lastTestedAt'] ?? ''}');
     if (testedAt == null) return '未测速';
-    if (!isProxySpeedFresh(testedAt, _downloadProxySpeedMaxAge)) {
+    if (!isProxySpeedFresh(testedAt, proxySpeedResultMaxAge)) {
       return '测速已过期';
     }
     final latency = proxy['lastLatencyMs'];
@@ -190,16 +188,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
           .map((e) => Map<String, dynamic>.from(e))
           .toList();
       try {
-        final results = await Future.wait([
-          AppBridge.call('BrowserProxyList'),
-          AppBridge.call('GetProxyCheckSettings').catchError((_) => null),
-        ]);
-        final proxies = results[0];
-        final settings = results[1];
-        final minutes = settings is Map ? settings['speedIntervalMinutes'] : null;
-        if (minutes is num && minutes > 0) {
-          _downloadProxySpeedMaxAge = Duration(minutes: minutes.toInt());
-        }
+        final proxies = await AppBridge.call('BrowserProxyList');
         _proxies = (proxies as List? ?? [])
             .whereType<Map>()
             .map((e) => Map<String, dynamic>.from(e))

@@ -311,31 +311,48 @@ class _CoresPageState extends State<CoresPage> {
               child: const Text('取消'),
             ),
             prism.FilledButton(
-              onPressed: () => Navigator.pop(context, {
-                'userDataRoot': root.text.trim(),
-                'defaultFingerprintArgs': fingerprint.text
-                    .split('\n')
-                    .map((value) => value.trim())
-                    .where((value) => value.isNotEmpty)
-                    .toList(),
-                'defaultLaunchArgs': launchArgs.text
-                    .split('\n')
-                    .map((value) => value.trim())
-                    .where((value) => value.isNotEmpty)
-                    .toList(),
-                'defaultStartUrls': startUrls.text
-                    .split('\n')
-                    .map((value) => value.trim())
-                    .where((value) => value.isNotEmpty)
-                    .toList(),
-                'bridgeCustomDns': bridgeCustomDns.text.trim(),
-                'defaultConnectorType': connectorType,
-                'lightStartEnabled': lightStart,
-                'restoreLastSession': restoreSession,
-                'startReadyTimeoutMs': int.tryParse(readyTimeout.text) ?? 3000,
-                'startStableWindowMs': int.tryParse(stableWindow.text) ?? 1200,
-                'maxConcurrentInstances': int.tryParse(concurrent.text) ?? 0,
-              }),
+              onPressed: () {
+                final readyTimeoutMs = int.tryParse(readyTimeout.text);
+                final stableWindowMs = int.tryParse(stableWindow.text);
+                final maxConcurrentInstances = int.tryParse(concurrent.text);
+                final error = readyTimeoutMs == null || readyTimeoutMs < 1000
+                    ? '启动就绪超时必须是至少 1000 毫秒的整数'
+                    : stableWindowMs == null || stableWindowMs <= 0
+                    ? '启动稳定窗口必须是正整数'
+                    : maxConcurrentInstances == null ||
+                          maxConcurrentInstances < 0
+                    ? '同时运行实例上限必须是非负整数'
+                    : null;
+                if (error != null) {
+                  showPrismNotice(context, error, level: prism.BannerLevel.error);
+                  return;
+                }
+                Navigator.pop(context, {
+                  'userDataRoot': root.text.trim(),
+                  'defaultFingerprintArgs': fingerprint.text
+                      .split('\n')
+                      .map((value) => value.trim())
+                      .where((value) => value.isNotEmpty)
+                      .toList(),
+                  'defaultLaunchArgs': launchArgs.text
+                      .split('\n')
+                      .map((value) => value.trim())
+                      .where((value) => value.isNotEmpty)
+                      .toList(),
+                  'defaultStartUrls': startUrls.text
+                      .split('\n')
+                      .map((value) => value.trim())
+                      .where((value) => value.isNotEmpty)
+                      .toList(),
+                  'bridgeCustomDns': bridgeCustomDns.text.trim(),
+                  'defaultConnectorType': connectorType,
+                  'lightStartEnabled': lightStart,
+                  'restoreLastSession': restoreSession,
+                  'startReadyTimeoutMs': readyTimeoutMs,
+                  'startStableWindowMs': stableWindowMs,
+                  'maxConcurrentInstances': maxConcurrentInstances,
+                });
+              },
               child: const Text('保存'),
             ),
           ],
@@ -1506,6 +1523,7 @@ class _CoresPageState extends State<CoresPage> {
         : const <String, dynamic>{};
     final valid = validation['valid'] == true;
     final isDefault = core['isDefault'] == true;
+    final corePath = '${core['corePath'] ?? ''}'.trim();
     final iconTone = PrismToneColors.of(
       context,
       isDefault ? PrismTone.primary : PrismTone.info,
@@ -1620,6 +1638,19 @@ class _CoresPageState extends State<CoresPage> {
                       style: prism.AppTextStyle.caption1
                           .of(context)
                           .copyWith(color: colors.onSurfaceVariant),
+                    ),
+                  ],
+                  if (corePath.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    prism.Tooltip(
+                      message: corePath,
+                      child: prism.SelectableText(
+                        corePath,
+                        maxLines: 2,
+                        style: prism.AppTextStyle.caption2
+                            .of(context)
+                            .copyWith(color: colors.onSurfaceVariant),
+                      ),
                     ),
                   ],
                   if (!valid) ...[

@@ -85,6 +85,19 @@ class NotificationStore extends ChangeNotifier {
     );
   }
 
+  void reportFrontendError(Object error) {
+    final message = error.toString().trim();
+    if (message.isEmpty) return;
+    final key = message.length > 160 ? message.substring(0, 160) : message;
+    _add(
+      type: 'error',
+      title: '前端异常',
+      message: message,
+      source: 'frontend',
+      dedupeKey: 'frontend:error:$key',
+    );
+  }
+
   void _onLaunchQueued(Map<String, dynamic> data) {
     final id = '${data['profileId'] ?? ''}';
     final position = data['position'];

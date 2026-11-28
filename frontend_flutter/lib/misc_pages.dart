@@ -76,7 +76,19 @@ class _DocsPageState extends State<DocsPage> {
   @override
   void initState() {
     super.initState();
+    final doc = Uri.base.queryParameters['doc'] ??
+        AppBridge.readStorage('docs-selected');
+    if (_allItems.any((item) => item.id == doc)) _selected = doc;
     _loadLaunchServerInfo();
+  }
+
+  void _selectDoc(String id) {
+    setState(() => _selected = id);
+    AppBridge.writeStorage('docs-selected', id);
+    final uri = Uri.base;
+    AppBridge.replaceBrowserUrl(
+      uri.replace(queryParameters: {...uri.queryParameters, 'doc': id}),
+    );
   }
 
   @override
@@ -194,7 +206,7 @@ class _DocsPageState extends State<DocsPage> {
         subtitle: baseUrl.isNotEmpty ? baseUrl : null,
         glyph: AntGlyphs.api,
         tone: serverReady ? PrismTone.success : PrismTone.warning,
-        onPressed: () => setState(() => _selected = 'api-demo'),
+        onPressed: () => _selectDoc('api-demo'),
         staggerIndex: 2,
         staggerDelay: const Duration(milliseconds: 45),
       ),
@@ -203,7 +215,7 @@ class _DocsPageState extends State<DocsPage> {
         value: 'API 调试',
         glyph: AntGlyphs.bolt,
         tone: PrismTone.neutral,
-        onPressed: () => setState(() => _selected = 'api-demo'),
+        onPressed: () => _selectDoc('api-demo'),
         staggerIndex: 3,
         staggerDelay: const Duration(milliseconds: 45),
       ),
@@ -271,8 +283,7 @@ class _DocsPageState extends State<DocsPage> {
                                       showDividers: true,
                                       showSelectionBadge: true,
                                       selectedValue: section.id,
-                                      onSelected: (id) =>
-                                          setState(() => _selected = id),
+                                      onSelected: _selectDoc,
                                       items: [
                                         for (final group in filteredGroups)
                                           for (
@@ -410,9 +421,8 @@ class _DocsPageState extends State<DocsPage> {
                                       Flexible(
                                         child: PrismHoverMotion(
                                           child: prism.OutlinedButton.icon(
-                                            onPressed: () => setState(
-                                              () => _selected = prevItem.id,
-                                            ),
+                                            onPressed: () =>
+                                                _selectDoc(prevItem.id),
                                             icon: const PrismGlyph(
                                               AntGlyphs.chevronBack,
                                               size: 16,
@@ -432,9 +442,8 @@ class _DocsPageState extends State<DocsPage> {
                                       Flexible(
                                         child: PrismHoverMotion(
                                           child: PrismTonalButton.icon(
-                                            onPressed: () => setState(
-                                              () => _selected = nextItem.id,
-                                            ),
+                                            onPressed: () =>
+                                                _selectDoc(nextItem.id),
                                             icon: const PrismGlyph(
                                               AntGlyphs.chevronForward,
                                               size: 16,

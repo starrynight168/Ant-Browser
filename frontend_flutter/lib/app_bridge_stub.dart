@@ -20,6 +20,8 @@ class AppBridge {
 
   static Future<String> systemTimezone() async => '';
 
+  static void replaceBrowserUrl(Uri uri) {}
+
   static String readStorage(String key) => '';
 
   static void writeStorage(String key, String value) {}

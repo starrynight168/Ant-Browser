@@ -2,6 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:cupertino_ui/cupertino_ui.dart'
+    show CupertinoButton, CupertinoDatePicker, CupertinoDatePickerMode,
+        showCupertinoModalPopup;
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:prism_ui/prism_ui.dart' as prism;
 
@@ -150,6 +153,55 @@ class _LogsPageState extends State<LogsPage> {
 
   DateTime? _parseTime(String value) =>
       DateTime.tryParse(value.trim().replaceFirst(' ', 'T'));
+
+  Future<void> _pickDateTime(
+    TextEditingController controller, {
+    required bool isStart,
+  }) async {
+    var selected = _parseTime(controller.text) ?? DateTime.now();
+    final value = await showCupertinoModalPopup<DateTime>(
+      context: context,
+      builder: (pickerContext) => Container(
+        height: 300,
+        color: prism.Theme.of(context).colorScheme.surface,
+        child: Column(
+          children: [
+            SizedBox(
+              height: 230,
+              child: CupertinoDatePicker(
+                mode: CupertinoDatePickerMode.dateAndTime,
+                initialDateTime: selected,
+                onDateTimeChanged: (value) => selected = value,
+              ),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                CupertinoButton(
+                  onPressed: () => Navigator.pop(pickerContext),
+                  child: const Text('取消'),
+                ),
+                CupertinoButton(
+                  onPressed: () => Navigator.pop(pickerContext, selected),
+                  child: const Text('确定'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+    if (value == null || !mounted) return;
+    final text = formatDateTime(value);
+    setState(() {
+      controller.text = text;
+      if (isStart) {
+        _timeFrom = text;
+      } else {
+        _timeTo = text;
+      }
+    });
+  }
 
   String _formatFieldValue(dynamic value) {
     if (value == null) return 'null';
@@ -729,9 +781,20 @@ class _LogsPageState extends State<LogsPage> {
                       child: PrismTextField(
                         controller: _timeFromController,
                         onChanged: (value) => setState(() => _timeFrom = value),
-                        decoration: const PrismInputDecoration(
+                        decoration: PrismInputDecoration(
                           hintText: '开始时间 YYYY-MM-DD HH:mm:ss',
                           isDense: true,
+                          suffixIcon: prism.IconButton(
+                            tooltip: '选择开始时间',
+                            onPressed: () => _pickDateTime(
+                              _timeFromController,
+                              isStart: true,
+                            ),
+                            icon: const PrismGlyph(
+                              AntGlyphs.calendar,
+                              size: 16,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -740,9 +803,20 @@ class _LogsPageState extends State<LogsPage> {
                       child: PrismTextField(
                         controller: _timeToController,
                         onChanged: (value) => setState(() => _timeTo = value),
-                        decoration: const PrismInputDecoration(
+                        decoration: PrismInputDecoration(
                           hintText: '结束时间 YYYY-MM-DD HH:mm:ss',
                           isDense: true,
+                          suffixIcon: prism.IconButton(
+                            tooltip: '选择结束时间',
+                            onPressed: () => _pickDateTime(
+                              _timeToController,
+                              isStart: false,
+                            ),
+                            icon: const PrismGlyph(
+                              AntGlyphs.calendar,
+                              size: 16,
+                            ),
+                          ),
                         ),
                       ),
                     ),

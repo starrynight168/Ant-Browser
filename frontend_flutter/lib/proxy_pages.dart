@@ -8,6 +8,7 @@ import 'package:yaml/yaml.dart';
 
 import 'app_bridge.dart';
 import 'prism_widgets.dart';
+import 'proxy_speed_results.dart';
 
 const List<String> _supportedKernels = [
   'auto',
@@ -90,9 +91,12 @@ List<Map<String, dynamic>> _parseClashNodes(String content, String prefix) {
     throw const FormatException('订阅内容中没有 proxies 节点列表');
   }
   final nodes = <Map<String, dynamic>>[];
-  for (final item in rawNodes) {
+  for (var index = 0; index < rawNodes.length; index++) {
+    final item = rawNodes[index];
     final plain = _plainYaml(item);
-    if (plain is! Map) continue;
+    if (plain is! Map) {
+      throw FormatException('第 ${index + 1} 个代理节点不是 YAML 对象');
+    }
     final node = Map<String, dynamic>.from(plain);
     final rawName = (node['name'] ?? '').toString().trim();
     final name = rawName.isEmpty ? '导入代理 ${nodes.length + 1}' : rawName;
@@ -954,7 +958,7 @@ class _ProxyPoolPageState extends State<ProxyPoolPage> {
         final id = (proxy['proxyId'] ?? '').toString();
         final testedAt = (proxy['lastTestedAt'] ?? '').toString();
         if (id.isNotEmpty &&
-            _isProxyResultFresh(testedAt, const Duration(hours: 72))) {
+            _isProxyResultFresh(testedAt, proxySpeedResultMaxAge)) {
           _speedResults[id] = {
             'proxyId': id,
             'ok': proxy['lastTestOk'] == true,
@@ -6275,7 +6279,7 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
         final id = (proxy['proxyId'] ?? '').toString();
         final testedAt = (proxy['lastTestedAt'] ?? '').toString();
         if (id.isNotEmpty &&
-            _isProxyResultFresh(testedAt, const Duration(hours: 72))) {
+            _isProxyResultFresh(testedAt, proxySpeedResultMaxAge)) {
           _speedCache[id] = {
             'proxyId': id,
             'ok': proxy['lastTestOk'] == true,
@@ -6367,6 +6371,46 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
             }
             return true;
           }).toList();
+
+          Future<void> testAllFiltered() async {
+            final ids = filtered
+                .where((proxy) => proxy['proxyConfig'] != 'direct://')
+                .map((proxy) => (proxy['proxyId'] ?? '').toString())
+                .where((id) => id.isNotEmpty)
+                .toList();
+            if (ids.isEmpty) return;
+            setDialog(() => testingProxyId = '__all__');
+            try {
+              final raw = await AppBridge.call(
+                'BrowserProxyBatchTestSpeed',
+                [ids, 0],
+              );
+              final results = raw is List ? raw : const [];
+              var failed = 0;
+              for (final item in results.whereType<Map>()) {
+                final result = Map<String, dynamic>.from(item);
+                final id = (result['proxyId'] ?? '').toString();
+                if (id.isNotEmpty) _speedCache[id] = result;
+                if (result['ok'] != true) failed++;
+              }
+              if (context.mounted) {
+                showPrismNotice(
+                  context,
+                  failed == 0
+                      ? '批量测速完成：${results.length} 个代理'
+                      : '批量测速完成：${results.length - failed} 个成功，$failed 个失败',
+                );
+              }
+            } catch (error) {
+              if (context.mounted) {
+                showPrismNotice(context, '批量测速失败：$error');
+              }
+            } finally {
+              if (context.mounted) {
+                setDialog(() => testingProxyId = '');
+              }
+            }
+          }
 
           return PrismDialog(
             title: Text(group == null ? '新建虚拟分组' : '编辑虚拟分组'),
@@ -6461,6 +6505,21 @@ class _ProxyGroupsPageState extends State<ProxyGroupsPage> {
                         label: const Text('仅显示可选'),
                         selected: onlyAvailable,
                         onSelected: (v) => setDialog(() => onlyAvailable = v),
+                      ),
+                      prism.OutlinedButton.icon(
+                        onPressed: testingProxyId.isNotEmpty || filtered.isEmpty
+                            ? null
+                            : testAllFiltered,
+                        icon: testingProxyId == '__all__'
+                            ? const SizedBox(
+                                width: 15,
+                                height: 15,
+                                child: PrismProgressIndicator(size: 15),
+                              )
+                            : const PrismGlyph(AntGlyphs.speed, size: 15),
+                        label: Text(
+                          testingProxyId == '__all__' ? '测速中…' : '全部测速',
+                        ),
                       ),
                       for (final code in _regionKeywords.keys)
                         PrismChip(

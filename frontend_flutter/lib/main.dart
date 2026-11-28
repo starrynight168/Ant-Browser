@@ -7,6 +7,7 @@ import 'prism_widgets.dart';
 
 import 'package:prism_ui/prism_ui.dart' as prism;
 
+import 'package:cupertino_ui/cupertino_ui.dart' as cupertino;
 import 'package:flutter/services.dart'
     show Clipboard, ClipboardData, LogicalKeyboardKey;
 import 'package:flutter/foundation.dart' show FlutterError, kDebugMode;
@@ -38,7 +39,7 @@ import 'app_bridge.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  _installDebugErrorLogging();
+  _installErrorNotifications();
   await AppBridge.initialize();
   try {
     final settings = AppBridge.readStorage('app_settings');
@@ -57,14 +58,19 @@ Future<void> main() async {
   runApp(const AntBrowserApp());
 }
 
-void _installDebugErrorLogging() {
-  if (!kDebugMode) return;
+NotificationStore? _activeNotificationStore;
+
+void _installErrorNotifications() {
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
-    unawaited(_writeDebugError(details.toString(), details.stack));
+    _activeNotificationStore?.reportFrontendError(details.exception);
+    if (kDebugMode) {
+      unawaited(_writeDebugError(details.toString(), details.stack));
+    }
   };
   PlatformDispatcher.instance.onError = (error, stack) {
-    unawaited(_writeDebugError(error.toString(), stack));
+    _activeNotificationStore?.reportFrontendError(error);
+    if (kDebugMode) unawaited(_writeDebugError(error.toString(), stack));
     return false;
   };
 }
@@ -102,7 +108,10 @@ class AntBrowserApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           locale: const Locale('zh', 'CN'),
           supportedLocales: const [Locale('zh', 'CN'), Locale('en', 'US')],
-          localizationsDelegates: [AntPrismLocalizationsDelegate()],
+          localizationsDelegates: [
+            AntPrismLocalizationsDelegate(),
+            cupertino.GlobalCupertinoLocalizations.delegate,
+          ],
           themeMode: themeMode,
           theme: buildAntPrismTheme(Brightness.light, seedColor, style),
           darkTheme: buildAntPrismTheme(Brightness.dark, seedColor, style),
@@ -553,12 +562,14 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
   late final void Function() _removeCloseListener;
   late final void Function() _removeUpdateListener;
   late final void Function() _removeBackupImportListener;
+  late final void Function() _removeBridgeFailedToastListener;
   late final NotificationStore _notificationStore;
 
   @override
   void initState() {
     super.initState();
     _notificationStore = NotificationStore();
+    _activeNotificationStore = _notificationStore;
     _removeCloseListener = AppBridge.onEvent('app:request-close', (_) {
       _showCloseDialog();
     });
@@ -589,6 +600,22 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
       final available = payload is! Map || payload['updateAvailable'] != false;
       if (available) setState(() => _updateAvailable = true);
     });
+    _removeBridgeFailedToastListener = AppBridge.onEvent(
+      'proxy:bridge:failed',
+      (payload) {
+        if (!mounted || payload is! Map) return;
+        final id = '${payload['profileId'] ?? ''}';
+        final name = '${payload['profileName'] ?? id}';
+        final error = '${payload['error'] ?? ''}';
+        prism.BannerHost.maybeOf(context)?.show(
+          '「$name」代理桥接失败：$error',
+          level: prism.BannerLevel.warning,
+          onTap: id.isEmpty
+              ? null
+              : () => setState(() => _activePath = '/browser/detail/$id'),
+        );
+      },
+    );
     unawaited(_checkInitialUpdateBadge());
   }
 
@@ -729,6 +756,10 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
     _removeCloseListener();
     _removeUpdateListener();
     _removeBackupImportListener();
+    _removeBridgeFailedToastListener();
+    if (identical(_activeNotificationStore, _notificationStore)) {
+      _activeNotificationStore = null;
+    }
     _notificationStore.dispose();
     super.dispose();
   }
@@ -1337,7 +1368,6 @@ class _BrowserListPageState extends State<BrowserListPage> {
       AppBridge.call('BrowserCoreList').catchError((_) => null),
       AppBridge.call('BrowserProxyList').catchError((_) => null),
       AppBridge.call('BrowserProxyVirtualGroupList').catchError((_) => null),
-      AppBridge.call('GetProxyCheckSettings').catchError((_) => null),
     ]);
     if (!mounted) return;
     setState(() {
@@ -1357,11 +1387,6 @@ class _BrowserListPageState extends State<BrowserListPage> {
           .whereType<Map>()
           .map((row) => Map<String, dynamic>.from(row))
           .toList();
-      final settings = results[4];
-      final minutes = settings is Map ? settings['speedIntervalMinutes'] : null;
-      if (minutes is num && minutes > 0) {
-        _proxySpeed.maxAge = Duration(minutes: minutes.toInt());
-      }
       for (final proxy in _proxies) {
         final id = '${proxy['proxyId'] ?? ''}';
         final testedAt = '${proxy['lastTestedAt'] ?? ''}';

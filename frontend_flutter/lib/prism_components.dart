@@ -1774,6 +1774,113 @@ class PrismSearchBar extends StatelessWidget {
   }
 }
 
+TextSpan _highlightPrismCode(
+  String code,
+  String? language,
+  TextStyle baseStyle,
+  prism.ColorScheme colors,
+) {
+  final lang = (language ?? '').trim().toLowerCase();
+  const supported = {
+    'json',
+    'bash',
+    'shell',
+    'powershell',
+    'javascript',
+    'typescript',
+    'js',
+    'ts',
+    'python',
+    'py',
+  };
+  if (!supported.contains(lang)) return TextSpan(text: code, style: baseStyle);
+
+  const scriptKeywords = {
+    'async',
+    'await',
+    'catch',
+    'const',
+    'default',
+    'def',
+    'elif',
+    'else',
+    'export',
+    'except',
+    'for',
+    'from',
+    'function',
+    'if',
+    'import',
+    'in',
+    'let',
+    'new',
+    'of',
+    'pass',
+    'raise',
+    'return',
+    'throw',
+    'try',
+    'var',
+    'while',
+    'with',
+  };
+  const builtins = {'console', 'fetch', 'JSON', 'json', 'print', 'requests'};
+  final tokens = RegExp(
+    r"""https?://\S+|//.*|#.*|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\b(?:true|false|null|undefined|None|True|False)\b|\b\d+(?:\.\d+)?\b|--?[A-Za-z][A-Za-z0-9_-]*|\$[A-Za-z_][A-Za-z0-9_]*|\b[A-Za-z_][A-Za-z0-9_]*\b|[{}\[\](),.:;=+*/<>!-]""",
+  );
+  final children = <TextSpan>[];
+  final lines = code.split('\n');
+  for (var lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+    final line = lines[lineIndex];
+    var cursor = 0;
+    for (final match in tokens.allMatches(line)) {
+      if (match.start > cursor) {
+        children.add(TextSpan(text: line.substring(cursor, match.start)));
+      }
+      final token = match.group(0)!;
+      Color? color;
+      if (token.startsWith('http://') || token.startsWith('https://')) {
+        color = colors.secondary;
+      } else if (token.startsWith('//') ||
+          (token.startsWith('#') && line.trimLeft().startsWith('#'))) {
+        color = colors.onSurfaceVariant;
+      } else if (token.startsWith('"') ||
+          token.startsWith("'") ||
+          token.startsWith('`')) {
+        color = lang == 'json' &&
+                line.substring(match.end).trimLeft().startsWith(':')
+            ? colors.primary
+            : colors.secondary;
+      } else if (const {
+        'true',
+        'false',
+        'null',
+        'undefined',
+        'none',
+      }.contains(token.toLowerCase())) {
+        color = colors.error;
+      } else if (RegExp(r'^\d').hasMatch(token)) {
+        color = colors.secondary;
+      } else if (scriptKeywords.contains(token)) {
+        color = colors.primary;
+      } else if (builtins.contains(token)) {
+        color = colors.tertiary;
+      } else if (token.startsWith('--') || token.startsWith('\$')) {
+        color = colors.tertiary;
+      } else if (RegExp(r'^[{}\[\](),.:;=+*/<>!-]$').hasMatch(token)) {
+        color = colors.onSurfaceVariant;
+      }
+      children.add(TextSpan(text: token, style: TextStyle(color: color)));
+      cursor = match.end;
+    }
+    if (cursor < line.length) {
+      children.add(TextSpan(text: line.substring(cursor)));
+    }
+    if (lineIndex < lines.length - 1) children.add(const TextSpan(text: '\n'));
+  }
+  return TextSpan(style: baseStyle, children: children);
+}
+
 class PrismCodeSurface extends StatelessWidget {
   const PrismCodeSurface({
     super.key,
@@ -1791,9 +1898,13 @@ class PrismCodeSurface extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = prism.Theme.of(context).colorScheme;
-    final body = prism.SelectableText(
-      code,
-      style: prismMonoTextStyle(color: colors.onSurface),
+    final body = prism.SelectableText.rich(
+      _highlightPrismCode(
+        code,
+        language,
+        prismMonoTextStyle(color: colors.onSurface),
+        colors,
+      ),
     );
     return prism.Surface(
       color: colors.surfaceContainerLow,
