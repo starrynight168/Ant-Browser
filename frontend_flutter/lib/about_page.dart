@@ -62,9 +62,20 @@ const _projectProfile = <String, dynamic>{
 };
 
 class AboutPage extends StatefulWidget {
-  const AboutPage({super.key, this.onUpdateStatusChanged});
+  const AboutPage({
+    super.key,
+    this.onUpdateStatusChanged,
+    required this.autoCheckUpdates,
+    required this.onAutoCheckUpdatesChanged,
+    this.initialUpdateResult,
+    this.onInitialUpdateResultConsumed,
+  });
 
   final ValueChanged<bool>? onUpdateStatusChanged;
+  final bool autoCheckUpdates;
+  final ValueChanged<bool> onAutoCheckUpdatesChanged;
+  final Map<String, dynamic>? initialUpdateResult;
+  final VoidCallback? onInitialUpdateResultConsumed;
 
   @override
   State<AboutPage> createState() => _AboutPageState();
@@ -90,6 +101,7 @@ class _AboutPageState extends State<AboutPage> {
   void initState() {
     super.initState();
     _author = Map<String, dynamic>.from(_defaultAuthor);
+    _applyInitialUpdateResult(widget.initialUpdateResult);
     _loadVersion();
     _loadAuthor();
     _loadLocalUpdateState();
@@ -113,6 +125,22 @@ class _AboutPageState extends State<AboutPage> {
     _removePendingListener = AppBridge.onEvent('app:update:pending', (payload) {
       if (!mounted || payload is! Map) return;
       setState(() => _pendingUpdate = Map<String, dynamic>.from(payload));
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant AboutPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialUpdateResult != widget.initialUpdateResult) {
+      _applyInitialUpdateResult(widget.initialUpdateResult);
+    }
+  }
+
+  void _applyInitialUpdateResult(Map<String, dynamic>? result) {
+    if (result == null) return;
+    _updateResult = Map<String, dynamic>.from(result);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.onInitialUpdateResultConsumed?.call();
     });
   }
 
@@ -888,6 +916,34 @@ class _AboutPageState extends State<AboutPage> {
                         child: PrismProgressIndicator(size: 16),
                       )
                     : const Text('检查更新'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '启动时自动检查更新',
+                      style: prism.AppTextStyle.body.of(context),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '关闭后停止自动检查，仍可手动检查。',
+                      style: prism.AppTextStyle.footnote
+                          .of(context)
+                          .copyWith(color: colors.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              prism.Switch(
+                value: widget.autoCheckUpdates,
+                onChanged: widget.onAutoCheckUpdatesChanged,
               ),
             ],
           ),

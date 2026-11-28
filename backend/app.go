@@ -39,6 +39,9 @@ type App struct {
 	speedScheduler              *browser.ProxySpeedScheduler
 	backupScheduler             *backupScheduler
 	proxySourceRefreshScheduler *proxySourceRefreshScheduler
+	autoUpdateCheckMu           sync.RWMutex
+	autoUpdateCheckEnabled      bool
+	autoUpdateCheckWake         chan struct{}
 	appRoot                     string
 	version                     string
 

@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"ant-chrome/backend/internal/config"
 	"ant-chrome/backend/internal/logger"
 )
 
@@ -402,41 +403,99 @@ func (a *App) ClearPendingAppUpdate() error {
 	return nil
 }
 
-// startupInitAutoUpdateCheck 启动后延迟做首次检查，然后按配置间隔检查并通知前端。
+func (a *App) SetUpdateAutoCheck(enabled bool) error {
+	if a == nil || a.config == nil {
+		return fmt.Errorf("update configuration is not initialized")
+	}
+
+	unlock := config.LockConfigWrite()
+	previous := a.config.Update.AutoCheck
+	value := enabled
+	a.config.Update.AutoCheck = &value
+	if err := a.config.SaveLocked(a.resolveAppPath("config.yaml")); err != nil {
+		a.config.Update.AutoCheck = previous
+		unlock()
+		return err
+	}
+	a.setAutoUpdateCheckEnabled(enabled)
+	unlock()
+	return nil
+}
+
+func (a *App) setAutoUpdateCheckEnabled(enabled bool) {
+	a.autoUpdateCheckMu.Lock()
+	a.autoUpdateCheckEnabled = enabled
+	wake := a.autoUpdateCheckWake
+	a.autoUpdateCheckMu.Unlock()
+
+	if wake != nil {
+		select {
+		case wake <- struct{}{}:
+		default:
+		}
+	}
+}
+
+func (a *App) isAutoUpdateCheckEnabled() bool {
+	a.autoUpdateCheckMu.RLock()
+	defer a.autoUpdateCheckMu.RUnlock()
+	return a.autoUpdateCheckEnabled
+}
+
+// startupInitAutoUpdateCheck starts one scheduler that can be toggled while the app is running.
 func (a *App) startupInitAutoUpdateCheck() {
-	if a == nil || a.config == nil || !a.config.Update.IsEnabled() || !a.config.Update.ShouldAutoCheck() {
+	if a == nil || a.config == nil || !a.config.Update.IsEnabled() {
 		return
 	}
+
+	enabled := a.config.Update.ShouldAutoCheck()
+	wake := make(chan struct{}, 1)
+	a.autoUpdateCheckMu.Lock()
+	a.autoUpdateCheckEnabled = enabled
+	a.autoUpdateCheckWake = wake
+	a.autoUpdateCheckMu.Unlock()
+
 	_ = a.startBackgroundTask(func(ctx context.Context) {
-		initial := time.NewTimer(2 * time.Minute)
-		defer initial.Stop()
-		select {
-		case <-ctx.Done():
-			return
-		case <-initial.C:
+		var checkTimer <-chan time.Time
+		if enabled {
+			checkTimer = time.After(2 * time.Minute)
 		}
 
 		interval := time.Duration(a.config.Update.IntervalHours()) * time.Hour
-		ticker := time.NewTicker(interval)
-		defer ticker.Stop()
 		for {
-			var info AppUpdateInfo
-			client, err := a.updateHTTPClient()
-			if err != nil {
-				logger.New("AppUpdate").Warn("自动检查更新代理配置失败", logger.F("error", err.Error()))
-			} else {
-				info = fetchAppUpdateInfo(ctx, a.appVersion(), a.updateReleaseAPIURL(), client)
-			}
-			if ctx.Err() != nil {
-				return
-			}
-			if info.OK && info.UpdateAvailable {
-				a.emitRuntimeEventWithContext(ctx, "app:update:available", info)
-			}
 			select {
 			case <-ctx.Done():
 				return
-			case <-ticker.C:
+			case <-wake:
+				if a.isAutoUpdateCheckEnabled() {
+					checkTimer = time.After(2 * time.Minute)
+				} else {
+					checkTimer = nil
+				}
+			case <-checkTimer:
+				if !a.isAutoUpdateCheckEnabled() {
+					checkTimer = nil
+					continue
+				}
+
+				var info AppUpdateInfo
+				client, err := a.updateHTTPClient()
+				if err != nil {
+					logger.New("AppUpdate").Warn("自动检查更新代理配置失败", logger.F("error", err.Error()))
+				} else {
+					info = fetchAppUpdateInfo(ctx, a.appVersion(), a.updateReleaseAPIURL(), client)
+				}
+				if ctx.Err() != nil {
+					return
+				}
+				if info.OK && info.UpdateAvailable {
+					a.emitRuntimeEventWithContext(ctx, "app:update:available", info)
+				}
+				if a.isAutoUpdateCheckEnabled() {
+					checkTimer = time.After(interval)
+				} else {
+					checkTimer = nil
+				}
 			}
 		}
 	})

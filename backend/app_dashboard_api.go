@@ -2,6 +2,7 @@ package backend
 
 import (
 	"ant-chrome/backend/internal/browser"
+	"ant-chrome/backend/internal/config"
 	"ant-chrome/backend/internal/logger"
 	goruntime "runtime"
 )
@@ -28,13 +29,17 @@ func (a *App) GetDashboardStats() map[string]interface{} {
 }
 
 func (a *App) GetAppConfig() map[string]interface{} {
+	unlock := config.LockConfigWrite()
+	autoCheckUpdates := a.config.Update.ShouldAutoCheck()
+	unlock()
 	return map[string]interface{}{
-		"name":            a.appName(),
-		"version":         a.appVersion(),
-		"windowWidth":     a.config.App.Window.Width,
-		"windowHeight":    a.config.App.Window.Height,
-		"windowMinWidth":  a.config.App.Window.MinWidth,
-		"windowMinHeight": a.config.App.Window.MinHeight,
+		"name":             a.appName(),
+		"version":          a.appVersion(),
+		"windowWidth":      a.config.App.Window.Width,
+		"windowHeight":     a.config.App.Window.Height,
+		"windowMinWidth":   a.config.App.Window.MinWidth,
+		"windowMinHeight":  a.config.App.Window.MinHeight,
+		"autoCheckUpdates": autoCheckUpdates,
 	}
 }
 

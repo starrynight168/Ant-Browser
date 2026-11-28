@@ -37,6 +37,8 @@ import 'tags_page.dart';
 import 'settings_page.dart';
 import 'app_bridge.dart';
 
+const _dismissedUpdateVersionStorageKey = 'app:dismissedUpdateVersion';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   _installErrorNotifications();
@@ -518,7 +520,6 @@ const _navGlyphs = <String, prism_icons.Glyph>{
   '/system/docs': AntGlyphs.docs,
   '/browser/logs': AntGlyphs.logs,
   '/notifications': AntGlyphs.bell,
-  '/update-check': AntGlyphs.download,
   '/profile': AntGlyphs.user,
 };
 
@@ -556,6 +557,8 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
   bool _closeDialogOpen = false;
   bool _quickLaunchOpen = false;
   bool _updateAvailable = false;
+  bool _autoCheckUpdates = true;
+  Map<String, dynamic>? _initialUpdateResultForAbout;
   bool _backupImportInProgress = false;
   int _backupImportProgress = 0;
   String _backupImportMessage = '';
@@ -596,7 +599,7 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
     _removeUpdateListener = AppBridge.onEvent('app:update:available', (
       payload,
     ) {
-      if (!mounted) return;
+      if (!mounted || !_autoCheckUpdates) return;
       final available = payload is! Map || payload['updateAvailable'] != false;
       if (available) setState(() => _updateAvailable = true);
     });
@@ -616,139 +619,91 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
         );
       },
     );
-    unawaited(_checkInitialUpdateBadge());
+    unawaited(_checkInitialUpdate());
   }
 
-  Future<void> _checkInitialUpdateBadge() async {
+  Future<void> _checkInitialUpdate() async {
     try {
+      final settings = await AppBridge.call('GetAppConfig');
+      if (!mounted || settings is! Map) return;
+      final autoCheckUpdates = settings['autoCheckUpdates'] == true;
+      setState(() {
+        _autoCheckUpdates = autoCheckUpdates;
+        if (!autoCheckUpdates) _updateAvailable = false;
+      });
+      if (!autoCheckUpdates) return;
+
       final res = await AppBridge.call('CheckAppUpdate');
-      if (mounted && res is Map) {
+      if (!mounted || res is! Map || !_autoCheckUpdates) return;
+      final result = Map<String, dynamic>.from(res);
+      final available =
+          result['ok'] == true && result['updateAvailable'] == true;
+      setState(() => _updateAvailable = available);
+      if (!available) return;
+
+      final latestVersion = '${result['latestVersion'] ?? ''}'.trim();
+      if (latestVersion.isNotEmpty &&
+          latestVersion ==
+              AppBridge.readStorage(_dismissedUpdateVersionStorageKey)) {
+        return;
+      }
+
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      final openUpdate = await showPrismDialog<bool>(
+        context: context,
+        builder: (dialogContext) => PrismDialog(
+          title: const Text('发现新版本'),
+          content: Text(
+            latestVersion.isEmpty
+                ? '有可用更新。可以前往关于页面查看详情并选择下载方式。'
+                : '发现新版本 v$latestVersion。可以前往关于页面查看详情并选择下载方式。',
+          ),
+          actions: [
+            prism.TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('稍后'),
+            ),
+            prism.FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('查看更新'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted) return;
+      if (openUpdate == true) {
         setState(() {
-          _updateAvailable =
-              res['ok'] == true && res['updateAvailable'] == true;
+          _initialUpdateResultForAbout = result;
+          _activePath = '/profile';
         });
+      } else if (latestVersion.isNotEmpty) {
+        AppBridge.writeStorage(
+          _dismissedUpdateVersionStorageKey,
+          latestVersion,
+        );
       }
     } catch (_) {}
   }
 
-  Future<void> _showQuickUpdateDialog() async {
-    if (!mounted) return;
-    var checking = true;
-    var version = '读取中';
-    Map<String, dynamic>? result;
-    var initialized = false;
+  Future<void> _setAutoCheckUpdates(bool enabled) async {
+    final previous = _autoCheckUpdates;
+    final previousUpdateAvailable = _updateAvailable;
+    setState(() {
+      _autoCheckUpdates = enabled;
+      if (!enabled) _updateAvailable = false;
+    });
 
-    await showPrismDialog<void>(
-      context: context,
-      useRootNavigator: false,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setDialog) {
-          Future<void> runCheck() async {
-            setDialog(() => checking = true);
-            try {
-              final results = await Future.wait<dynamic>([
-                AppBridge.call('GetAppVersion'),
-                AppBridge.call('CheckAppUpdate'),
-              ]);
-              final ver = '${results[0] ?? ''}'.trim();
-              final map = results[1] is Map
-                  ? Map<String, dynamic>.from(results[1] as Map)
-                  : <String, dynamic>{'ok': false, 'error': '检查更新返回格式异常'};
-              final available =
-                  map['ok'] == true && map['updateAvailable'] == true;
-              if (mounted) setState(() => _updateAvailable = available);
-              if (dialogContext.mounted) {
-                setDialog(() {
-                  if (ver.isNotEmpty) version = ver;
-                  result = map;
-                  checking = false;
-                });
-              }
-            } catch (error) {
-              if (dialogContext.mounted) {
-                setDialog(() {
-                  result = {'ok': false, 'error': error.toString()};
-                  checking = false;
-                });
-              }
-            }
-          }
-
-          if (!initialized) {
-            initialized = true;
-            unawaited(runCheck());
-          }
-
-          final available =
-              result?['ok'] == true && result?['updateAvailable'] == true;
-          final latest = '${result?['latestVersion'] ?? ''}'.trim();
-          final errorText = '${result?['error'] ?? ''}'.trim();
-
-          return PrismDialog(
-            title: const Text('检测更新'),
-            content: SizedBox(
-              width: 420,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    '当前版本：$version',
-                    style: prism.AppTextStyle.subheadline.of(
-                      dialogContext,
-                      emphasized: true,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  if (checking)
-                    const Row(
-                      children: [
-                        SizedBox.square(
-                          dimension: 18,
-                          child: PrismProgressIndicator(size: 18),
-                        ),
-                        SizedBox(width: 10),
-                        Text('正在检查最新版本…'),
-                      ],
-                    )
-                  else if (available)
-                    PrismBanner(
-                      tone: PrismTone.info,
-                      title: '发现新版本 v$latest',
-                      message: '可前往「关于」页面选择代理下载并自动安装。',
-                    )
-                  else if (errorText.isNotEmpty)
-                    PrismBanner(tone: PrismTone.danger, message: errorText)
-                  else
-                    const PrismBanner(
-                      tone: PrismTone.success,
-                      message: '当前已是最新版本',
-                    ),
-                ],
-              ),
-            ),
-            actions: [
-              prism.TextButton(
-                onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('关闭'),
-              ),
-              prism.OutlinedButton(
-                onPressed: checking ? null : runCheck,
-                child: const Text('重新检查'),
-              ),
-              if (available)
-                prism.FilledButton(
-                  onPressed: () {
-                    Navigator.pop(dialogContext);
-                    if (mounted) setState(() => _activePath = '/profile');
-                  },
-                  child: const Text('前往更新'),
-                ),
-            ],
-          );
-        },
-      ),
-    );
+    try {
+      await AppBridge.call('SetUpdateAutoCheck', [enabled]);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _autoCheckUpdates = previous;
+        _updateAvailable = previousUpdateAvailable;
+      });
+      showPrismNotice(context, '自动更新设置保存失败：$error');
+    }
   }
 
   @override
@@ -901,10 +856,6 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
                   unreadCount: _notificationStore.unreadCount,
                   updateAvailable: _updateAvailable,
                   onSelect: (path) {
-                    if (path == '/update-check') {
-                      _showQuickUpdateDialog();
-                      return;
-                    }
                     setState(() => _activePath = path);
                   },
                   onToggle: () =>
@@ -973,6 +924,23 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
                                   )
                                 : _activePath == '/profile'
                                 ? AboutPage(
+                                    autoCheckUpdates: _autoCheckUpdates,
+                                    onAutoCheckUpdatesChanged: (enabled) {
+                                      unawaited(
+                                        _setAutoCheckUpdates(enabled),
+                                      );
+                                    },
+                                    initialUpdateResult:
+                                        _initialUpdateResultForAbout,
+                                    onInitialUpdateResultConsumed: () {
+                                      if (mounted) {
+                                        setState(
+                                          () =>
+                                              _initialUpdateResultForAbout =
+                                                  null,
+                                        );
+                                      }
+                                    },
                                     onUpdateStatusChanged: (available) {
                                       if (mounted) {
                                         setState(
@@ -1123,7 +1091,6 @@ class _Sidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = [
       for (final section in _navSections) ...section.items,
-      const _NavItem('检测更新', '/update-check'),
       const _NavItem('关于', '/profile'),
     ];
     var selectedPath = activePath;
@@ -1152,11 +1119,10 @@ class _Sidebar extends StatelessWidget {
               dividerBefore:
                   item.path == '/browser/proxy-pool' ||
                   item.path == '/browser/bookmarks' ||
-                  item.path == '/settings' ||
-                  item.path == '/update-check',
+                  item.path == '/settings',
               label: item.path == '/notifications' && unreadCount > 0
                   ? '${item.title} (${unreadCount > 99 ? '99+' : unreadCount})'
-                  : item.path == '/update-check' && updateAvailable
+                  : item.path == '/profile' && updateAvailable
                   ? '${item.title} · 新版本'
                   : item.title,
             ),
