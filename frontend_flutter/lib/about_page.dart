@@ -9,53 +9,55 @@ import 'prism_widgets.dart';
 const _remoteAuthorUrl = '';
 const _remoteAuthorTimeoutMs = 1000;
 const _projectUrl = 'https://github.com/starrynight168/Ant-Browser';
+const _upstreamUrl = 'https://github.com/black-ant/Ant-Browser';
+const _upstreamAuthorUrl = 'https://github.com/black-ant';
 const _defaultAuthor = <String, dynamic>{
-  'name': '志字辈小蚂蚁',
-  'initial': '志',
-  'title': '全栈开发工程师',
-  'bio': '热爱开源，专注于 Web 和桌面应用开发。致力于打造优雅、高效的开发工具和框架。',
-  'location': '中国',
-  'joinDate': '2020',
-  'email': 'contact@antblack.dev',
-  'website': 'http://blog.antblack.cn',
-  'github': 'https://github.com/black-ant',
-  'skills': ['Go', 'React', 'TypeScript', 'Wails', 'Node.js', 'Docker'],
+  'name': 'Ant Browser',
+  'initial': 'A',
+  'title': '原生桌面指纹浏览器管理工具',
+  'bio': '基于 black-ant/Ant-Browser 定制优化，采用 Flutter 桌面界面与 Go Nativehost 架构，提供多实例隔离、代理桥接与自动化管理。',
+  'location': '',
+  'joinDate': '',
+  'email': '',
+  'website': '',
+  'github': _projectUrl,
+  'skills': ['Flutter', 'Dart', 'Go', 'Prism UI'],
   'channels': [
     {
-      'name': '掘金',
-      'description': '技术文章与开发记录',
-      'detail': 'juejin.cn',
-      'href': 'https://juejin.cn/user/3790771822007822',
-      'icon': 'book-open',
+      'name': '上游项目',
+      'detail': 'black-ant/Ant-Browser',
+      'href': _upstreamUrl,
+      'icon': 'github',
     },
     {
-      'name': '个人博客',
-      'description': '独立站文章与项目归档',
-      'detail': 'blog.antblack.cn',
-      'href': 'http://blog.antblack.cn',
+      'name': '原作者',
+      'detail': 'black-ant',
+      'href': _upstreamAuthorUrl,
+      'icon': 'github',
+    },
+    {
+      'name': '版本发布',
+      'detail': 'GitHub Releases',
+      'href': 'https://github.com/starrynight168/Ant-Browser/releases',
       'icon': 'globe',
-    },
-    {
-      'name': '公众号',
-      'description': '微信搜索后即可关注',
-      'detail': '整理中',
-      'icon': 'message-square',
     },
   ],
 };
 const _projectProfile = <String, dynamic>{
   'name': 'Ant Browser',
-  'introBadge': 'Ant Browser',
-  'introText': '是一个面向多账号隔离、代理绑定和本地环境管理的桌面浏览器工具。',
   'techStack': ['Flutter', 'Dart', 'Go', 'Prism UI'],
-  'description':
-      '项目聚焦浏览器实例隔离、代理池配置、浏览器内核管理、标签检索和快捷启动，适用于跨境电商、社媒运营、本地测试和统一管理浏览器环境。',
+  'description': '感谢上游项目 black-ant/Ant-Browser 及开源社区贡献者。使用与分发请遵循 PolyForm Noncommercial 1.0.0 许可协议。',
   'actions': [
-    {'label': '查看源码', 'href': _projectUrl, 'icon': 'github'},
+    {'label': '源码仓库', 'href': _projectUrl, 'icon': 'github'},
     {
-      'label': '下载发布版',
+      'label': '发布记录',
       'href': 'https://github.com/starrynight168/Ant-Browser/releases',
       'icon': 'globe',
+    },
+    {
+      'label': '开源许可',
+      'href': 'https://github.com/black-ant/Ant-Browser/blob/master/LICENSE',
+      'icon': 'license',
     },
   ],
 };
@@ -533,9 +535,7 @@ class _AboutPageState extends State<AboutPage> {
             },
           ),
           const SizedBox(height: 16),
-          _skillsCard(staggerIndex: 1 + channels.length),
-          const SizedBox(height: 16),
-          _projectCard(staggerIndex: 2 + channels.length),
+          _projectCard(staggerIndex: 1 + channels.length),
         ],
       ),
     );
@@ -563,7 +563,7 @@ class _AboutPageState extends State<AboutPage> {
                   shape: prism.AppShape.circle,
                   child: Center(
                     child: Text(
-                      (_author['initial'] ?? (name.isEmpty ? '志' : name[0]))
+                      (_author['initial'] ?? (name.isEmpty ? 'A' : name[0]))
                           .toString(),
                       style: prism.AppTextStyle.title1
                           .of(context, emphasized: true)
@@ -607,23 +607,26 @@ class _AboutPageState extends State<AboutPage> {
                 .of(context)
                 .copyWith(height: 1.7, color: colors.onSurfaceVariant),
           ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 18,
-            runSpacing: 10,
-            children: [
-              if ((_author['location'] ?? '').toString().trim().isNotEmpty)
-                _MetaLabel(
-                  glyph: AntGlyphs.location,
-                  text: _author['location'].toString(),
-                ),
-              if ((_author['joinDate'] ?? '').toString().trim().isNotEmpty)
-                _MetaLabel(
-                  glyph: AntGlyphs.calendar,
-                  text: '加入于 ${_author['joinDate']}',
-                ),
-            ],
-          ),
+          if ((_author['location'] ?? '').toString().trim().isNotEmpty ||
+              (_author['joinDate'] ?? '').toString().trim().isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 18,
+              runSpacing: 10,
+              children: [
+                if ((_author['location'] ?? '').toString().trim().isNotEmpty)
+                  _MetaLabel(
+                    glyph: AntGlyphs.location,
+                    text: _author['location'].toString(),
+                  ),
+                if ((_author['joinDate'] ?? '').toString().trim().isNotEmpty)
+                  _MetaLabel(
+                    glyph: AntGlyphs.calendar,
+                    text: '加入于 ${_author['joinDate']}',
+                  ),
+              ],
+            ),
+          ],
           const SizedBox(height: 18),
           Wrap(
             spacing: 12,
@@ -633,7 +636,7 @@ class _AboutPageState extends State<AboutPage> {
                 prism.OutlinedButton.icon(
                   onPressed: () => AppBridge.openExternal(github),
                   icon: const PrismGlyph(AntGlyphs.code, size: 17),
-                  label: const Text('GitHub'),
+                  label: const Text('GitHub 仓库'),
                 ),
               if (website.isNotEmpty)
                 prism.OutlinedButton.icon(
@@ -730,26 +733,6 @@ class _AboutPageState extends State<AboutPage> {
     );
   }
 
-  Widget _skillsCard({required int staggerIndex}) {
-    return PrismSectionCard(
-      title: '技术栈与技能',
-      glyph: AntGlyphs.sparkles,
-      padding: const EdgeInsets.all(20),
-      staggerIndex: staggerIndex,
-      staggerDelay: const Duration(milliseconds: 45),
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 10,
-        children: [
-          for (final skill in (_author['skills'] as List? ?? []).map(
-            (item) => item.toString(),
-          ))
-            _SkillChip(label: skill),
-        ],
-      ),
-    );
-  }
-
   prism_icons.Glyph _profileGlyph(String icon, String label) {
     final key = '$icon $label'.toLowerCase();
     if (key.contains('github') || key.contains('code') || key.contains('源码')) {
@@ -776,7 +759,6 @@ class _AboutPageState extends State<AboutPage> {
   Widget _projectCard({required int staggerIndex}) {
     final colors = prism.Theme.of(context).colorScheme;
     final result = _updateResult;
-    final projectName = (_project['name'] ?? 'Ant Browser').toString();
     final releaseUrl = '${result?['releaseUrl'] ?? ''}'.trim();
     final canOpenDownload =
         result != null &&
@@ -803,7 +785,7 @@ class _AboutPageState extends State<AboutPage> {
         : '当前已是最新版本';
 
     return PrismSectionCard(
-      title: '项目介绍',
+      title: '项目与更新',
       glyph: AntGlyphs.browser,
       padding: const EdgeInsets.all(22),
       staggerIndex: staggerIndex,
@@ -811,11 +793,6 @@ class _AboutPageState extends State<AboutPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            projectName,
-            style: prism.AppTextStyle.title3.of(context, emphasized: true),
-          ),
-          const SizedBox(height: 8),
           Text(
             (_project['description'] ?? '').toString(),
             style: prism.AppTextStyle.body

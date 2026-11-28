@@ -576,7 +576,7 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
         if (item.path == _activePath) return item.title;
       }
     }
-    return _activePath == '/profile' ? '关于我' : 'Ant Browser';
+    return _activePath == '/profile' ? '关于' : 'Ant Browser';
   }
 
   Future<void> _showCloseDialog() async {
@@ -908,7 +908,7 @@ class _Sidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = [
       for (final section in _navSections) ...section.items,
-      const _NavItem('关于我', '/profile'),
+      const _NavItem('关于', '/profile'),
     ];
     var selectedPath = activePath;
     if (selectedPath.startsWith('/browser/detail/') ||
