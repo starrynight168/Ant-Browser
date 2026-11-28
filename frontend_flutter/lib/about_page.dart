@@ -14,8 +14,8 @@ const _upstreamAuthorUrl = 'https://github.com/black-ant';
 const _defaultAuthor = <String, dynamic>{
   'name': 'Ant Browser',
   'initial': 'A',
-  'title': '原生桌面指纹浏览器管理工具',
-  'bio': '基于 black-ant/Ant-Browser 定制优化，采用 Flutter 桌面界面与 Go Nativehost 架构，提供多实例隔离、代理桥接与自动化管理。',
+  'title': '多账号指纹浏览器桌面端',
+  'bio': '支持多实例独立环境隔离、代理池调度与脚本自动化，专注轻量、流畅的桌面使用体验。',
   'location': '',
   'joinDate': '',
   'email': '',
@@ -46,16 +46,15 @@ const _defaultAuthor = <String, dynamic>{
 const _projectProfile = <String, dynamic>{
   'name': 'Ant Browser',
   'techStack': ['Flutter', 'Dart', 'Go', 'Prism UI'],
-  'description': '感谢上游项目 black-ant/Ant-Browser 及开源社区贡献者。使用与分发请遵循 PolyForm Noncommercial 1.0.0 许可协议。',
+  'description': '基于开源项目 black-ant/Ant-Browser 构建，感谢原作者与社区贡献者。遵循 PolyForm Noncommercial 1.0.0 协议，仅供非商业用途使用。',
   'actions': [
-    {'label': '源码仓库', 'href': _projectUrl, 'icon': 'github'},
     {
-      'label': '发布记录',
+      'label': '更新日志',
       'href': 'https://github.com/starrynight168/Ant-Browser/releases',
       'icon': 'globe',
     },
     {
-      'label': '开源许可',
+      'label': '开源协议',
       'href': 'https://github.com/black-ant/Ant-Browser/blob/master/LICENSE',
       'icon': 'license',
     },
@@ -636,7 +635,7 @@ class _AboutPageState extends State<AboutPage> {
                 prism.OutlinedButton.icon(
                   onPressed: () => AppBridge.openExternal(github),
                   icon: const PrismGlyph(AntGlyphs.code, size: 17),
-                  label: const Text('GitHub 仓库'),
+                  label: const Text('项目主页'),
                 ),
               if (website.isNotEmpty)
                 prism.OutlinedButton.icon(
@@ -785,7 +784,7 @@ class _AboutPageState extends State<AboutPage> {
         : '当前已是最新版本';
 
     return PrismSectionCard(
-      title: '项目与更新',
+      title: '致谢与更新',
       glyph: AntGlyphs.browser,
       padding: const EdgeInsets.all(22),
       staggerIndex: staggerIndex,
