@@ -14,8 +14,8 @@ const _upstreamAuthorUrl = 'https://github.com/black-ant';
 const _defaultAuthor = <String, dynamic>{
   'name': 'Ant Browser',
   'initial': 'A',
-  'title': '多账号指纹浏览器桌面端',
-  'bio': '支持多实例独立环境隔离、代理池调度与脚本自动化，专注轻量、流畅的桌面使用体验。',
+  'title': '多实例指纹浏览器管理工具',
+  'bio': '管理相互隔离的浏览器实例、代理配置和自动化任务。',
   'location': '',
   'joinDate': '',
   'email': '',
@@ -46,7 +46,7 @@ const _defaultAuthor = <String, dynamic>{
 const _projectProfile = <String, dynamic>{
   'name': 'Ant Browser',
   'techStack': ['Flutter', 'Dart', 'Go', 'Prism UI'],
-  'description': '基于开源项目 black-ant/Ant-Browser 构建，感谢原作者与社区贡献者。遵循 PolyForm Noncommercial 1.0.0 协议，仅供非商业用途使用。',
+  'description': '本版本基于 black-ant/Ant-Browser 二次开发，感谢原作者与社区贡献者。本分支遵循上游的 PolyForm Noncommercial 1.0.0 许可，仅限非商业用途；详情请查看许可证。',
   'actions': [
     {
       'label': '更新日志',
@@ -54,7 +54,7 @@ const _projectProfile = <String, dynamic>{
       'icon': 'globe',
     },
     {
-      'label': '开源协议',
+      'label': '许可证',
       'href': 'https://github.com/black-ant/Ant-Browser/blob/master/LICENSE',
       'icon': 'license',
     },
@@ -635,7 +635,7 @@ class _AboutPageState extends State<AboutPage> {
                 prism.OutlinedButton.icon(
                   onPressed: () => AppBridge.openExternal(github),
                   icon: const PrismGlyph(AntGlyphs.code, size: 17),
-                  label: const Text('项目主页'),
+                  label: const Text('本分支主页'),
                 ),
               if (website.isNotEmpty)
                 prism.OutlinedButton.icon(
