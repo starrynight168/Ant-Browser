@@ -18,6 +18,8 @@ class AppBridge {
 
   static Future<String> platform() async => 'unknown';
 
+  static Future<String> systemTimezone() async => '';
+
   static String readStorage(String key) => '';
 
   static void writeStorage(String key, String value) {}

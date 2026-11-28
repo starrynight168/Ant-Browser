@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:prism_ui/prism_ui.dart' as prism;
 
 import 'notification_store.dart';
@@ -19,6 +20,7 @@ class NotificationsPage extends StatefulWidget {
 
 class _NotificationsPageState extends State<NotificationsPage> {
   final _searchController = TextEditingController();
+  final _expandedDetails = <String>{};
   String _filter = 'all';
 
   @override
@@ -266,6 +268,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
         ? Map<String, dynamic>.from(item['action'] as Map)
         : null;
     final source = _sourceLabel(item['source']);
+    final message = '${item['message'] ?? ''}'.trim();
+    final firstLine = message.split('\n').first.trim();
+    final hasDetails = message.length > 180 || firstLine != message;
+    final summary = firstLine.length > 180 ? '${firstLine.substring(0, 180)}…' : firstLine;
+    final detailsExpanded = _expandedDetails.contains(id);
 
     return PrismHoverCard(
       staggerIndex: index.clamp(0, 6),
@@ -322,11 +329,37 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 ),
                 const SizedBox(height: 10),
                 prism.SelectableText(
-                  '${item['message'] ?? ''}',
+                  hasDetails ? summary : message,
                   style: prism.AppTextStyle.body
                       .of(context)
                       .copyWith(color: colors.onSurface, height: 1.5),
                 ),
+                if (hasDetails) ...[
+                  prism.TextButton.icon(
+                    onPressed: () => setState(() {
+                      if (!_expandedDetails.remove(id)) _expandedDetails.add(id);
+                    }),
+                    icon: PrismGlyph(detailsExpanded ? AntGlyphs.chevronUp : AntGlyphs.chevronDown, size: 16),
+                    label: Text(detailsExpanded ? '收起技术详情' : '查看技术详情'),
+                  ),
+                  PrismCollapsible(
+                    expanded: detailsExpanded,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        PrismCodeSurface(code: message, maxHeight: 220, showCopy: false),
+                        prism.TextButton.icon(
+                          onPressed: () async {
+                            await Clipboard.setData(ClipboardData(text: message));
+                            if (context.mounted) showPrismNotice(context, '已复制详情');
+                          },
+                          icon: const PrismGlyph(AntGlyphs.copy, size: 16),
+                          label: const Text('复制详情'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 if (action != null && action['path'] is String) ...[
                   const SizedBox(height: 10),
                   prism.TextButton.icon(

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:prism_ui/prism_ui.dart' as prism;
 
 import 'app_bridge.dart';
+import 'dual_instance_preview.dart';
 import 'prism_widgets.dart';
 
 const _dualInstanceScriptId = 'dual-instance-runtime-switch';
@@ -541,6 +542,10 @@ class AutomationScriptRunModal extends StatefulWidget {
 class _AutomationScriptRunModalState extends State<AutomationScriptRunModal> {
   late final String _targetMode;
   String? _selectedProfileId;
+  String? _runTemplateId;
+  late final Map<String, dynamic> _savedTemplateSelector;
+  late final TextEditingController _runNameTemplate;
+  late final TextEditingController _runRotateSelector;
   late final TextEditingController _launchCode;
   late final TextEditingController _params;
   bool _startByCodeBeforeRun = true;
@@ -557,6 +562,15 @@ class _AutomationScriptRunModalState extends State<AutomationScriptRunModal> {
     final targetConfig = _tryDecodeMap(widget.script['targetConfig']);
     final storedMode = '${targetConfig['mode'] ?? 'manual'}';
     _targetMode = storedMode == 'existing' ? 'manual' : storedMode;
+    _savedTemplateSelector = _tryDecodeMap(targetConfig['templateSelector']);
+    _runNameTemplate = TextEditingController(
+      text: '${targetConfig['createNameTemplate'] ?? ''}',
+    );
+    _runRotateSelector = TextEditingController(
+      text: const JsonEncoder.withIndent('  ').convert(
+        _tryDecodeMap(targetConfig['selector']),
+      ),
+    );
 
     final selector = _tryDecodeMap(widget.script['selectorText']);
     final targetSelector = _tryDecodeMap(targetConfig['selector']);
@@ -589,6 +603,8 @@ class _AutomationScriptRunModalState extends State<AutomationScriptRunModal> {
   void dispose() {
     _launchCode.dispose();
     _params.dispose();
+    _runNameTemplate.dispose();
+    _runRotateSelector.dispose();
     for (final c in _varControllers.values) {
       c.dispose();
     }
@@ -601,6 +617,28 @@ class _AutomationScriptRunModalState extends State<AutomationScriptRunModal> {
       text = text.replaceAll('{{${entry.key}}}', entry.value.text);
     }
     return text;
+  }
+
+  Map<String, dynamic> _runTargetInput() {
+    if (_targetMode == 'create') {
+      final template = _runTemplateId == null
+          ? _savedTemplateSelector
+          : {'profileId': _runTemplateId};
+      if (template.isEmpty) throw const FormatException('请选择模板实例');
+      final name = _runNameTemplate.text.trim();
+      return {
+        'templateSelector': template,
+        if (name.isNotEmpty) 'createNameTemplate': name,
+      };
+    }
+    if (_targetMode == 'rotate') {
+      final selector = jsonDecode(_runRotateSelector.text);
+      if (selector is! Map<String, dynamic> || selector.isEmpty) {
+        throw const FormatException('轮询条件必须是非空的 JSON 对象');
+      }
+      return selector;
+    }
+    return {};
   }
 
   Future<void> _execute() async {
@@ -652,6 +690,13 @@ class _AutomationScriptRunModalState extends State<AutomationScriptRunModal> {
       return;
     }
 
+    final Map<String, dynamic> targetInput;
+    try {
+      targetInput = _runTargetInput();
+    } on FormatException catch (error) {
+      showPrismNotice(context, '目标配置无效：${error.message}');
+      return;
+    }
     setState(() {
       _running = true;
       _result = null;
@@ -682,19 +727,6 @@ class _AutomationScriptRunModalState extends State<AutomationScriptRunModal> {
           selectorText = jsonEncode(selectorMap);
         }
       }
-
-      final targetConfig = _tryDecodeMap(widget.script['targetConfig']);
-      final targetInput = _targetMode == 'create'
-          ? {
-              'templateSelector': targetConfig['templateSelector'] ?? {},
-              if ('${targetConfig['createNameTemplate'] ?? ''}'
-                  .trim()
-                  .isNotEmpty)
-                'createNameTemplate': targetConfig['createNameTemplate'],
-            }
-          : _targetMode == 'rotate'
-          ? _tryDecodeMap(targetConfig['selector'])
-          : <String, dynamic>{};
 
       final res = await AppBridge.call('AutomationScriptRunWithOptions', [
         {
@@ -826,12 +858,36 @@ class _AutomationScriptRunModalState extends State<AutomationScriptRunModal> {
                     ),
                   ],
                 ),
-              ] else
-                PrismBanner(
-                  tone: PrismTone.info,
-                  message: _targetMode == 'create'
-                      ? '当前脚本使用“按模板新建实例”模式，运行时将自动创建新实例。'
-                      : '当前脚本使用“按条件轮询实例”模式，运行时将按条件自动匹配实例。',
+              ] else if (_targetMode == 'create') ...[
+                PrismDropdownField<String>(
+                  value: _runTemplateId ?? '',
+                  decoration: const PrismInputDecoration(labelText: '本次运行的模板实例'),
+                  items: [
+                    const PrismDropdownItem(value: '', child: Text('使用脚本模板')),
+                    for (final profile in widget.profiles)
+                      if ('${profile['profileId'] ?? ''}'.isNotEmpty)
+                        PrismDropdownItem(
+                          value: '${profile['profileId']}',
+                          child: Text('${profile['profileName'] ?? profile['profileId']}'),
+                        ),
+                  ],
+                  onChanged: _running ? null : (value) => setState(() {
+                    _runTemplateId = (value ?? '').isEmpty ? null : value;
+                  }),
+                ),
+                const SizedBox(height: 14),
+                PrismTextField(
+                  controller: _runNameTemplate,
+                  enabled: !_running,
+                  decoration: const PrismInputDecoration(labelText: '本次实例命名模板'),
+                ),
+              ] else if (_targetMode == 'rotate')
+                PrismTextField(
+                  controller: _runRotateSelector,
+                  enabled: !_running,
+                  minLines: 3,
+                  maxLines: 7,
+                  decoration: const PrismInputDecoration(labelText: '本次轮询条件（JSON）'),
                 ),
               if (_variables.isNotEmpty) ...[
                 const SizedBox(height: 16),
@@ -3757,6 +3813,15 @@ class _AutomationScriptDetailPageState
           ),
         ),
         const SizedBox(height: 18),
+        if (widget.scriptId == _dualInstanceScriptId) ...[
+          DualInstancePreview(
+            params: _params,
+            baseUrl: _launchBaseUrl,
+            authHeader: _apiAuthEnabled ? _apiAuthHeader : '',
+            scriptId: widget.scriptId,
+          ),
+          const SizedBox(height: 18),
+        ],
         if (_isLaunchApi) ...[
           PrismSectionCard(
             title: 'OpenClaw 指令模板',

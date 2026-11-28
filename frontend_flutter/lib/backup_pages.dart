@@ -96,15 +96,21 @@ class _TestResultState {
   final String message;
 }
 
+typedef BackupExportDraft = ({Set<String> destinations, List<String> profileIds});
+
 class BackupPage extends StatefulWidget {
   const BackupPage({
     super.key,
     required this.onOpenS3,
     required this.onOpenOpenList,
+    required this.onConfigureExport,
+    required this.takeExportDraft,
   });
 
   final VoidCallback onOpenS3;
   final VoidCallback onOpenOpenList;
+  final void Function(String channel, BackupExportDraft draft) onConfigureExport;
+  final BackupExportDraft? Function() takeExportDraft;
 
   @override
   State<BackupPage> createState() => _BackupPageState();
@@ -565,7 +571,11 @@ class _BackupPageState extends State<BackupPage>
       'backup:import:progress',
       (payload) => _onProgressEvent('import', payload),
     );
-    _load();
+    _load().then((_) {
+      if (!mounted) return;
+      final draft = widget.takeExportDraft();
+      if (draft != null) _continueBackup(draft);
+    });
   }
 
   @override
@@ -652,7 +662,6 @@ class _BackupPageState extends State<BackupPage>
       if (s3 is Map) {
         final map = Map<String, dynamic>.from(s3);
         _s3Configured =
-            (map['endpoint'] ?? '').toString().trim().isNotEmpty &&
             (map['bucket'] ?? '').toString().trim().isNotEmpty &&
             map['credentialsConfigured'] == true;
         _s3Payload = {
@@ -1362,6 +1371,7 @@ class _BackupPageState extends State<BackupPage>
 
   Future<Set<String>?> _selectDestinations() async {
     await _loadRemoteMetadata();
+    if (!mounted) return null;
 
     final selected = <String>{'local'};
     final destinations = await showPrismDialog<Set<String>>(
@@ -1417,17 +1427,6 @@ class _BackupPageState extends State<BackupPage>
         ),
       ),
     );
-    if (destinations == null) return null;
-    if (destinations.contains('openlist') && !_openListConfigured) {
-      _message('请先配置 OpenList，再开始备份');
-      widget.onOpenOpenList();
-      return null;
-    }
-    if (destinations.contains('s3') && !_s3Configured) {
-      _message('请先配置 S3，再开始备份');
-      widget.onOpenS3();
-      return null;
-    }
     return destinations;
   }
 
@@ -1454,17 +1453,35 @@ class _BackupPageState extends State<BackupPage>
         ],
       ),
     );
-    if (scope == null) return;
+    if (!mounted || scope == null) return;
     final destinations = await _selectDestinations();
     if (destinations == null) return;
     List<String> profileIds = [];
-    var portableSessionPassword = '';
     if (scope) {
       final selected = await _selectProfileIds();
       if (selected == null || selected.isEmpty) return;
       profileIds = selected;
+    }
+    if (!mounted) return;
+    await _continueBackup((destinations: destinations, profileIds: profileIds));
+  }
+
+  Future<void> _continueBackup(BackupExportDraft draft) async {
+    final (:destinations, :profileIds) = draft;
+    if (destinations.contains('openlist') && !_openListConfigured) {
+      _message('保存 OpenList 设置后将继续备份');
+      widget.onConfigureExport('openlist', draft);
+      return;
+    }
+    if (destinations.contains('s3') && !_s3Configured) {
+      _message('保存 S3 设置后将继续备份');
+      widget.onConfigureExport('s3', draft);
+      return;
+    }
+    var portableSessionPassword = '';
+    if (profileIds.isNotEmpty) {
       final password = await _askExportPassword();
-      if (password == null) return;
+      if (!mounted || password == null) return;
       portableSessionPassword = password;
     }
     await _run(
@@ -1575,6 +1592,26 @@ class _BackupPageState extends State<BackupPage>
     );
   }
 
+  Uri? _openListBackupLocation() {
+    final base = Uri.tryParse(_openListPayload['baseURL'] ?? '');
+    if (base == null ||
+        (base.scheme != 'http' && base.scheme != 'https') ||
+        base.host.isEmpty ||
+        base.userInfo.isNotEmpty) return null;
+    return base.replace(pathSegments: [
+      ...base.pathSegments.where((part) => part.isNotEmpty),
+      ...(_openListPayload['remotePath'] ?? '').split('/').where((part) => part.isNotEmpty),
+    ]);
+  }
+
+  String _s3BackupLocation() {
+    final endpoint = (_s3Payload['endpoint'] ?? '').replaceFirst(RegExp(r'/+$'), '');
+    final bucket = _s3Payload['bucket'] ?? '';
+    final prefix = (_s3Payload['prefix'] ?? '').split('/').where((part) => part.isNotEmpty).join('/');
+    final root = endpoint.isEmpty ? 's3://$bucket' : '$endpoint/$bucket';
+    return prefix.isEmpty ? root : '$root/$prefix';
+  }
+
   Widget _buildBackupHistoryItem(
     Map<String, dynamic> backup, {
     required String channel,
@@ -1583,6 +1620,9 @@ class _BackupPageState extends State<BackupPage>
     final colors = prism.Theme.of(context).colorScheme;
     final name = (backup['name'] ?? '').toString();
     final path = (backup['path'] ?? '').toString();
+    final openListLocation = channel == 'openlist' ? _openListBackupLocation() : null;
+    final location = isLocal ? path : openListLocation?.toString() ??
+        (channel == 's3' ? _s3BackupLocation() : '');
     final sizeText = formatByteSize(backup['size'], fallback: '0 B');
     final modifiedAt = formatDateTime(
       backup['modifiedAt'],
@@ -1644,6 +1684,10 @@ class _BackupPageState extends State<BackupPage>
                           .of(context)
                           .copyWith(color: colors.onSurfaceVariant),
                     ),
+                    if (location.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      prism.SelectableText('位置：$location'),
+                    ],
                     if (profileCount > 0 || profileNames.isNotEmpty) ...[
                       const SizedBox(height: 6),
                       Text(
@@ -1666,6 +1710,12 @@ class _BackupPageState extends State<BackupPage>
                 runSpacing: 10,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
+                  if (openListLocation != null)
+                    prism.IconButton(
+                      tooltip: '在浏览器打开 OpenList 位置',
+                      onPressed: () => AppBridge.openExternal(openListLocation.toString()),
+                      icon: const PrismGlyph(AntGlyphs.openInNew, size: 18),
+                    ),
                   if (isLocal)
                     prism.IconButton(
                       tooltip: '打开文件位置',
@@ -2065,15 +2115,17 @@ class _BackupPageState extends State<BackupPage>
 }
 
 class S3ConfigPage extends StatefulWidget {
-  const S3ConfigPage({super.key, required this.onBack});
+  const S3ConfigPage({super.key, required this.onBack, this.onSaved});
   final VoidCallback onBack;
+  final VoidCallback? onSaved;
   @override
   State<S3ConfigPage> createState() => _S3ConfigPageState();
 }
 
 class OpenListConfigPage extends StatefulWidget {
-  const OpenListConfigPage({super.key, required this.onBack});
+  const OpenListConfigPage({super.key, required this.onBack, this.onSaved});
   final VoidCallback onBack;
+  final VoidCallback? onSaved;
   @override
   State<OpenListConfigPage> createState() => _OpenListConfigPageState();
 }
@@ -2229,6 +2281,11 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
         }
       } else if (action == 'save') {
         await AppBridge.call('BackupOpenListSaveSettings', [_payload]);
+        if (!mounted) return;
+        if (widget.onSaved case final resume?) {
+          resume();
+          return;
+        }
         if (_mode == 'token' && _token.text.trim().isNotEmpty) {
           _tokenConfigured = true;
         }
@@ -2350,7 +2407,7 @@ class _OpenListConfigPageState extends State<OpenListConfigPage>
                     enabled: _busy.isEmpty,
                     child: prism.FilledButton(
                       onPressed: _busy.isEmpty ? () => _action('save') : null,
-                      child: const Text('保存'),
+                      child: Text(widget.onSaved == null ? '保存' : '保存并继续备份'),
                     ),
                   ),
                 ],
@@ -2610,15 +2667,26 @@ class _S3ConfigPageState extends State<S3ConfigPage>
 
   String? _validateForm() {
     final endpoint = _endpoint.text.trim();
-    if (endpoint.isEmpty) return '请填写 S3 Endpoint';
-    final uri = Uri.tryParse(endpoint);
-    if (uri == null ||
-        (uri.scheme != 'http' && uri.scheme != 'https') ||
-        uri.host.isEmpty) {
-      return 'Endpoint 格式无效，需以 http:// 或 https:// 开头';
+    if (endpoint.isNotEmpty) {
+      final uri = Uri.tryParse(endpoint);
+      if (uri == null ||
+          (uri.scheme != 'http' && uri.scheme != 'https') ||
+          uri.host.isEmpty) {
+        return 'Endpoint 格式无效，需以 http:// 或 https:// 开头';
+      }
+      if (uri.userInfo.isNotEmpty || uri.hasQuery || uri.hasFragment) {
+        return 'Endpoint 不能包含用户信息、查询参数或片段';
+      }
     }
-    if (_region.text.trim().isEmpty) return '请填写 Region';
-    if (_bucket.text.trim().isEmpty) return '请填写 Bucket 名称';
+    final region = _region.text.trim();
+    if (region.isEmpty) return '请填写 Region';
+    if (RegExp(r'\s').hasMatch(region)) return 'Region 不能包含空白';
+    final bucket = _bucket.text.trim();
+    if (bucket.isEmpty) return '请填写 Bucket 名称';
+    if (RegExp(r'[\\/\s]').hasMatch(bucket)) return 'Bucket 不能包含斜杠或空白';
+    if (_prefix.text.split('/').any((part) => part.trim() == '..')) {
+      return '对象前缀不能包含 ..';
+    }
     if (_accessKey.text.trim().isEmpty &&
         _credentialConfigured['accessKeyID'] != true) {
       return '请填写 Access Key ID';
@@ -2699,6 +2767,11 @@ class _S3ConfigPageState extends State<S3ConfigPage>
         }
       } else {
         await AppBridge.call('BackupS3SaveSettings', [_payload]);
+        if (!mounted) return;
+        if (widget.onSaved case final resume?) {
+          resume();
+          return;
+        }
         if (_accessKey.text.trim().isNotEmpty) {
           _credentialConfigured['accessKeyID'] = true;
         }
@@ -2853,7 +2926,7 @@ class _S3ConfigPageState extends State<S3ConfigPage>
                     enabled: _busy.isEmpty,
                     child: prism.FilledButton(
                       onPressed: _busy.isEmpty ? () => _action('save') : null,
-                      child: const Text('保存'),
+                      child: Text(widget.onSaved == null ? '保存' : '保存并继续备份'),
                     ),
                   ),
                 ],
@@ -2881,7 +2954,7 @@ class _S3ConfigPageState extends State<S3ConfigPage>
                 controller: _endpoint,
                 decoration: const PrismInputDecoration(
                   labelText: 'Endpoint',
-                  hintText: 'https://s3.amazonaws.com',
+                  hintText: '留空使用 AWS S3 默认地址',
                 ),
               ),
               const SizedBox(height: 14),

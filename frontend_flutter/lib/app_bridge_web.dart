@@ -1,6 +1,16 @@
 import 'dart:convert';
 import 'dart:js_interop';
 
+@JS('Intl.DateTimeFormat')
+extension type _DateTimeFormat._(JSObject _) implements JSObject {
+  external _DateTimeFormat();
+  external _DateTimeFormatOptions resolvedOptions();
+}
+
+extension type _DateTimeFormatOptions(JSObject _) implements JSObject {
+  external JSString get timeZone;
+}
+
 @JS('antWailsBridge.invoke')
 external JSPromise<JSString> _invoke(JSString method, JSString arguments);
 
@@ -63,6 +73,9 @@ class AppBridge {
   static void quit() => _quit();
 
   static Future<String> platform() async => (await _platform().toDart).toDart;
+
+  static Future<String> systemTimezone() async =>
+      _DateTimeFormat().resolvedOptions().timeZone.toDart;
 
   static String readStorage(String key) => _storageGet(key.toJS).toDart;
 

@@ -472,6 +472,30 @@ class _DocsMarkdown extends StatelessWidget {
 
   final String source;
 
+  Widget _bodyLine(BuildContext context, String line, {required double height}) {
+    final style = prism.AppTextStyle.body.of(context).copyWith(height: height);
+    final text = line.replaceAll('`', '').replaceAll('**', '');
+    final links = RegExp(r'\[([^\]]+)\]\((https?://[^\s)]+)\)').allMatches(text);
+    if (links.isEmpty) return prism.SelectableText(text, style: style);
+    final spans = <InlineSpan>[];
+    var offset = 0;
+    for (final link in links) {
+      final target = Uri.tryParse(link[2]!);
+      if (target == null || target.host.isEmpty || target.userInfo.isNotEmpty) continue;
+      spans.add(TextSpan(text: text.substring(offset, link.start)));
+      spans.add(WidgetSpan(
+        alignment: PlaceholderAlignment.middle,
+        child: prism.TextButton(
+          onPressed: () => AppBridge.openExternal(target.toString()),
+          child: Text(link[1]!),
+        ),
+      ));
+      offset = link.end;
+    }
+    spans.add(TextSpan(text: text.substring(offset)));
+    return Text.rich(TextSpan(children: spans), style: style);
+  }
+
   List<String> _parseTableRow(String line) {
     var trimmed = line.trim();
     if (trimmed.startsWith('|')) trimmed = trimmed.substring(1);
@@ -551,6 +575,7 @@ class _DocsMarkdown extends StatelessWidget {
     var inCode = false;
     var codeLanguage = '';
     final tableRows = <List<String>>[];
+    final endpoints = <GlobalKey, String>{};
 
     void flushTable() {
       if (tableRows.isEmpty) return;
@@ -616,6 +641,25 @@ class _DocsMarkdown extends StatelessWidget {
         final heading = value.startsWith('### ')
             ? value.substring(4)
             : value.substring(3);
+        final endpoint = RegExp(r'^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+(/\S+)(.*)$').firstMatch(heading);
+        if (endpoint != null) {
+          final key = GlobalKey();
+          endpoints[key] = '${endpoint[1]} ${endpoint[2]}';
+          children.add(Padding(
+            key: key,
+            padding: const EdgeInsets.only(top: 12, bottom: 10),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                PrismBadge(label: endpoint[1]!, tone: PrismTone.primary),
+                Text('${endpoint[2]}${endpoint[3]}', style: prism.AppTextStyle.headline.of(context, emphasized: true)),
+              ],
+            ),
+          ));
+          continue;
+        }
         children.add(
           Padding(
             padding: const EdgeInsets.only(top: 12, bottom: 10),
@@ -647,12 +691,7 @@ class _DocsMarkdown extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: prism.SelectableText(
-                    bullet.group(2)!.replaceAll('`', '').replaceAll('**', ''),
-                    style: prism.AppTextStyle.body
-                        .of(context)
-                        .copyWith(height: 1.65),
-                  ),
+                  child: _bodyLine(context, bullet.group(2)!, height: 1.65),
                 ),
               ],
             ),
@@ -660,18 +699,31 @@ class _DocsMarkdown extends StatelessWidget {
         );
         continue;
       }
-      children.add(
-        prism.SelectableText(
-          value.replaceAll('`', '').replaceAll('**', ''),
-          style: prism.AppTextStyle.body.of(context).copyWith(height: 1.7),
-        ),
-      );
+      children.add(_bodyLine(context, value, height: 1.7));
     }
     flushTable();
     if (inCode) addCodeBlock();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: children,
+      children: [
+        if (endpoints.length > 1)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: PrismPopupMenuButton<GlobalKey>(
+              tooltip: '跳转到端点',
+              icon: const PrismGlyph(AntGlyphs.api, size: 18),
+              itemBuilder: (_) => [
+                for (final entry in endpoints.entries)
+                  PrismMenuItem(value: entry.key, child: Text(entry.value)),
+              ],
+              onSelected: (key) {
+                final target = key.currentContext;
+                if (target != null) Scrollable.ensureVisible(target, alignment: 0.04);
+              },
+            ),
+          ),
+        ...children,
+      ],
     );
   }
 }

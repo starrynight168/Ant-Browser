@@ -22,6 +22,7 @@ import 'bookmarks_page.dart';
 import 'cores_page.dart';
 import 'close_dialog.dart';
 import 'extensions_page.dart';
+import 'fingerprint_args.dart';
 import 'fingerprint_settings_dialog.dart';
 import 'fingerprint_report_dialogs.dart';
 import 'logs_page.dart';
@@ -29,6 +30,7 @@ import 'misc_pages.dart';
 import 'notification_store.dart';
 import 'notifications_page.dart';
 import 'proxy_pages.dart';
+import 'proxy_speed_results.dart';
 import 'quick_launch_dialog.dart';
 import 'tags_page.dart';
 import 'settings_page.dart';
@@ -520,6 +522,27 @@ class AntBrowserShell extends StatefulWidget {
 
 class _AntBrowserShellState extends State<AntBrowserShell> {
   String _activePath = '/browser/list';
+  BackupExportDraft? _backupExportDraft;
+
+  void _configureBackupExport(String channel, BackupExportDraft draft) {
+    setState(() {
+      _backupExportDraft = draft;
+      _activePath = '/system/backup/$channel';
+    });
+  }
+
+  BackupExportDraft? _takeBackupExportDraft() {
+    final draft = _backupExportDraft;
+    _backupExportDraft = null;
+    return draft;
+  }
+
+  void _returnToBackup({bool resume = false}) {
+    setState(() {
+      if (!resume) _backupExportDraft = null;
+      _activePath = '/system/backup';
+    });
+  }
   bool _compactSidebar = false;
   bool _closeDialogOpen = false;
   bool _quickLaunchOpen = false;
@@ -1006,6 +1029,8 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
                                   )
                                 : _activePath == '/system/backup'
                                 ? BackupPage(
+                                    onConfigureExport: _configureBackupExport,
+                                    takeExportDraft: _takeBackupExportDraft,
                                     onOpenS3: () => setState(
                                       () => _activePath = '/system/backup/s3',
                                     ),
@@ -1016,15 +1041,17 @@ class _AntBrowserShellState extends State<AntBrowserShell> {
                                   )
                                 : _activePath == '/system/backup/s3'
                                 ? S3ConfigPage(
-                                    onBack: () => setState(
-                                      () => _activePath = '/system/backup',
-                                    ),
+                                    onBack: _returnToBackup,
+                                    onSaved: _backupExportDraft == null
+                                        ? null
+                                        : () => _returnToBackup(resume: true),
                                   )
                                 : _activePath == '/system/backup/openlist'
                                 ? OpenListConfigPage(
-                                    onBack: () => setState(
-                                      () => _activePath = '/system/backup',
-                                    ),
+                                    onBack: _returnToBackup,
+                                    onSaved: _backupExportDraft == null
+                                        ? null
+                                        : () => _returnToBackup(resume: true),
                                   )
                                 : _activePath == '/system/docs'
                                 ? const DocsPage()
@@ -1189,8 +1216,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
   List<Map<String, dynamic>> _cores = [];
   List<Map<String, dynamic>> _proxies = [];
   List<Map<String, dynamic>> _virtualGroups = [];
-  final Map<String, int> _proxyLatencyMs = {};
-  final Map<String, String> _proxyLatencyError = {};
+  final _proxySpeed = ProxySpeedResults();
   final Set<String> _testingProxyIds = {};
   final Set<String> _tagFilters = {};
   final List<void Function()> _eventUnsubscribers = [];
@@ -1254,6 +1280,27 @@ class _BrowserListPageState extends State<BrowserListPage> {
         AppBridge.onEvent(event, (_) => unawaited(_refreshProfilesSilently())),
       );
     }
+    for (final queued in [true, false]) {
+      _eventUnsubscribers.add(AppBridge.onEvent(
+        queued ? 'instance:launch:queued' : 'instance:launch:admitted',
+        (payload) {
+          if (!mounted || payload is! Map) return;
+          final id = '${payload['profileId'] ?? ''}';
+          final profile = _profiles.where((profile) => '${profile['profileId']}' == id).firstOrNull;
+          final name = profile?['profileName'] ?? id;
+          final position = payload['position'];
+          final place = position is num && position > 0 ? '（第 $position 位）' : '';
+          showPrismNotice(context, queued
+              ? '实例 $name 已进入启动队列$place，将在有空闲名额时启动'
+              : '实例 $name 已获得启动名额，开始启动');
+        },
+      ));
+    }
+    _eventUnsubscribers.add(AppBridge.onEvent('proxy:speed:result', (payload) {
+      if (!mounted || payload is! Map) return;
+      final id = '${payload['proxyId'] ?? ''}'.trim();
+      if (id.isNotEmpty) setState(() => _proxySpeed.record(id, payload));
+    }));
   }
 
   @override
@@ -1290,6 +1337,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
       AppBridge.call('BrowserCoreList').catchError((_) => null),
       AppBridge.call('BrowserProxyList').catchError((_) => null),
       AppBridge.call('BrowserProxyVirtualGroupList').catchError((_) => null),
+      AppBridge.call('GetProxyCheckSettings').catchError((_) => null),
     ]);
     if (!mounted) return;
     setState(() {
@@ -1309,12 +1357,21 @@ class _BrowserListPageState extends State<BrowserListPage> {
           .whereType<Map>()
           .map((row) => Map<String, dynamic>.from(row))
           .toList();
+      final settings = results[4];
+      final minutes = settings is Map ? settings['speedIntervalMinutes'] : null;
+      if (minutes is num && minutes > 0) {
+        _proxySpeed.maxAge = Duration(minutes: minutes.toInt());
+      }
       for (final proxy in _proxies) {
-        final pid = (proxy['proxyId'] ?? '').toString();
-        final lat = proxy['lastLatencyMs'];
-        if (pid.isNotEmpty && lat is num && lat > 0) {
-          _proxyLatencyMs[pid] = lat.toInt();
-        }
+        final id = '${proxy['proxyId'] ?? ''}';
+        final testedAt = '${proxy['lastTestedAt'] ?? ''}';
+        if (id.isEmpty || DateTime.tryParse(testedAt) == null) continue;
+        _proxySpeed.record(id, {
+          'ok': proxy['lastTestOk'],
+          'latencyMs': proxy['lastLatencyMs'],
+          'error': proxy['lastTestError'],
+          'testedAt': testedAt,
+        });
       }
     });
   }
@@ -1468,23 +1525,14 @@ class _BrowserListPageState extends State<BrowserListPage> {
       final result = proxyId.isNotEmpty
           ? await AppBridge.call('BrowserProxyTestSpeed', [proxyId])
           : await AppBridge.call('TestProxyConnectivity', [
-              profileId,
+              '',
               proxyConfig,
             ]);
       final values = result is Map ? Map<String, dynamic>.from(result) : {};
       final ok = values['ok'] == true;
-      final latency = values['latencyMs'];
       final key = proxyId.isNotEmpty ? proxyId : profileId;
       if (mounted) {
-        setState(() {
-          if (ok && latency is num) {
-            _proxyLatencyMs[key] = latency.toInt();
-            _proxyLatencyError.remove(key);
-          } else {
-            _proxyLatencyMs.remove(key);
-            _proxyLatencyError[key] = (values['error'] ?? '连接失败').toString();
-          }
-        });
+        setState(() => _proxySpeed.record(key, values));
       }
       final message = ok
           ? '代理可用，延迟 ${values['latencyMs'] ?? 0} ms'
@@ -1575,19 +1623,9 @@ class _BrowserListPageState extends State<BrowserListPage> {
                 final res = await AppBridge.call('BrowserProxyTestSpeed', [
                   pid,
                 ]);
-                final ok = res is Map && res['ok'] == true;
-                final lat = res is Map ? res['latencyMs'] : null;
-                if (ok && lat is num) {
-                  _proxyLatencyMs[pid] = lat.toInt();
-                  _proxyLatencyError.remove(pid);
-                } else {
-                  _proxyLatencyMs.remove(pid);
-                  _proxyLatencyError[pid] = res is Map
-                      ? (res['error'] ?? '失败').toString()
-                      : '失败';
-                }
+                if (res is Map) _proxySpeed.record(pid, res);
               } catch (e) {
-                _proxyLatencyError[pid] = e.toString();
+                _proxySpeed.record(pid, {'error': '$e'});
               } finally {
                 if (context.mounted) {
                   setDialog(() => testingIds.remove(pid));
@@ -1611,14 +1649,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
                   for (final row in res.whereType<Map>()) {
                     final pid = (row['proxyId'] ?? '').toString();
                     if (pid.isEmpty) continue;
-                    if (row['ok'] == true && row['latencyMs'] is num) {
-                      _proxyLatencyMs[pid] = (row['latencyMs'] as num).toInt();
-                      _proxyLatencyError.remove(pid);
-                    } else {
-                      _proxyLatencyMs.remove(pid);
-                      _proxyLatencyError[pid] = (row['error'] ?? '失败')
-                          .toString();
-                    }
+                    _proxySpeed.record(pid, row);
                   }
                 }
               } catch (_) {
@@ -1703,8 +1734,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
                                 final pid = (proxy['proxyId'] ?? '').toString();
                                 final isDirect =
                                     proxy['proxyConfig'] == 'direct://';
-                                final lat = _proxyLatencyMs[pid];
-                                final err = _proxyLatencyError[pid];
+                                final (latency: lat, error: err) = _proxySpeed.current(pid);
                                 final isFailed = err != null && err.isNotEmpty;
                                 final isTesting = testingIds.contains(pid);
                                 return PrismListTile(
@@ -1905,8 +1935,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
     final proxyId = (profile['proxyId'] ?? '').toString().trim();
     final profileId = (profile['profileId'] ?? '').toString().trim();
     final key = proxyId.isNotEmpty ? proxyId : profileId;
-    final lat = _proxyLatencyMs[key];
-    final err = _proxyLatencyError[key];
+    final (latency: lat, error: err) = _proxySpeed.current(key);
     final label = _profileProxyLabel(profile);
     final Widget? badge = bindErr.isNotEmpty
         ? const PrismBadge(label: '需重选', tone: PrismTone.danger)
@@ -2299,6 +2328,7 @@ class _BrowserListPageState extends State<BrowserListPage> {
     if (id.isEmpty) return;
     setState(() => _busyProfile = id);
     try {
+      await _warmProfileProxy(profile);
       final result = await AppBridge.call('BrowserInstanceRestart', [id]);
       await _reload();
       if (result is Map && mounted) {
@@ -2676,13 +2706,16 @@ class _BrowserListPageState extends State<BrowserListPage> {
           ? cores.first['coreId']?.toString()
           : null;
     }
-    final directProxy = proxies.where(
-      (proxy) => proxy['proxyConfig'] == 'direct://',
-    );
-    String? proxyId =
-        (profile?['proxyId'] ??
-                (directProxy.isNotEmpty ? directProxy.first['proxyId'] : ''))
-            .toString();
+    String? proxyId = profile?['proxyId']?.toString();
+    bool hasFixedProxy() =>
+        proxyId != null && proxyId!.isNotEmpty &&
+        (proxies.any((proxy) => proxy['proxyId'] == proxyId) ||
+            virtualGroups.any((group) => group['groupId'] == proxyId));
+    List<String> linesToList(String value) => value
+        .split('\n')
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
     String restoreMode = (profile?['restoreLastSession'] ?? '').toString();
     final proxyModeValue = (profile?['proxyMode'] ?? 'fixed').toString();
     var proxyMode = proxyModeValue.isEmpty ? 'fixed' : proxyModeValue;
@@ -3145,6 +3178,19 @@ class _BrowserListPageState extends State<BrowserListPage> {
                   showPrismNotice(context, '请填写实例名称');
                   return;
                 }
+                if (proxyMode == 'fixed' && !hasFixedProxy()) {
+                  showPrismNotice(context, '请选择可用的代理、虚拟分组，或显式选择直连。');
+                  return;
+                }
+                if (proxyMode == 'local' && localProxyConfig.text.trim().isEmpty) {
+                  showPrismNotice(context, '请填写本地代理配置');
+                  return;
+                }
+                final errors = validateFingerprintArgs(linesToList(fingerprintArgs.text));
+                if (errors.isNotEmpty) {
+                  showPrismNotice(context, errors.join('\n'));
+                  return;
+                }
                 Navigator.pop(context, true);
               },
               child: const Text('保存'),
@@ -3153,41 +3199,30 @@ class _BrowserListPageState extends State<BrowserListPage> {
         ),
       ),
     );
-    if (saved == true && name.text.trim().isNotEmpty) {
+    if (mounted && saved == true && name.text.trim().isNotEmpty) {
       setState(() => _busyProfile = profile?['profileId']?.toString() ?? 'new');
       try {
         final selectedProxy = proxies.where(
           (proxy) => proxy['proxyId'] == proxyId,
         );
-        final selectedVirtualGroup = virtualGroups.where(
-          (group) => group['groupId'] == proxyId,
-        );
-        final fixedProxyId = selectedProxy.isNotEmpty
-            ? selectedProxy.first['proxyId']
-            : selectedVirtualGroup.isNotEmpty
-            ? selectedVirtualGroup.first['groupId']
-            : (profile?['proxyId'] ?? '');
+        final fixedProxyId = proxyId ?? '';
         final fixedProxyConfig = selectedProxy.isNotEmpty
-            ? selectedProxy.first['proxyConfig']
-            : selectedVirtualGroup.isNotEmpty
-            ? ''
-            : (profile?['proxyConfig'] ?? 'direct://');
+            ? (selectedProxy.first['proxyConfig'] ?? '').toString()
+            : '';
         final tagsToList = (String value) => value
             .split(',')
             .map((item) => item.trim())
             .where((item) => item.isNotEmpty)
             .toList();
-        final linesToList = (String value) => value
-            .split('\n')
-            .map((item) => item.trim())
-            .where((item) => item.isNotEmpty)
-            .toList();
+        final resolvedFingerprintArgs = await resolveFingerprintSystemTimezone(
+          linesToList(fingerprintArgs.text),
+        );
         final input = <String, dynamic>{
           'profileName': name.text.trim(),
           'userDataDir': userDataDir.text.trim(),
           'coreId': coreId ?? '',
           'restoreLastSession': restoreMode,
-          'fingerprintArgs': linesToList(fingerprintArgs.text),
+          'fingerprintArgs': resolvedFingerprintArgs,
           'proxyMode': proxyMode,
           'proxyId': proxyMode == 'fixed' ? fixedProxyId : '',
           'proxyConfig': proxyMode == 'local'
@@ -3204,9 +3239,6 @@ class _BrowserListPageState extends State<BrowserListPage> {
           'keywords': tagsToList(keywords.text),
           'groupId': groupId,
         };
-        if (proxyMode == 'local' && localProxyConfig.text.trim().isEmpty) {
-          throw StateError('请填写本地代理配置');
-        }
         if (proxyMode == 'fixed' || proxyMode == 'local') {
           final config = proxyMode == 'local'
               ? localProxyConfig.text.trim()

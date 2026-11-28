@@ -1,5 +1,6 @@
 import 'package:prism_ui/prism_ui.dart' as prism;
 
+import 'fingerprint_args.dart';
 import 'prism_widgets.dart';
 
 Future<void> showFingerprintArgsDialog({
@@ -358,56 +359,10 @@ Future<void> showFingerprintArgsDialog({
           );
         }
 
-        List<String> validateFields() {
-          final errors = <String>[];
-          final seedText = controllers['seed']!.text.trim();
-          if (seedText.isNotEmpty) {
-            final parsed = int.tryParse(seedText);
-            if (parsed == null || parsed < 1 || parsed > 2147483647) {
-              errors.add('指纹种子须为 1 – 2147483647 的整数');
-            }
-          }
-          const brands = <String>{'Chrome', 'Edge', 'Opera', 'Vivaldi'};
-          final brand = controllers['brand']!.text.trim();
-          if (brand.isNotEmpty && !brands.contains(brand)) {
-            errors.add('浏览器品牌仅支持 Chrome、Edge、Opera、Vivaldi');
-          }
-          const platforms = <String>{'windows', 'macos', 'linux'};
-          final platform = controllers['platform']!.text.trim();
-          if (platform.isNotEmpty && !platforms.contains(platform)) {
-            errors.add('系统平台仅支持 windows、macos、linux');
-          }
-          final language = controllers['language']!.text.trim();
-          if (language.isNotEmpty &&
-              !RegExp(r'^[A-Za-z]{2,3}([-_][A-Za-z0-9]{2,8})*$')
-                  .hasMatch(language)) {
-            errors.add('语言格式不正确，例如 zh-CN、en-US、ja-JP');
-          }
-          final acceptLanguage = controllers['acceptLanguage']!.text.trim();
-          if (acceptLanguage.isNotEmpty &&
-              !RegExp(
-                r'^[A-Za-z]{2,3}([-_][A-Za-z0-9]{2,8})*(\s*,\s*[A-Za-z]{2,3}([-_][A-Za-z0-9]{2,8})*)*$',
-              ).hasMatch(acceptLanguage)) {
-            errors.add('语言列表格式不正确，例如 zh-CN,zh 或 en-US,en');
-          }
-          final cpuText = controllers['cpu']!.text.trim();
-          if (cpuText.isNotEmpty) {
-            final parsed = int.tryParse(cpuText);
-            if (parsed == null || parsed < 1 || parsed > 128) {
-              errors.add('CPU 核心数须为 1 – 128 的整数');
-            }
-          }
-          final sizeText = controllers['windowSize']!.text.trim();
-          if (sizeText.isNotEmpty &&
-              !RegExp(r'^\d{3,5}[,xX]\d{3,5}$').hasMatch(sizeText)) {
-            errors.add('窗口分辨率格式应为 宽,高（如 1920,1080）');
-          }
-          final tzText = controllers['timezone']!.text.trim();
-          if (tzText.isNotEmpty && RegExp(r'\s').hasMatch(tzText)) {
-            errors.add('时区不能包含空白字符（如 America/New_York）');
-          }
-          return errors;
-        }
+        List<String> validateFields() => validateFingerprintArgs([
+          for (final field in fingerprintFieldFlags.entries)
+            '${field.value}=${controllers[field.key]!.text}',
+        ]);
 
         Widget toggle(String label, String key, Set<String> values) => SizedBox(
           width: 160,
@@ -896,7 +851,7 @@ Future<void> showFingerprintArgsDialog({
               child: const Text('取消'),
             ),
             prism.FilledButton(
-              onPressed: () {
+              onPressed: () async {
                 if (validateFields().isNotEmpty) return;
                 final next = <String>[];
                 void add(String key, String flag) {
@@ -925,10 +880,7 @@ Future<void> showFingerprintArgsDialog({
                 } else if (acceptLanguage.isNotEmpty) {
                   next.add('--accept-lang=$acceptLanguage');
                 }
-                final timezone = controllers['timezone']!.text.trim();
-                if (timezone.isNotEmpty && timezone != 'system') {
-                  next.add('--timezone=$timezone');
-                }
+                add('timezone', '--timezone=');
                 add('windowSize', '--window-size=');
                 add('cpu', '--fingerprint-hardware-concurrency=');
                 final webrtc = controllers['webrtc']!.text.trim();
@@ -950,7 +902,20 @@ Future<void> showFingerprintArgsDialog({
                 if (disableSpoofing.isNotEmpty) {
                   next.add('--disable-spoofing=${disableSpoofing.join(',')}');
                 }
-                Navigator.pop(context, [...next, ...unknownArgs]);
+                final args = [...next, ...unknownArgs];
+                if (controllers['timezone']!.text.trim() != 'system') {
+                  Navigator.pop(context, args);
+                  return;
+                }
+                try {
+                  final resolved = await resolveFingerprintSystemTimezone(args);
+                  if (context.mounted &&
+                      ModalRoute.of(context)?.isCurrent == true) {
+                    Navigator.pop(context, resolved);
+                  }
+                } catch (error) {
+                  if (context.mounted) showPrismNotice(context, '$error');
+                }
               },
               child: const Text('应用'),
             ),

@@ -24,6 +24,13 @@ func (m *Manager) Update(profileId string, input ProfileInput) (*Profile, error)
 		log.Error("代理绑定失败", logger.F("profile_id", profileId), logger.F("proxy_id", strings.TrimSpace(input.ProxyId)), logger.F("error", err.Error()))
 		return nil, err
 	}
+	if resolvedProxy.FallbackToDirect {
+		log.Error("更新实例时未提供代理绑定",
+			logger.F("profile_id", profileId),
+			logger.F("current_proxy_id", profile.ProxyId),
+		)
+		return nil, fmt.Errorf("实例未提供代理绑定：请显式选择代理池节点或直连后再保存（不支持清空代理）")
+	}
 
 	profile.ProfileName = input.ProfileName
 	profile.UserDataDir = input.UserDataDir
@@ -34,14 +41,6 @@ func (m *Manager) Update(profileId string, input ProfileInput) (*Profile, error)
 	profile.ProxyGroupName = resolvedProxy.ProxyGroupName
 	if resolvedProxy.HasSelectedProxy {
 		_ = BindProfileToProxy(profile, resolvedProxy.SelectedProxy, true)
-	} else if resolvedProxy.FallbackToDirect {
-		// 空代理输入既不保留（用户以为改了）也不自动改直连（暴露真实 IP）：直接报错。
-		// 调用方必须显式传入代理池节点 ID，或显式传入直连 ID。
-		log.Error("更新实例时未提供代理绑定",
-			logger.F("profile_id", profileId),
-			logger.F("current_proxy_id", profile.ProxyId),
-		)
-		return nil, fmt.Errorf("实例未提供代理绑定：请显式选择代理池节点或直连后再保存（不支持清空代理）")
 	} else {
 		profile.ProxyId = resolvedProxy.ProxyId
 		profile.ProxyConfig = resolvedProxy.ProxyConfig

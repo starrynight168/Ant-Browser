@@ -56,6 +56,21 @@ std::string ToUtf8(const std::wstring& value) {
   return result;
 }
 
+std::string SystemTimezone() {
+  const auto icu = LoadLibraryExW(L"icu.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+  if (!icu) return {};
+  using GetHostTimezone = int32_t (*)(wchar_t*, int32_t, int32_t*);
+  const auto get_host_timezone = reinterpret_cast<GetHostTimezone>(
+      GetProcAddress(icu, "ucal_getHostTimeZone"));
+  wchar_t zone[128] = {};
+  int32_t status = 0;
+  const auto length = get_host_timezone ? get_host_timezone(zone, 128, &status) : 0;
+  FreeLibrary(icu);
+  if (status > 0 || length <= 0 || length >= 128) return {};
+  const std::wstring id(zone, length);
+  return id == L"Etc/Unknown" ? std::string{} : ToUtf8(id);
+}
+
 std::vector<COMDLG_FILTERSPEC> BuildFilters(const EncodableValue* value,
                                            std::vector<std::wstring>* names,
                                            std::vector<std::wstring>* patterns) {
@@ -214,6 +229,11 @@ void FlutterWindow::HandleHostMethod(
     const flutter::MethodCall<EncodableValue>& call,
     std::unique_ptr<flutter::MethodResult<EncodableValue>> result) {
   const auto& method = call.method_name();
+
+  if (method == "systemTimezone") {
+    result->Success(EncodableValue(SystemTimezone()));
+    return;
+  }
   const auto* arguments = call.arguments();
   if (method == "window.hide") {
     ShowWindow(GetHandle(), SW_HIDE);

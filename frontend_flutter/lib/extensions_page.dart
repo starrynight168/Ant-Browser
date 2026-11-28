@@ -7,6 +7,7 @@ import 'package:prism_ui/prism_ui.dart' as prism;
 
 import 'app_bridge.dart';
 import 'prism_widgets.dart';
+import 'proxy_speed_results.dart';
 
 Uint8List? _decodeExtensionIcon(String icon) {
   if (!icon.startsWith('data:image')) return null;
@@ -167,6 +168,19 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
     return name.isNotEmpty ? name : _selectedProxyId;
   }
 
+  Duration _downloadProxySpeedMaxAge = const Duration(minutes: 30);
+
+  String _downloadProxySpeedLabel(Map<String, dynamic> proxy) {
+    final testedAt = DateTime.tryParse('${proxy['lastTestedAt'] ?? ''}');
+    if (testedAt == null) return '未测速';
+    if (!isProxySpeedFresh(testedAt, _downloadProxySpeedMaxAge)) {
+      return '测速已过期';
+    }
+    final latency = proxy['lastLatencyMs'];
+    if (proxy['lastTestOk'] != true) return '测速失败';
+    return latency is num ? '${latency.toInt()} ms' : '测速通过';
+  }
+
   Future<void> _refresh() async {
     if (mounted) setState(() => _loading = true);
     try {
@@ -176,7 +190,16 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
           .map((e) => Map<String, dynamic>.from(e))
           .toList();
       try {
-        final proxies = await AppBridge.call('BrowserProxyList');
+        final results = await Future.wait([
+          AppBridge.call('BrowserProxyList'),
+          AppBridge.call('GetProxyCheckSettings').catchError((_) => null),
+        ]);
+        final proxies = results[0];
+        final settings = results[1];
+        final minutes = settings is Map ? settings['speedIntervalMinutes'] : null;
+        if (minutes is num && minutes > 0) {
+          _downloadProxySpeedMaxAge = Duration(minutes: minutes.toInt());
+        }
         _proxies = (proxies as List? ?? [])
             .whereType<Map>()
             .map((e) => Map<String, dynamic>.from(e))
@@ -777,8 +800,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
         final configured = value['configured'] == true;
         final usesExtension = configured
             ? extensionIds.contains(extensionId)
-            : extension['enabled'] == true &&
-                  extension['defaultInstall'] == true;
+            : extension['defaultInstall'] == true;
         if (usesExtension) {
           usingProfiles.add({
             ...profiles[index],
@@ -1278,8 +1300,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
             ? (settings['extensionIds'] as List? ?? [])
                   .map((id) => id.toString())
                   .contains(extensionId)
-            : extension['enabled'] == true &&
-                  extension['defaultInstall'] == true;
+            : extension['defaultInstall'] == true;
         if (inherited) selected.add(profileId);
       }
       final groupNames = {
@@ -1862,7 +1883,7 @@ class _ExtensionsPageState extends State<ExtensionsPage> {
                 PrismDropdownItem(
                   value: proxy['proxyId']?.toString(),
                   child: Text(
-                    (proxy['proxyName'] ?? proxy['proxyId'] ?? '').toString(),
+                    '${proxy['proxyName'] ?? proxy['proxyId'] ?? ''} · ${_downloadProxySpeedLabel(proxy)}',
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),

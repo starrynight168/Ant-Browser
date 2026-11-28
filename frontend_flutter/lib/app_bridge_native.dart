@@ -124,6 +124,9 @@ class AppBridge {
 
   static Future<String> platform() async => 'windows';
 
+  static Future<String> systemTimezone() async =>
+      await _channel.invokeMethod<String>('systemTimezone') ?? '';
+
   static String readStorage(String key) => _storage[key] ?? '';
 
   static void writeStorage(String key, String value) {
