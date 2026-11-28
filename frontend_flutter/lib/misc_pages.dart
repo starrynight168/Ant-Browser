@@ -26,6 +26,102 @@ class _DocsGroup {
   final List<_DocsItem> items;
 }
 
+class _DocsEndpointTarget {
+  const _DocsEndpointTarget(this.sectionId, this.signature);
+
+  final String sectionId;
+  final String signature;
+}
+
+class _DocsEndpointMenuEntry {
+  const _DocsEndpointMenuEntry(this.label, this.docId);
+
+  final String label;
+  final String? docId;
+}
+
+const _docsEndpointTargets = <String, _DocsEndpointTarget>{
+  'api-profiles-list-detail': _DocsEndpointTarget(
+    'api-profiles-launch',
+    'GET /api/profiles',
+  ),
+  'api-profiles-create-detail': _DocsEndpointTarget(
+    'api-profiles-launch',
+    'POST /api/profiles',
+  ),
+  'api-profiles-get-detail': _DocsEndpointTarget(
+    'api-profiles-launch',
+    'GET /api/profiles/{profileId}',
+  ),
+  'api-profiles-update-detail': _DocsEndpointTarget(
+    'api-profiles-launch',
+    'PUT /api/profiles/{profileId}',
+  ),
+  'api-profiles-delete-detail': _DocsEndpointTarget(
+    'api-profiles-launch',
+    'DELETE /api/profiles/{profileId}',
+  ),
+  'api-profiles-status-detail': _DocsEndpointTarget(
+    'api-profiles-launch',
+    'GET /api/profiles/{profileId}/status',
+  ),
+  'api-profiles-stop-detail': _DocsEndpointTarget(
+    'api-profiles-launch',
+    'POST /api/profiles/{profileId}/stop',
+  ),
+  'api-launch-code-detail': _DocsEndpointTarget(
+    'api-profiles-launch',
+    'GET /api/launch/{code}',
+  ),
+  'api-launch-body-detail': _DocsEndpointTarget(
+    'api-profiles-launch',
+    'POST /api/launch',
+  ),
+  'api-runtime-active-detail': _DocsEndpointTarget(
+    'api-runtime',
+    'GET /api/runtime/active',
+  ),
+  'api-runtime-session-detail': _DocsEndpointTarget(
+    'api-runtime',
+    'POST /api/runtime/session',
+  ),
+  'api-runtime-status-detail': _DocsEndpointTarget(
+    'api-runtime',
+    'POST /api/runtime/status',
+  ),
+  'api-runtime-stop-detail': _DocsEndpointTarget(
+    'api-runtime',
+    'POST /api/runtime/stop',
+  ),
+  'api-cdp-version-detail': _DocsEndpointTarget(
+    'api-runtime',
+    'GET /json/version',
+  ),
+  'api-cdp-list-detail': _DocsEndpointTarget('api-runtime', 'GET /json/list'),
+  'api-cdp-ws-detail': _DocsEndpointTarget('api-runtime', 'WS /devtools/...'),
+  'api-automation-list-detail': _DocsEndpointTarget(
+    'api-automation',
+    'GET /api/automation/scripts',
+  ),
+  'api-automation-script-detail': _DocsEndpointTarget(
+    'api-automation',
+    'GET /api/automation/scripts/{scriptId}',
+  ),
+  'api-automation-run-detail': _DocsEndpointTarget(
+    'api-automation',
+    'POST /api/automation/scripts/run',
+  ),
+  'api-automation-runs-detail': _DocsEndpointTarget(
+    'api-automation',
+    'GET /api/automation/scripts/runs?limit=20',
+  ),
+};
+
+final _docsEndpointIdsBySignature = {
+  for (final entry in _docsEndpointTargets.entries)
+    entry.value.signature: entry.key,
+};
+
 class DocsPage extends StatefulWidget {
   const DocsPage({super.key});
   @override
@@ -34,8 +130,12 @@ class DocsPage extends StatefulWidget {
 
 class _DocsPageState extends State<DocsPage> {
   String _selected = 'tutorial-basic';
+  String? _selectedEndpointId;
   Map<String, dynamic> _launchServerInfo = {};
   final _searchController = TextEditingController();
+  late final Map<String, GlobalKey> _endpointKeys = {
+    for (final id in _docsEndpointTargets.keys) id: GlobalKey(),
+  };
 
   static const _groups = <_DocsGroup>[
     _DocsGroup('使用教程', AntGlyphs.book, [
@@ -78,17 +178,46 @@ class _DocsPageState extends State<DocsPage> {
     super.initState();
     final doc = Uri.base.queryParameters['doc'] ??
         AppBridge.readStorage('docs-selected');
-    if (_allItems.any((item) => item.id == doc)) _selected = doc;
+    final endpoint = _docsEndpointTargets[doc];
+    if (endpoint != null) {
+      _selected = endpoint.sectionId;
+      _selectedEndpointId = doc;
+      _scrollToEndpoint(doc);
+    } else if (_allItems.any((item) => item.id == doc)) {
+      _selected = doc;
+    }
     _loadLaunchServerInfo();
   }
 
   void _selectDoc(String id) {
-    setState(() => _selected = id);
+    setState(() {
+      _selected = id;
+      _selectedEndpointId = null;
+    });
+    _saveDocLocation(id);
+  }
+
+  void _selectEndpoint(String id) {
+    if (!_docsEndpointTargets.containsKey(id)) return;
+    setState(() => _selectedEndpointId = id);
+    _saveDocLocation(id);
+    _scrollToEndpoint(id);
+  }
+
+  void _saveDocLocation(String id) {
     AppBridge.writeStorage('docs-selected', id);
     final uri = Uri.base;
     AppBridge.replaceBrowserUrl(
       uri.replace(queryParameters: {...uri.queryParameters, 'doc': id}),
     );
+  }
+
+  void _scrollToEndpoint(String id) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final target = _endpointKeys[id]?.currentContext;
+      if (target != null) Scrollable.ensureVisible(target, alignment: 0.04);
+    });
   }
 
   @override
@@ -102,6 +231,8 @@ class _DocsPageState extends State<DocsPage> {
       final result = await AppBridge.call('GetLaunchServerInfo');
       if (mounted && result is Map) {
         setState(() => _launchServerInfo = Map<String, dynamic>.from(result));
+        final endpointId = _selectedEndpointId;
+        if (endpointId != null) _scrollToEndpoint(endpointId);
       }
     } catch (_) {}
   }
@@ -377,7 +508,11 @@ class _DocsPageState extends State<DocsPage> {
                                   ],
                                 ),
                                 const SizedBox(height: 18),
-                                _DocsMarkdown(source: renderedSource),
+                                _DocsMarkdown(
+                                  source: renderedSource,
+                                  endpointKeys: _endpointKeys,
+                                  onEndpointSelected: _selectEndpoint,
+                                ),
                                 if (section.id == 'tutorial-skill') ...[
                                   const SizedBox(height: 18),
                                   PrismSectionCard(
@@ -477,9 +612,15 @@ class _DocsPageState extends State<DocsPage> {
 }
 
 class _DocsMarkdown extends StatelessWidget {
-  const _DocsMarkdown({required this.source});
+  const _DocsMarkdown({
+    required this.source,
+    required this.endpointKeys,
+    required this.onEndpointSelected,
+  });
 
   final String source;
+  final Map<String, GlobalKey> endpointKeys;
+  final ValueChanged<String> onEndpointSelected;
 
   Widget _bodyLine(BuildContext context, String line, {required double height}) {
     final style = prism.AppTextStyle.body.of(context).copyWith(height: height);
@@ -584,7 +725,7 @@ class _DocsMarkdown extends StatelessWidget {
     var inCode = false;
     var codeLanguage = '';
     final tableRows = <List<String>>[];
-    final endpoints = <GlobalKey, String>{};
+    final endpoints = <GlobalKey, _DocsEndpointMenuEntry>{};
 
     void flushTable() {
       if (tableRows.isEmpty) return;
@@ -650,10 +791,14 @@ class _DocsMarkdown extends StatelessWidget {
         final heading = value.startsWith('### ')
             ? value.substring(4)
             : value.substring(3);
-        final endpoint = RegExp(r'^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+(/\S+)(.*)$').firstMatch(heading);
+        final endpoint = RegExp(r'^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS|WS)\s+(/\S+)(.*)$').firstMatch(heading);
         if (endpoint != null) {
-          final key = GlobalKey();
-          endpoints[key] = '${endpoint[1]} ${endpoint[2]}';
+          final signature = '${endpoint[1]} ${endpoint[2]}';
+          final endpointId = _docsEndpointIdsBySignature[signature];
+          final key = endpointId == null
+              ? GlobalKey()
+              : endpointKeys[endpointId]!;
+          endpoints[key] = _DocsEndpointMenuEntry(signature, endpointId);
           children.add(Padding(
             key: key,
             padding: const EdgeInsets.only(top: 12, bottom: 10),
@@ -723,11 +868,21 @@ class _DocsMarkdown extends StatelessWidget {
               icon: const PrismGlyph(AntGlyphs.api, size: 18),
               itemBuilder: (_) => [
                 for (final entry in endpoints.entries)
-                  PrismMenuItem(value: entry.key, child: Text(entry.value)),
+                  PrismMenuItem(
+                    value: entry.key,
+                    child: Text(entry.value.label),
+                  ),
               ],
               onSelected: (key) {
-                final target = key.currentContext;
-                if (target != null) Scrollable.ensureVisible(target, alignment: 0.04);
+                final docId = endpoints[key]?.docId;
+                if (docId != null) {
+                  onEndpointSelected(docId);
+                } else {
+                  final target = key.currentContext;
+                  if (target != null) {
+                    Scrollable.ensureVisible(target, alignment: 0.04);
+                  }
+                }
               },
             ),
           ),
